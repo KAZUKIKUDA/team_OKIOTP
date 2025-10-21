@@ -15,67 +15,71 @@
         <header class="main-header">
             <h1>講義詳細</h1>
         </header>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
         <section class="course-info">
             <p><strong>講義名：</strong> {{ course.name }}</p>
-            <p><strong>先生の名前：</strong> {{ course.teacher }}</p>
-            <p><strong>★：</strong>{{ course.star_rating }} / 5</p>
+            <p><strong>担当教員：</strong> {{ course.teacher }}</p>
+            <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
         </section>
 
         <section>
-            <h2>レビューの追加</h2>
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-                {% for category, message in messages %}
-                  <div class="flash-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
+            <h2>レビューを追加</h2>
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
-                <!-- ▼▼▼ 自由入力欄はここから削除 ▼▼▼ -->
                 
                 <h4>総合評価</h4>
-                <table class="rating-table">
-                    {% for i in range(1, 6) %}
-                    <tr>
-                        <td><input type="radio" id="star{{i}}" name="rating" value="{{i}}" {% if i == 3 %}checked{% endif %}></td>
-                        <td><label for="star{{i}}">星{{i}}</label></td>
-                    </tr>
-                    {% endfor %}
-                </table>
+                <!-- ▼▼▼ Final Corrected Star Rating HTML ▼▼▼ -->
+                <div class="star-rating-input">
+                    <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
+                    <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
+                    <input type="radio" id="rating-4" name="rating" value="4.0"><label class="star half-right" for="rating-4">★</label>
+                    <input type="radio" id="rating-3.5" name="rating" value="3.5"><label class="star half" for="rating-3.5">★</label>
+                    <input type="radio" id="rating-3" name="rating" value="3.0" checked><label class="star half-right" for="rating-3">★</label>
+                    <input type="radio" id="rating-2.5" name="rating" value="2.5"><label class="star half" for="rating-2.5">★</label>
+                    <input type="radio" id="rating-2" name="rating" value="2.0"><label class="star half-right" for="rating-2">★</label>
+                    <input type="radio" id="rating-1.5" name="rating" value="1.5"><label class="star half" for="rating-1.5">★</label>
+                    <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
+                    <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
+                </div>
+                <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
 
-                <div class="review-options">
-                    <h4>出席</h4>
-                    <div class="radio-group">
-                        <label><input type="radio" name="attendance" value="あり" required>あり</label>
-                        <label><input type="radio" name="attendance" value="なし">なし</label>
-                        <label><input type="radio" name="attendance" value="その他">その他</label>
-                    </div>
-
-                    <h4>テスト</h4>
-                    <div class="radio-group">
-                        <label><input type="radio" name="test" value="あり" required>あり</label>
-                        <label><input type="radio" name="test" value="なし">なし</label>
-                        <label><input type="radio" name="test" value="その他">その他</label>
-                    </div>
-
-                    <h4>レポート</h4>
-                    <div class="radio-group">
-                        <label><input type="radio" name="report" value="あり" required>あり</label>
-                        <label><input type="radio" name="report" value="なし">なし</label>
-                        <label><input type="radio" name="report" value="その他">その他</label>
-                    </div>
+                <h4>出席</h4>
+                <div class="radio-group">
+                    <label><input type="radio" name="attendance" value="あり" required>あり</label>
+                    <label><input type="radio" name="attendance" value="なし">なし</label>
+                    <label><input type="radio" name="attendance" value="その他">その他</label>
                 </div>
 
-                <!-- ▼▼▼ ここに「備考欄」として移動 ▼▼▼ -->
-                <h4>備考欄</h4>
-                <textarea name="review" placeholder="その他、特記事項があれば入力してください（課題の量、テスト形式、単位の取りやすさなど）" required></textarea>
+                <h4>テスト</h4>
+                <div class="radio-group">
+                    <label><input type="radio" name="test" value="あり" required>あり</label>
+                    <label><input type="radio" name="test" value="なし">なし</label>
+                    <label><input type="radio" name="test" value="その他">その他</label>
+                </div>
 
-                <button type="submit" class="btn">レビューを追加</button>
+                <h4>レポート</h4>
+                <div class="radio-group">
+                    <label><input type="radio" name="report" value="あり" required>あり</label>
+                    <label><input type="radio" name="report" value="なし">なし</label>
+                    <label><input type="radio" name="report" value="その他">その他</label>
+                </div>
+
+                <h4>備考欄 <small style="font-weight:normal; color:var(--light-text-color)">(任意)</small></h4>
+                <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など"></textarea>
+
+                <button type="submit" class="btn">レビューを投稿する</button>
             </form>
         </section>
 
         <section>
-            <h2>レビュー一覧</h2>
+            <h2>レビュー一覧 ({{ course.reviews|length }}件)</h2>
             {% if course.reviews %}
             <table class="review-table">
                 {% for review in course.reviews | reverse %}
@@ -83,21 +87,24 @@
                     <td>
                         <div class="review-meta">
                             <span><strong>投稿者:</strong> {{ review.author.username }}</span>
-                            <span><strong>評価:</strong> ★{{ review.rating }}</span>
+                            <span><strong>評価:</strong> ★{{ "%.1f"|format(review.rating) }}</span>
                             <span><strong>出席:</strong> {{ review.attendance }}</span>
                             <span><strong>テスト:</strong> {{ review.test }}</span>
                             <span><strong>レポート:</strong> {{ review.report }}</span>
                         </div>
+                        {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
             </table>
             {% else %}
-            <p>レビューがまだありません。</p>
+            <p>この講義にはまだレビューがありません。</p>
             {% endif %}
         </section>
         <a href="{{ url_for('index') }}" class="back-link">ホームに戻る</a>
     </div>
 </body>
 </html>
+

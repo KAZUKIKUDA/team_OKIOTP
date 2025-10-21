@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ゲストログイン</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="auth-container">
+        <h2>ゲストログイン</h2>
+        <p style="text-align: center; font-size: 0.9em; color: #777; margin-bottom: 20px;">デモ用に、お名前だけでログインできます。</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <form method="post">
+            <input type="text" name="username" placeholder="お名前" required>
+            <button type="submit" class="btn">この名前でログイン</button>
+        </form>
+        <a href="{{ url_for('login') }}" class="auth-link">学内メールでログイン</a>
+    </div>
+</body>
+</html>

@@ -1,3 +1,4 @@
+<!-- templates/login.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -15,11 +16,17 @@
             {% endfor %}
           {% endif %}
         {% endwith %}
+
         <form method="post">
             <input type="email" name="email" placeholder="学内メール" required>
             <input type="password" name="password" placeholder="パスワード" required>
             <button type="submit" class="btn">ログイン</button>
         </form>
+
+        <!-- ▼▼▼ ゲストログイン用のボタン（リンク）を追加 ▼▼▼ -->
+        <a href="{{ url_for('guest_login') }}" class="btn btn-guest">ゲストとしてログイン</a>
+        <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
+
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
     </div>
 </body>

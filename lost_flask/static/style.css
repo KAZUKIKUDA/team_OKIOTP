@@ -1,23 +1,27 @@
-/* static/style.css */
+/* static/style.css (Complete Version) */
 
-/* --- 基本設定 & 変数 --- */
+/* --- CSS Variables & Basic Setup --- */
 :root {
     --primary-color: #3498db;
     --primary-hover-color: #2980b9;
     --success-color: #2ecc71;
     --success-hover-color: #27ae60;
     --danger-color: #e74c3c;
+    --warning-color: #f39c12; /* For star rating */
+    --info-color: #3498db;
+    --guest-color: #95a5a6;
+    --guest-hover-color: #7f8c8d;
     --bg-color: #f4f7f6;
     --text-color: #333;
     --light-text-color: #777;
     --border-color: #e0e0e0;
     --card-bg-color: #ffffff;
-    --shadow-color: rgba(0, 0, 0, 0.1);
+    --shadow-color: rgba(0, 0, 0, 0.08);
 }
 
-/* --- 全体スタイル --- */
+/* --- General Styles --- */
 body {
-    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
     margin: 0;
@@ -30,31 +34,34 @@ body {
     margin: 20px auto;
     background: var(--card-bg-color);
     padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px var(--shadow-color);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px var(--shadow-color);
 }
 
 a {
     color: var(--primary-color);
     text-decoration: none;
+    transition: color 0.2s;
 }
 a:hover {
+    color: var(--primary-hover-color);
     text-decoration: underline;
 }
 
 hr {
     border: none;
     border-top: 1px solid var(--border-color);
-    margin: 20px 0;
+    margin: 30px 0;
 }
 
-/* --- ヘッダー --- */
+/* --- Headers --- */
 .user-header {
     max-width: 800px;
     margin: 0 auto 10px;
     padding: 0 10px;
     text-align: right;
     font-size: 0.9em;
+    color: var(--light-text-color);
 }
 
 .main-header {
@@ -64,9 +71,10 @@ hr {
 .main-header h1 {
     color: var(--primary-color);
     margin: 0;
+    font-weight: 600;
 }
 
-/* --- フォーム & ボタン --- */
+/* --- Forms & Buttons --- */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -75,13 +83,22 @@ textarea {
     padding: 12px;
     margin-bottom: 15px;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 6px;
     box-sizing: border-box;
     font-size: 1em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
 }
 textarea {
     resize: vertical;
-    min-height: 120px;
+    min-height: 100px;
 }
 
 .btn {
@@ -89,15 +106,18 @@ textarea {
     padding: 12px;
     color: #fff;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 1.1em;
     font-weight: bold;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
     background-color: var(--primary-color);
+    text-decoration: none !important;
+    box-sizing: border-box; /* For layout consistency */
 }
 .btn:hover {
     background-color: var(--primary-hover-color);
+    text-decoration: none !important;
 }
 
 .btn-logout {
@@ -110,12 +130,12 @@ textarea {
     font-size: 0.9em;
 }
 
-/* --- 認証ページ (ログイン・新規登録) --- */
+/* --- Authentication Pages --- */
 .auth-container {
     background: var(--card-bg-color);
     padding: 30px 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px var(--shadow-color);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px var(--shadow-color);
     width: 350px;
     margin: 50px auto;
 }
@@ -124,6 +144,7 @@ textarea {
     margin-top: 0;
     margin-bottom: 25px;
     color: var(--text-color);
+    font-weight: 600;
 }
 .auth-container .btn {
     margin-top: 10px;
@@ -140,27 +161,39 @@ textarea {
     margin-top: 20px;
     font-size: 0.9em;
 }
+.btn-guest {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    background-color: var(--guest-color);
+}
+.btn-guest:hover {
+    background-color: var(--guest-hover-color);
+}
 
-/* --- フラッシュメッセージ --- */
+/* --- Flash Messages --- */
 .flash-message {
-    padding: 12px;
+    padding: 15px;
     margin-bottom: 20px;
-    border-radius: 4px;
+    border-radius: 6px;
     text-align: center;
     font-size: 0.95em;
+    border: 1px solid transparent;
 }
 .flash-message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    background-color: #d4edda; color: #155724; border-color: #c3e6cb;
 }
 .flash-message.danger, .flash-message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;
+}
+.flash-message.warning {
+    background-color: #fff3cd; color: #856404; border-color: #ffeeba;
+}
+.flash-message.info {
+    background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb;
 }
 
-/* --- 詳細ページ --- */
+/* --- Detail & Search Page --- */
 .course-info {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 15px;
@@ -170,46 +203,101 @@ textarea {
     margin: 8px 0;
     font-size: 1.1em;
 }
-
 section {
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 }
 section h2, section h4 {
     margin-top: 0;
     border-left: 5px solid var(--primary-color);
     padding-left: 10px;
+    margin-bottom: 20px;
 }
-
-.rating-table, .review-table {
+.review-table, .search-results-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
 }
-.review-table tr {
+.review-table tr:not(:last-child) {
     border-bottom: 1px solid var(--border-color);
 }
-.review-table td {
+.review-table td, .search-results-table td {
     padding: 15px 5px;
 }
-
+.search-results-table th {
+    padding: 12px 5px;
+    text-align: left;
+    background-color: var(--bg-color);
+    border-bottom: 2px solid var(--primary-color);
+}
+.search-results-table tr:hover {
+    background-color: #f9f9f9;
+}
 .review-meta {
     font-size: 0.9em;
     color: var(--light-text-color);
     margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 .review-meta span {
-    margin-right: 15px;
+    white-space: nowrap;
 }
 .review-text {
-    line-height: 1.6;
-    white-space: pre-wrap; /* 改行を保持 */
+    line-height: 1.7;
+    white-space: pre-wrap;
+    color: #555;
 }
-
 .radio-group label {
-    margin-right: 15px;
+    margin-right: 20px;
 }
-
 .back-link {
     display: inline-block;
     margin-top: 20px;
 }
+
+/* --- Interactive Star Rating (Final Version) --- */
+.star-rating-input {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    font-size: 2.5em;
+    margin-bottom: 20px;
+}
+
+.star-rating-input input {
+    display: none;
+}
+
+.star-rating-input .star {
+    position: relative;
+    display: block;
+    width: 1em;
+    cursor: pointer;
+    color: #e0e0e0;
+    transition: color 0.2s;
+}
+
+.star-rating-input .star.half {
+    width: 0.5em;
+    overflow: hidden;
+}
+
+.star-rating-input .star.half-right {
+    width: 0.5em;
+    overflow: hidden;
+    direction: rtl;
+}
+
+.star-rating-input .star.half::before {
+    content: '★';
+    position: absolute;
+    width: 1em;
+}
+
+.star-rating-input label:hover,
+.star-rating-input label:hover ~ label,
+.star-rating-input input:checked ~ label {
+    color: var(--warning-color);
+}
+
