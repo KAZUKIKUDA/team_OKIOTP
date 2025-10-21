@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>講義詳細</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="user-header">
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1>講義詳細</h1>
+        </header>
+        <section class="course-info">
+            <p><strong>講義名：</strong> {{ course.name }}</p>
+            <p><strong>先生の名前：</strong> {{ course.teacher }}</p>
+            <p><strong>★：</strong>{{ course.star_rating }} / 5</p>
+        </section>
+
+        <section>
+            <h2>レビューの追加</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+            <form action="{{ url_for('add_review', id=course.id) }}" method="post">
+                <!-- ▼▼▼ 自由入力欄はここから削除 ▼▼▼ -->
+                
+                <h4>総合評価</h4>
+                <table class="rating-table">
+                    {% for i in range(1, 6) %}
+                    <tr>
+                        <td><input type="radio" id="star{{i}}" name="rating" value="{{i}}" {% if i == 3 %}checked{% endif %}></td>
+                        <td><label for="star{{i}}">星{{i}}</label></td>
+                    </tr>
+                    {% endfor %}
+                </table>
+
+                <div class="review-options">
+                    <h4>出席</h4>
+                    <div class="radio-group">
+                        <label><input type="radio" name="attendance" value="あり" required>あり</label>
+                        <label><input type="radio" name="attendance" value="なし">なし</label>
+                        <label><input type="radio" name="attendance" value="その他">その他</label>
+                    </div>
+
+                    <h4>テスト</h4>
+                    <div class="radio-group">
+                        <label><input type="radio" name="test" value="あり" required>あり</label>
+                        <label><input type="radio" name="test" value="なし">なし</label>
+                        <label><input type="radio" name="test" value="その他">その他</label>
+                    </div>
+
+                    <h4>レポート</h4>
+                    <div class="radio-group">
+                        <label><input type="radio" name="report" value="あり" required>あり</label>
+                        <label><input type="radio" name="report" value="なし">なし</label>
+                        <label><input type="radio" name="report" value="その他">その他</label>
+                    </div>
+                </div>
+
+                <!-- ▼▼▼ ここに「備考欄」として移動 ▼▼▼ -->
+                <h4>備考欄</h4>
+                <textarea name="review" placeholder="その他、特記事項があれば入力してください（課題の量、テスト形式、単位の取りやすさなど）" required></textarea>
+
+                <button type="submit" class="btn">レビューを追加</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>レビュー一覧</h2>
+            {% if course.reviews %}
+            <table class="review-table">
+                {% for review in course.reviews | reverse %}
+                <tr>
+                    <td>
+                        <div class="review-meta">
+                            <span><strong>投稿者:</strong> {{ review.author.username }}</span>
+                            <span><strong>評価:</strong> ★{{ review.rating }}</span>
+                            <span><strong>出席:</strong> {{ review.attendance }}</span>
+                            <span><strong>テスト:</strong> {{ review.test }}</span>
+                            <span><strong>レポート:</strong> {{ review.report }}</span>
+                        </div>
+                        <p class="review-text">{{ review.review }}</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p>レビューがまだありません。</p>
+            {% endif %}
+        </section>
+        <a href="{{ url_for('index') }}" class="back-link">ホームに戻る</a>
+    </div>
+</body>
+</html>

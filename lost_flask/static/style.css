@@ -1,0 +1,215 @@
+/* static/style.css */
+
+/* --- 基本設定 & 変数 --- */
+:root {
+    --primary-color: #3498db;
+    --primary-hover-color: #2980b9;
+    --success-color: #2ecc71;
+    --success-hover-color: #27ae60;
+    --danger-color: #e74c3c;
+    --bg-color: #f4f7f6;
+    --text-color: #333;
+    --light-text-color: #777;
+    --border-color: #e0e0e0;
+    --card-bg-color: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+/* --- 全体スタイル --- */
+body {
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    font-size: 16px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: var(--card-bg-color);
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 20px 0;
+}
+
+/* --- ヘッダー --- */
+.user-header {
+    max-width: 800px;
+    margin: 0 auto 10px;
+    padding: 0 10px;
+    text-align: right;
+    font-size: 0.9em;
+}
+
+.main-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.main-header h1 {
+    color: var(--primary-color);
+    margin: 0;
+}
+
+/* --- フォーム & ボタン --- */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1em;
+}
+textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    background-color: var(--primary-color);
+}
+.btn:hover {
+    background-color: var(--primary-hover-color);
+}
+
+.btn-logout {
+    display: inline-block;
+    padding: 5px 10px;
+    background-color: var(--danger-color);
+    color: #fff;
+    border-radius: 4px;
+    margin-left: 10px;
+    font-size: 0.9em;
+}
+
+/* --- 認証ページ (ログイン・新規登録) --- */
+.auth-container {
+    background: var(--card-bg-color);
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    width: 350px;
+    margin: 50px auto;
+}
+.auth-container h2 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 25px;
+    color: var(--text-color);
+}
+.auth-container .btn {
+    margin-top: 10px;
+}
+.auth-container .btn-register {
+    background-color: var(--success-color);
+}
+.auth-container .btn-register:hover {
+    background-color: var(--success-hover-color);
+}
+.auth-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9em;
+}
+
+/* --- フラッシュメッセージ --- */
+.flash-message {
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.95em;
+}
+.flash-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.flash-message.danger, .flash-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* --- 詳細ページ --- */
+.course-info {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+.course-info p {
+    margin: 8px 0;
+    font-size: 1.1em;
+}
+
+section {
+    margin-bottom: 30px;
+}
+section h2, section h4 {
+    margin-top: 0;
+    border-left: 5px solid var(--primary-color);
+    padding-left: 10px;
+}
+
+.rating-table, .review-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+.review-table tr {
+    border-bottom: 1px solid var(--border-color);
+}
+.review-table td {
+    padding: 15px 5px;
+}
+
+.review-meta {
+    font-size: 0.9em;
+    color: var(--light-text-color);
+    margin-bottom: 10px;
+}
+.review-meta span {
+    margin-right: 15px;
+}
+.review-text {
+    line-height: 1.6;
+    white-space: pre-wrap; /* 改行を保持 */
+}
+
+.radio-group label {
+    margin-right: 15px;
+}
+
+.back-link {
+    display: inline-block;
+    margin-top: 20px;
+}

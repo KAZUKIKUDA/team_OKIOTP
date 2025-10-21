@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>講義レビュー</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="user-header">
+        {% if current_user.is_authenticated %}
+            <span>こんにちは, {{ current_user.username }} さん</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="btn">ログイン</a>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1>講義レビュー</h1>
+        </header>
+        <p>講義のレビューを追加したい場合は、講義の検索をしてその詳細ページからお願いいたします。</p>
+        <p>講義が検索しても出てこない場合は、講義登録をご自身で行なってから、レビューを追加してください。</p>
+        <hr>
+
+        <section>
+            <h2>講義登録</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('add_course') }}" method="POST">
+                <input type="text" name="name" placeholder="講義名 (例)知能情報基礎演習Ⅱ 01組" required>
+                <input type="text" name="teacher" placeholder="先生の名前 (例)城間 政司" required>
+                <button type="submit" class="btn">追加</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>検索</h2>
+            <form action="{{ url_for('search_course') }}" method="POST">
+                <input type="text" name="search" placeholder="講義名、先生の名前">
+                <button type="submit" class="btn">検索</button>
+            </form>
+        </section>
+    </div>
+</body>
+</html>

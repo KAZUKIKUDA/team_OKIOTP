@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>検索結果</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* search.html専用のスタイル */
+        .search-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .search-results-table th,
+        .search-results-table td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+        }
+
+        .search-results-table th {
+            background-color: var(--bg-color);
+            font-weight: bold;
+        }
+
+        .search-results-table tr:hover {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-header">
+        {% if current_user.is_authenticated %}
+            <span>こんにちは, {{ current_user.username }} さん</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1>検索結果</h1>
+        </header>
+
+        <section>
+            {% if results %}
+                <p>{{ results|length }}件の講義が見つかりました。</p>
+                <table class="search-results-table">
+                    <thead>
+                        <tr>
+                            <th>講義名</th>
+                            <th>担当教員</th>
+                            <th>総合評価</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in results %}
+                        <tr>
+                            <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
+                            <td>{{ course.teacher }}</td>
+                            <td>★ {{ course.star_rating }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>該当する講義は見つかりませんでした。</p>
+            {% endif %}
+        </section>
+
+        <a href="{{ url_for('index') }}" class="back-link">ホームに戻る</a>
+    </div>
+</body>
+</html>

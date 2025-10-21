@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>メールアドレスの確認</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; }
+        .container { padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; }
+        .button { display: inline-block; background-color: #3498db; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>アカウント登録ありがとうございます</h2>
+        <p>以下のボタンをクリックして、メールアドレスの認証を完了してください。</p>
+        <p>
+            <a href="{{ confirm_url }}" class="button">アカウントを有効にする</a>
+        </p>
+        <p>このリンクの有効期限は1時間です。</p>
+        <p>もしこのメールに心当たりがない場合は、お手数ですがこのメールを破棄してください。</p>
+    </div>
+</body>
+</html>

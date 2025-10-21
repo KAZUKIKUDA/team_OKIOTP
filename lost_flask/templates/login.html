@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ログイン</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="auth-container">
+        <h2>ログイン</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <form method="post">
+            <input type="email" name="email" placeholder="学内メール" required>
+            <input type="password" name="password" placeholder="パスワード" required>
+            <button type="submit" class="btn">ログイン</button>
+        </form>
+        <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
+    </div>
+</body>
+</html>
