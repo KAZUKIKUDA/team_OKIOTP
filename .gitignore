@@ -1,0 +1,10 @@
+# 仮想環境
+venv/
+lost_flask/venv
+# Pythonキャッシュ
+lost_flask/__pycache__/
+lost_flask/*.pyc
+
+# ローカルデータベース
+instance/
+lost_flask/instance/
