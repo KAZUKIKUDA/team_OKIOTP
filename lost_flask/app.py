@@ -26,12 +26,17 @@ login_manager.login_view = 'login'
 login_manager.login_message = "このページにアクセスするにはログインしてください。"
 login_manager.login_message_category = "danger"
 
-# --- Database Models (変更なし) ---
+# --- Database Models ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), nullable=False, unique=True)
     email = db.Column(db.String(150), nullable=False, unique=True)
-    password = db.Column(db.String(150), nullable=False)
+    
+    # ▼▼▼ 修正 ▼▼▼
+    # パスワードハッシュが150文字を超えるため、256文字に変更
+    password = db.Column(db.String(256), nullable=False) 
+    # ▲▲▲ 修正 ▲▲▲
+    
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
 
@@ -50,7 +55,7 @@ class Course(db.Model):
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     review = db.Column(db.Text, nullable=True)
-    rating = db.Column(db.Float, nullable=False) # Float評価に戻す
+    rating = db.Column(db.Float, nullable=False) 
     attendance = db.Column(db.String(10), nullable=False)
     test = db.Column(db.String(10), nullable=False)
     report = db.Column(db.String(10), nullable=False)
@@ -62,7 +67,6 @@ class Review(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    # エラーハンドリングを追加
     try:
         return User.query.get(int(user_id))
     except Exception as e:
@@ -87,7 +91,6 @@ def register():
             flash('指定された形式の学内メールアドレスを使用してください。 (例: e235701@cs.u-ryukyu.ac.jp)', 'danger')
             return redirect(url_for('register'))
             
-        # 先にチェックするが、レースコンディションは防げない
         if User.query.filter_by(username=username).first():
             flash('そのユーザー名は既に使用されています。', 'danger')
             return redirect(url_for('register'))
@@ -95,25 +98,27 @@ def register():
             flash('このメールアドレスは既に使用されています。', 'danger')
             return redirect(url_for('register'))
 
+        new_user = None # メール送信失敗時にロールバックするため
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             new_user = User(username=username, email=email, password=hashed_password)
             db.session.add(new_user)
-            db.session.commit() # <<< データベース書き込み
+            db.session.commit() 
 
-            # データベース書き込み成功後にメール送信
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
             html = render_template('email/activate.html', confirm_url=confirm_url)
             msg = Message('講義レビュー | メールアドレスの確認', recipients=[email], html=html)
-            mail.send(msg)
+            
+            app.logger.info("Attempting to send email...") # ログ追加
+            mail.send(msg) # <<< タイムアウトする可能性
+            app.logger.info("Email sent successfully.") # ログ追加
             
             flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
             return redirect(url_for('login'))
 
-        except IntegrityError: # <<< エラー処理を追加
-            db.session.rollback() # トランザクションをロールバック
-            # エラーが
+        except IntegrityError: 
+            db.session.rollback() 
             if User.query.filter_by(username=username).first():
                 flash('そのユーザー名は既に使用されています。 (エラー: IE-U)', 'danger')
             elif User.query.filter_by(email=email).first():
@@ -123,10 +128,22 @@ def register():
             return redirect(url_for('register'))
             
         except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Registration error: {e}") # Renderのログに出力
-            flash('不明なエラーが発生しました。もう一度お試しください。', 'danger')
+            # ▼▼▼ 修正 ▼▼▼
+            # メール送信失敗などでエラーになった場合
+            app.logger.error(f"Registration error: {e}") 
+            
+            # もしユーザー作成(commit)が成功した後にメール送信(send)で失敗した場合、
+            # ユーザー作成を取り消す（ロールバック）
+            if new_user:
+                try:
+                    db.session.rollback()
+                    app.logger.info("User creation rolled back due to mail error.")
+                except Exception as rb_e:
+                    app.logger.error(f"Rollback failed: {rb_e}")
+            
+            flash(f'不明なエラー（{type(e).__name__}）が発生しました。管理者に連絡してください。', 'danger')
             return redirect(url_for('register'))
+            # ▲▲▲ 修正 ▲▲▲
 
     return render_template('register.html')
 
@@ -170,7 +187,6 @@ def login():
             return redirect(url_for('login'))
             
         login_user(user)
-        # 'next' パラメータがあればそこにリダイレクト
         next_page = request.args.get('next')
         return redirect(next_page or url_for('index'))
         
@@ -187,7 +203,6 @@ def guest_login():
             flash('お名前を入力してください。', 'danger')
             return redirect(url_for('guest_login'))
             
-        # 先にチェック
         if User.query.filter_by(username=username).first():
             flash('その名前は登録済みのユーザーが使用しています。別の名前を入力してください。', 'danger')
             return redirect(url_for('guest_login'))
@@ -198,14 +213,14 @@ def guest_login():
             new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
             
             db.session.add(new_guest_user)
-            db.session.commit() # <<< データベース書き込み
+            db.session.commit() 
 
             login_user(new_guest_user)
             flash(f'{username}さんとしてゲストログインしました。', 'success')
             return redirect(url_for('index'))
 
-        except IntegrityError: # <<< エラー処理を追加
-            db.session.rollback() # ロールバック
+        except IntegrityError: 
+            db.session.rollback() 
             flash('その名前は直前に使用されました。別の名前を入力してください。', 'danger')
             return redirect(url_for('guest_login'))
             
@@ -235,10 +250,9 @@ def add_course():
         return redirect(url_for('index'))
         
     if not syllabus_url or not syllabus_url.startswith('https://tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/'):
-        flash('2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。', 'danger')
+        flash('2025年度の正しいシラスURL (https://tiglon...で始まる) を入力してください。', 'danger')
         return redirect(url_for('index'))
         
-    # 講義名での重複チェック
     existing_course = Course.query.filter_by(name=name).first()
     if existing_course:
         flash('この講義名は既に登録されています。', 'info')
@@ -280,16 +294,13 @@ def search_course():
 @login_required
 def course_detail(id):
     course = Course.query.get_or_404(id)
-    # ユーザーが既にレビュー投稿済みかチェック (任意)
-    # user_has_reviewed = Review.query.filter_by(course_id=id, user_id=current_user.id).first()
-    return render_template('detail.html', course=course) #, user_has_reviewed=user_has_reviewed)
+    return render_template('detail.html', course=course)
 
 @app.route('/add_review/<int:id>', methods=['POST'])
 @login_required
 def add_review(id):
     course = Course.query.get_or_404(id)
     
-    # 既にレビュー済みかサーバーサイドでチェック
     existing_review = Review.query.filter_by(course_id=id, user_id=current_user.id).first()
     if existing_review:
         flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')
@@ -334,6 +345,4 @@ def add_review(id):
 
 
 if __name__ == '__main__':
-    # 開発環境でのみデバッグモードを有効にする
-    # Renderは 'DEBUG' 環境変数を設定しないため、自動的に False になる
     app.run(debug=os.environ.get('DEBUG', 'False').lower() == 'true')
