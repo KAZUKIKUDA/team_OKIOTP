@@ -15,7 +15,7 @@
         <header class="main-header">
             <h1>講義詳細</h1>
         </header>
-        
+
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
               {% for category, message in messages %}
@@ -23,53 +23,109 @@
               {% endfor %}
             {% endif %}
         {% endwith %}
-        
+
         <section class="course-info">
             <p><strong>講義名：</strong> {{ course.name }}</p>
             <p><strong>担当教員：</strong> {{ course.teacher }}</p>
             <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
+            {% if course.syllabus_url %}
+            <p><strong>シラバス：</strong> <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
+            {% endif %}
         </section>
 
         <section>
             <h2>レビューを追加</h2>
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
-                
+
                 <h4>総合評価</h4>
-                <!-- ▼▼▼ Final Corrected Star Rating HTML ▼▼▼ -->
+                <!-- ▼▼▼ Reverted to RTL-based Star Rating HTML ▼▼▼ -->
                 <div class="star-rating-input">
-                    <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
-                    <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
-                    <input type="radio" id="rating-4" name="rating" value="4.0"><label class="star half-right" for="rating-4">★</label>
-                    <input type="radio" id="rating-3.5" name="rating" value="3.5"><label class="star half" for="rating-3.5">★</label>
-                    <input type="radio" id="rating-3" name="rating" value="3.0" checked><label class="star half-right" for="rating-3">★</label>
-                    <input type="radio" id="rating-2.5" name="rating" value="2.5"><label class="star half" for="rating-2.5">★</label>
-                    <input type="radio" id="rating-2" name="rating" value="2.0"><label class="star half-right" for="rating-2">★</label>
-                    <input type="radio" id="rating-1.5" name="rating" value="1.5"><label class="star half" for="rating-1.5">★</label>
-                    <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
-                    <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
+                <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
+                <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
+                <input type="radio" id="rating-4" name="rating" value="4.0"><label class="star half-right" for="rating-4">★</label>
+                <input type="radio" id="rating-3.5" name="rating" value="3.5"><label class="star half" for="rating-3.5">★</label>
+                <input type="radio" id="rating-3" name="rating" value="3.0" checked><label class="star half-right" for="rating-3">★</label>
+                <input type="radio" id="rating-2.5" name="rating" value="2.5"><label class="star half" for="rating-2.5">★</label>
+                <input type="radio" id="rating-2" name="rating" value="2.0"><label class="star half-right" for="rating-2">★</label>
+                <input type="radio" id="rating-1.5" name="rating" value="1.5"><label class="star half" for="rating-1.5">★</label>
+                <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
+                <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
                 </div>
                 <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
 
+
+                <!-- ▼▼▼ Radio button HTML structure updated for custom styling ▼▼▼ -->
                 <h4>出席</h4>
                 <div class="radio-group">
-                    <label><input type="radio" name="attendance" value="あり" required>あり</label>
-                    <label><input type="radio" name="attendance" value="なし">なし</label>
-                    <label><input type="radio" name="attendance" value="その他">その他</label>
+                    <label>
+                        <input type="radio" name="attendance" value="あり" required>
+                        <span>あり</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="attendance" value="なし">
+                        <span>なし</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="attendance" value="その他">
+                        <span>その他</span>
+                    </label>
                 </div>
 
                 <h4>テスト</h4>
                 <div class="radio-group">
-                    <label><input type="radio" name="test" value="あり" required>あり</label>
-                    <label><input type="radio" name="test" value="なし">なし</label>
-                    <label><input type="radio" name="test" value="その他">その他</label>
+                     <label>
+                        <input type="radio" name="test" value="あり" required>
+                        <span>あり</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="test" value="なし">
+                        <span>なし</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="test" value="その他">
+                        <span>その他</span>
+                    </label>
                 </div>
 
                 <h4>レポート</h4>
                 <div class="radio-group">
-                    <label><input type="radio" name="report" value="あり" required>あり</label>
-                    <label><input type="radio" name="report" value="なし">なし</label>
-                    <label><input type="radio" name="report" value="その他">その他</label>
+                     <label>
+                        <input type="radio" name="report" value="あり" required>
+                        <span>あり</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="report" value="なし">
+                        <span>なし</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="report" value="その他">
+                        <span>その他</span>
+                    </label>
                 </div>
+
+                <h4>授業形式</h4>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="course_format" value="対面" required>
+                        <span>対面</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="course_format" value="オンライン">
+                        <span>オンライン</span>
+                    </label>
+                     <label>
+                        <input type="radio" name="course_format" value="オンデマンド">
+                        <span>オンデマンド</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="course_format" value="その他">
+                        <span>その他</span>
+                    </label>
+                </div>
+                <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
+
+                <h4>開講教室</h4>
+                <input type="text" name="classroom" placeholder="例： 共通教育棟1-101">
 
                 <h4>備考欄 <small style="font-weight:normal; color:var(--light-text-color)">(任意)</small></h4>
                 <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など"></textarea>
@@ -91,6 +147,8 @@
                             <span><strong>出席:</strong> {{ review.attendance }}</span>
                             <span><strong>テスト:</strong> {{ review.test }}</span>
                             <span><strong>レポート:</strong> {{ review.report }}</span>
+                            <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
+                            <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
                         </div>
                         {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>

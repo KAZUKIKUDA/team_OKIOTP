@@ -1,4 +1,4 @@
-/* static/style.css (Complete Version) */
+/* static/style.css (Final Corrected Version) */
 
 /* --- CSS Variables & Basic Setup --- */
 :root {
@@ -27,6 +27,7 @@ body {
     margin: 0;
     padding: 20px;
     font-size: 16px;
+    line-height: 1.6;
 }
 
 .container {
@@ -78,10 +79,11 @@ hr {
 input[type="text"],
 input[type="email"],
 input[type="password"],
+input[type="url"], /* Added style for URL input */
 textarea {
     width: 100%;
     padding: 12px;
-    margin-bottom: 15px;
+    margin-bottom: 15px; /* Consistent margin */
     border: 1px solid var(--border-color);
     border-radius: 6px;
     box-sizing: border-box;
@@ -91,6 +93,7 @@ textarea {
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
+input[type="url"]:focus,
 textarea:focus {
     outline: none;
     border-color: var(--primary-color);
@@ -101,9 +104,15 @@ textarea {
     min-height: 100px;
 }
 
+/* Align syllabus URL input with others */
+form input[name="syllabus_url"] {
+    margin-top: 0; /* Remove extra top margin */
+}
+
 .btn {
     width: 100%;
     padding: 12px;
+    margin-top: 15px; /* Adjusted margin-top for spacing */
     color: #fff;
     border: none;
     border-radius: 6px;
@@ -203,6 +212,14 @@ textarea {
     margin: 8px 0;
     font-size: 1.1em;
 }
+.course-info a {
+    font-weight: normal;
+    text-decoration: underline;
+}
+.course-info a:hover {
+    color: var(--primary-hover-color);
+}
+
 section {
     margin-bottom: 40px;
 }
@@ -222,6 +239,7 @@ section h2, section h4 {
 }
 .review-table td, .search-results-table td {
     padding: 15px 5px;
+    vertical-align: top;
 }
 .search-results-table th {
     padding: 12px 5px;
@@ -238,66 +256,111 @@ section h2, section h4 {
     margin-bottom: 10px;
     display: flex;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 10px 15px;
 }
 .review-meta span {
     white-space: nowrap;
+    line-height: 1.4;
 }
 .review-text {
     line-height: 1.7;
     white-space: pre-wrap;
     color: #555;
-}
-.radio-group label {
-    margin-right: 20px;
+    margin-top: 5px;
 }
 .back-link {
     display: inline-block;
     margin-top: 20px;
 }
 
-/* --- Interactive Star Rating (Final Version) --- */
-.star-rating-input {
+/* --- Improved Radio Buttons --- */
+.radio-group {
     display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-    font-size: 2.5em;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    margin-bottom: 25px;
 }
-
-.star-rating-input input {
-    display: none;
-}
-
-.star-rating-input .star {
-    position: relative;
-    display: block;
-    width: 1em;
+.radio-group label {
+    display: inline-flex;
+    align-items: center;
     cursor: pointer;
-    color: #e0e0e0;
-    transition: color 0.2s;
+    margin-right: 0; /* Override default */
+}
+.radio-group input[type="radio"] {
+    display: none; /* Hide default */
+}
+.radio-group span { /* Text label */
+    line-height: 1; /* Ensure text aligns with button */
+}
+/* Custom radio button appearance */
+.radio-group input[type="radio"] + span::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: -4px; /* Fine-tune vertical alignment */
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+/* Checked state */
+.radio-group input[type="radio"]:checked + span::before {
+    border-color: var(--primary-color);
+    background-color: var(--primary-color);
+    box-shadow: inset 0 0 0 4px var(--card-bg-color); /* Inner circle effect */
+}
+/* Focus state for accessibility */
+.radio-group input[type="radio"]:focus + span::before {
+     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 0 0 4px var(--card-bg-color);
+}
+/* Ensure checked focus state also looks correct */
+.radio-group input[type="radio"]:checked:focus + span::before {
+     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 0 0 4px var(--card-bg-color);
 }
 
-.star-rating-input .star.half {
-    width: 0.5em;
-    overflow: hidden;
-}
 
-.star-rating-input .star.half-right {
-    width: 0.5em;
-    overflow: hidden;
-    direction: rtl;
-}
+/* --- Interactive Star Rating (Final Version) --- */ 
+.star-rating-input { 
+display: flex; 
+flex-direction: row-reverse; 
+justify-content: flex-end; 
+font-size: 2.5em; 
+margin-bottom: 20px; 
+} 
 
-.star-rating-input .star.half::before {
-    content: '★';
-    position: absolute;
-    width: 1em;
-}
+.star-rating-input input { 
+display: none; 
+} 
 
-.star-rating-input label:hover,
-.star-rating-input label:hover ~ label,
-.star-rating-input input:checked ~ label {
-    color: var(--warning-color);
-}
+.star-rating-input .star { 
+position: relative; 
+display: block; 
+width: 1em; 
+cursor: pointer; 
+color: #e0e0e0; 
+transition: color 0.2s; 
+} 
 
+.star-rating-input .star.half { 
+width: 0.5em; 
+overflow: hidden; 
+} 
+
+.star-rating-input .star.half-right { 
+width: 0.5em; 
+overflow: hidden; 
+direction: rtl; 
+} 
+
+.star-rating-input .star.half::before { 
+content: '★'; 
+position: absolute; 
+width: 1em; 
+} 
+
+.star-rating-input label:hover, 
+.star-rating-input label:hover ~ label, 
+.star-rating-input input:checked ~ label { 
+color: var(--warning-color); 
+}

@@ -30,11 +30,17 @@
 
         <section>
             <h2>講義登録</h2>
-            <p>講義名、先生の名前は教務情報システム記載通りにお願いいたします。</p>
+            <p>講義名・担当教員名は、シラバス等の記載通りに正確にお願いいたします。</p>
             <form action="{{ url_for('add_course') }}" method="POST">
-                <input type="text" name="name" placeholder="講義名 (例)知能情報基礎演習Ⅱ 01組" required>
-                <input type="text" name="teacher" placeholder="先生の名前 (例)城間 政司" required>
-                <button type="submit" class="btn">登録</button>
+                <input type="text" name="name" placeholder="講義名 (例: 知能情報基礎演習Ⅱ 01組)" required>
+                <input type="text" name="teacher" placeholder="担当教員名 (例: 城間 政司)" required>
+                <!-- ▼▼▼ Removed inline style ▼▼▼ -->
+                <input type="url" name="syllabus_url"
+                       placeholder="2025年度 シラバスURL"
+                       pattern="^https://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/.*\.aspx\?lct_year=2025.*"
+                       title="2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。"
+                       required>
+                <button type="submit" class="btn">登録する</button>
             </form>
         </section>
 
@@ -43,8 +49,8 @@
         <section>
             <h2>講義検索</h2>
             <form action="{{ url_for('search_course') }}" method="POST">
-                <input type="text" name="search" placeholder="講義名、先生の名前">
-                <button type="submit" class="btn">検索</button>
+                <input type="text" name="search" placeholder="講義名、または担当教員名で検索">
+                <button type="submit" class="btn">検索する</button>
             </form>
         </section>
     </div>
