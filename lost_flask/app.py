@@ -54,7 +54,6 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), nullable=False, unique=True)
     email = db.Column(db.String(150), nullable=False, unique=True)
-    # ゲストログインのハッシュに対応するため長さを256に変更 (修正済み)
     password = db.Column(db.String(256), nullable=False) 
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
@@ -137,12 +136,15 @@ def register():
 
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
             
-            # SendGridのメールオブジェクトを作成
+            # ▼▼▼ 修正点 ▼▼▼
+            # SendGridのメールオブジェクトを作成 (正しい形式)
+            # from_email に (email, name) のタプルを渡す
             message = SendGridMail(
-                from_email=SendGridMail.From(SENDER_EMAIL, SENDER_NAME),
+                from_email=(SENDER_EMAIL, SENDER_NAME),
                 to_emails=email,
                 subject='講義レビュー | メールアドレスの確認',
                 html_content=html_content)
+            # ▲▲▲ 修正点 ▲▲▲
             
             if not sg:
                 raise Exception("SendGrid API Client (sg) is not initialized. Check SENDGRID_API_KEY.")
