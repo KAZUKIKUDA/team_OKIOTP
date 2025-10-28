@@ -5,20 +5,43 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import uuid
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
-from flask_mail import Mail, Message
 from config import Config
 from flask_migrate import Migrate
-from sqlalchemy.exc import IntegrityError # <<< データベースエラー処理のためにインポート
+from sqlalchemy.exc import IntegrityError
+import os
+import logging # ログ出力のため
+
+# ▼▼▼ SendGrid のためのインポート ▼▼▼
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail as SendGridMail
+# ▲▲▲ SendGrid ▲▲▲
 
 # --- Application Setup ---
 app = Flask(__name__)
 app.config.from_object(Config)
 
-db = SQLAlchemy(app)
-mail = Mail(app)
-s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+# ログ設定
+logging.basicConfig(level=logging.INFO)
+app.logger.setLevel(logging.INFO)
 
+db = SQLAlchemy(app)
+s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 migrate = Migrate(app, db)
+
+# ▼▼▼ SendGrid APIクライアントのセットアップ ▼▼▼
+try:
+    # Renderの環境変数からAPIキーを読み込む
+    SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
+    if not SENDGRID_API_KEY:
+        app.logger.warning("環境変数 'SENDGRID_API_KEY' が設定されていません。メール送信は失敗します。")
+        sg = None
+    else:
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        app.logger.info("SendGrid API client configured successfully.")
+except Exception as e:
+    app.logger.error(f"Failed to configure SendGrid API client: {e}")
+    sg = None
+# ▲▲▲ SendGrid ▲▲▲
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -26,17 +49,13 @@ login_manager.login_view = 'login'
 login_manager.login_message = "このページにアクセスするにはログインしてください。"
 login_manager.login_message_category = "danger"
 
-# --- Database Models ---
+# --- Database Models (Passwordの長さを256に修正) ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), nullable=False, unique=True)
     email = db.Column(db.String(150), nullable=False, unique=True)
-    
-    # ▼▼▼ 修正 ▼▼▼
-    # パスワードハッシュが150文字を超えるため、256文字に変更
+    # ゲストログインのハッシュに対応するため長さを256に変更 (修正済み)
     password = db.Column(db.String(256), nullable=False) 
-    # ▲▲▲ 修正 ▲▲▲
-    
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
 
@@ -49,8 +68,11 @@ class Course(db.Model):
     @property
     def star_rating(self):
         if not self.reviews: return "評価なし"
-        avg = sum(r.rating for r in self.reviews) / len(self.reviews)
-        return f"{avg:.2f}"
+        try:
+            avg = sum(r.rating for r in self.reviews) / len(self.reviews)
+            return f"{avg:.2f}"
+        except ZeroDivisionError:
+            return "評価なし"
 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -98,21 +120,42 @@ def register():
             flash('このメールアドレスは既に使用されています。', 'danger')
             return redirect(url_for('register'))
 
-        new_user = None # メール送信失敗時にロールバックするため
+        new_user = None 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             new_user = User(username=username, email=email, password=hashed_password)
             db.session.add(new_user)
-            db.session.commit() 
+            db.session.commit() # データベースへの書き込み
 
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
-            html = render_template('email/activate.html', confirm_url=confirm_url)
-            msg = Message('講義レビュー | メールアドレスの確認', recipients=[email], html=html)
             
-            app.logger.info("Attempting to send email...") # ログ追加
-            mail.send(msg) # <<< タイムアウトする可能性
-            app.logger.info("Email sent successfully.") # ログ追加
+            # ▼▼▼ SendGridでメール送信 ▼▼▼
+            
+            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
+            SENDER_NAME = '講義レビューサイト' 
+
+            html_content = render_template('email/activate.html', confirm_url=confirm_url)
+            
+            # SendGridのメールオブジェクトを作成
+            message = SendGridMail(
+                from_email=SendGridMail.From(SENDER_EMAIL, SENDER_NAME),
+                to_emails=email,
+                subject='講義レビュー | メールアドレスの確認',
+                html_content=html_content)
+            
+            if not sg:
+                raise Exception("SendGrid API Client (sg) is not initialized. Check SENDGRID_API_KEY.")
+            
+            app.logger.info(f"Attempting to send email via SendGrid to {email}...")
+            response = sg.send(message)
+            app.logger.info(f"SendGrid response status code: {response.status_code}")
+            
+            if response.status_code < 200 or response.status_code >= 300:
+                app.logger.error(f"SendGrid API Error: {response.body}")
+                raise Exception(f"SendGrid API error (Status {response.status_code})")
+
+            # ▲▲▲ SendGrid ▲▲▲
             
             flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
             return redirect(url_for('login'))
@@ -128,22 +171,17 @@ def register():
             return redirect(url_for('register'))
             
         except Exception as e:
-            # ▼▼▼ 修正 ▼▼▼
-            # メール送信失敗などでエラーになった場合
-            app.logger.error(f"Registration error: {e}") 
-            
-            # もしユーザー作成(commit)が成功した後にメール送信(send)で失敗した場合、
-            # ユーザー作成を取り消す（ロールバック）
-            if new_user:
+            app.logger.error(f"Registration error (user {email}): {e}")
+            # メール送信などでエラーが出た場合、作成したユーザーをロールバック
+            if new_user and new_user in db.session:
                 try:
                     db.session.rollback()
-                    app.logger.info("User creation rolled back due to mail error.")
+                    app.logger.info(f"User creation for {email} rolled back due to subsequent error.")
                 except Exception as rb_e:
                     app.logger.error(f"Rollback failed: {rb_e}")
             
             flash(f'不明なエラー（{type(e).__name__}）が発生しました。管理者に連絡してください。', 'danger')
             return redirect(url_for('register'))
-            # ▲▲▲ 修正 ▲▲▲
 
     return render_template('register.html')
 
@@ -209,7 +247,7 @@ def guest_login():
 
         try:
             guest_email = f"guest_{uuid.uuid4().hex}@demo.com"
-            hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}")
+            hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}", method='pbkdf2:sha256')
             new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
             
             db.session.add(new_guest_user)
@@ -226,7 +264,7 @@ def guest_login():
             
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Guest login error: {e}") # Renderのログに出力
+            app.logger.error(f"Guest login error: {e}") 
             flash('不明なエラーが発生しました。もう一度お試しください。', 'danger')
             return redirect(url_for('guest_login'))
 
@@ -250,7 +288,7 @@ def add_course():
         return redirect(url_for('index'))
         
     if not syllabus_url or not syllabus_url.startswith('https://tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/'):
-        flash('2025年度の正しいシラスURL (https://tiglon...で始まる) を入力してください。', 'danger')
+        flash('2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。', 'danger')
         return redirect(url_for('index'))
         
     existing_course = Course.query.filter_by(name=name).first()
@@ -273,7 +311,6 @@ def add_course():
         app.logger.error(f"Add course error: {e}")
         flash('講義の登録中にエラーが発生しました。', 'danger')
         return redirect(url_for('index'))
-
 
 @app.route('/search', methods=['POST'])
 @login_required
@@ -343,6 +380,3 @@ def add_review(id):
         
     return redirect(url_for('course_detail', id=id))
 
-
-if __name__ == '__main__':
-    app.run(debug=os.environ.get('DEBUG', 'False').lower() == 'true')
