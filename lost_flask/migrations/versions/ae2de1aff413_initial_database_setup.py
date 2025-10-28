@@ -1,8 +1,8 @@
-"""add is_verified column to user table
+"""Initial database setup
 
-Revision ID: 8bbf212b9178
+Revision ID: ae2de1aff413
 Revises: 
-Create Date: 2025-10-28 16:55:53.390721
+Create Date: 2025-10-28 19:47:24.037508
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '8bbf212b9178'
+revision = 'ae2de1aff413'
 down_revision = None
 branch_labels = None
 depends_on = None
