@@ -7,7 +7,8 @@ import uuid
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from flask_mail import Mail, Message
 from config import Config
-from flask_migrate import Migrate # ← Flask-Migrateをインポート
+from flask_migrate import Migrate
+from sqlalchemy.exc import IntegrityError # <<< データベースエラー処理のためにインポート
 
 # --- Application Setup ---
 app = Flask(__name__)
@@ -17,9 +18,7 @@ db = SQLAlchemy(app)
 mail = Mail(app)
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
-# ▼▼▼ Flask-Migrateを初期化 ▼▼▼
 migrate = Migrate(app, db)
-# ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -28,7 +27,6 @@ login_manager.login_message = "このページにアクセスするにはログ�
 login_manager.login_message_category = "danger"
 
 # --- Database Models (変更なし) ---
-# (User, Course, Review モデルの定義はそのまま)
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), nullable=False, unique=True)
@@ -64,10 +62,14 @@ class Review(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    # エラーハンドリングを追加
+    try:
+        return User.query.get(int(user_id))
+    except Exception as e:
+        app.logger.error(f"Error loading user {user_id}: {e}")
+        return None
 
-# --- Routes (変更なし) ---
-# (register, confirm_email, login, guest_login, logout, add_course, search_course, course_detail, add_review のコードはそのまま)
+# --- Routes ---
 @app.route('/')
 @login_required
 def index():
@@ -79,27 +81,53 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
+        
         email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$'
         if not re.match(email_pattern, email):
             flash('指定された形式の学内メールアドレスを使用してください。 (例: e235701@cs.u-ryukyu.ac.jp)', 'danger')
             return redirect(url_for('register'))
+            
+        # 先にチェックするが、レースコンディションは防げない
         if User.query.filter_by(username=username).first():
             flash('そのユーザー名は既に使用されています。', 'danger')
             return redirect(url_for('register'))
         if User.query.filter_by(email=email).first():
             flash('このメールアドレスは既に使用されています。', 'danger')
             return redirect(url_for('register'))
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-        new_user = User(username=username, email=email, password=hashed_password)
-        db.session.add(new_user)
-        db.session.commit()
-        token = s.dumps(email, salt='email-confirm-salt')
-        confirm_url = url_for('confirm_email', token=token, _external=True)
-        html = render_template('email/activate.html', confirm_url=confirm_url)
-        msg = Message('講義レビュー | メールアドレスの確認', recipients=[email], html=html)
-        mail.send(msg)
-        flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
-        return redirect(url_for('login'))
+
+        try:
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+            new_user = User(username=username, email=email, password=hashed_password)
+            db.session.add(new_user)
+            db.session.commit() # <<< データベース書き込み
+
+            # データベース書き込み成功後にメール送信
+            token = s.dumps(email, salt='email-confirm-salt')
+            confirm_url = url_for('confirm_email', token=token, _external=True)
+            html = render_template('email/activate.html', confirm_url=confirm_url)
+            msg = Message('講義レビュー | メールアドレスの確認', recipients=[email], html=html)
+            mail.send(msg)
+            
+            flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
+            return redirect(url_for('login'))
+
+        except IntegrityError: # <<< エラー処理を追加
+            db.session.rollback() # トランザクションをロールバック
+            # エラーが
+            if User.query.filter_by(username=username).first():
+                flash('そのユーザー名は既に使用されています。 (エラー: IE-U)', 'danger')
+            elif User.query.filter_by(email=email).first():
+                flash('このメールアドレスは既に使用されています。 (エラー: IE-E)', 'danger')
+            else:
+                flash('データベースエラーが発生しました。もう一度お試しください。', 'danger')
+            return redirect(url_for('register'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Registration error: {e}") # Renderのログに出力
+            flash('不明なエラーが発生しました。もう一度お試しください。', 'danger')
+            return redirect(url_for('register'))
+
     return render_template('register.html')
 
 @app.route('/confirm_email/<token>')
@@ -109,7 +137,12 @@ def confirm_email(token):
     except (SignatureExpired, BadTimeSignature):
         flash('認証リンクが無効か、有効期限が切れています。', 'danger')
         return redirect(url_for('register'))
-    user = User.query.filter_by(email=email).first_or_404()
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('ユーザーが見つかりません。', 'danger')
+        return redirect(url_for('register'))
+
     if user.is_verified:
         flash('このアカウントは既に認証済みです。', 'info')
     else:
@@ -120,38 +153,68 @@ def confirm_email(token):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+        
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
+        
         if not user or not check_password_hash(user.password, password):
             flash('メールアドレスまたはパスワードが正しくありません。', 'danger')
             return redirect(url_for('login'))
+            
         if not user.is_verified:
             flash('アカウントがまだ認証されていません。送信されたメールを確認してください。', 'warning')
             return redirect(url_for('login'))
+            
         login_user(user)
-        return redirect(url_for('index'))
+        # 'next' パラメータがあればそこにリダイレクト
+        next_page = request.args.get('next')
+        return redirect(next_page or url_for('index'))
+        
     return render_template('login.html')
 
 @app.route('/guest_login', methods=['GET', 'POST'])
 def guest_login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         username = request.form.get('username')
         if not username:
             flash('お名前を入力してください。', 'danger')
             return redirect(url_for('guest_login'))
+            
+        # 先にチェック
         if User.query.filter_by(username=username).first():
             flash('その名前は登録済みのユーザーが使用しています。別の名前を入力してください。', 'danger')
             return redirect(url_for('guest_login'))
-        guest_email = f"guest_{uuid.uuid4().hex}@demo.com"
-        hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}")
-        new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
-        db.session.add(new_guest_user)
-        db.session.commit()
-        login_user(new_guest_user)
-        flash(f'{username}さんとしてゲストログインしました。', 'success')
-        return redirect(url_for('index'))
+
+        try:
+            guest_email = f"guest_{uuid.uuid4().hex}@demo.com"
+            hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}")
+            new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
+            
+            db.session.add(new_guest_user)
+            db.session.commit() # <<< データベース書き込み
+
+            login_user(new_guest_user)
+            flash(f'{username}さんとしてゲストログインしました。', 'success')
+            return redirect(url_for('index'))
+
+        except IntegrityError: # <<< エラー処理を追加
+            db.session.rollback() # ロールバック
+            flash('その名前は直前に使用されました。別の名前を入力してください。', 'danger')
+            return redirect(url_for('guest_login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Guest login error: {e}") # Renderのログに出力
+            flash('不明なエラーが発生しました。もう一度お試しください。', 'danger')
+            return redirect(url_for('guest_login'))
+
     return render_template('guest_login.html')
 
 @app.route('/logout')
@@ -166,21 +229,37 @@ def add_course():
     name = request.form.get('name')
     teacher = request.form.get('teacher')
     syllabus_url = request.form.get('syllabus_url')
+    
     if not name or not teacher:
         flash('講義名と担当教員名は必須です。', 'danger')
         return redirect(url_for('index'))
+        
     if not syllabus_url or not syllabus_url.startswith('https://tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/'):
         flash('2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。', 'danger')
         return redirect(url_for('index'))
+        
+    # 講義名での重複チェック
     existing_course = Course.query.filter_by(name=name).first()
     if existing_course:
         flash('この講義名は既に登録されています。', 'info')
         return redirect(url_for('index'))
-    new_course = Course(name=name, teacher=teacher, syllabus_url=syllabus_url)
-    db.session.add(new_course)
-    db.session.commit()
-    flash('講義を登録しました。続けてレビューを追加できます。', 'success')
-    return redirect(url_for('course_detail', id=new_course.id))
+        
+    try:
+        new_course = Course(name=name, teacher=teacher, syllabus_url=syllabus_url)
+        db.session.add(new_course)
+        db.session.commit()
+        flash('講義を登録しました。続けてレビューを追加できます。', 'success')
+        return redirect(url_for('course_detail', id=new_course.id))
+    except IntegrityError:
+        db.session.rollback()
+        flash('この講義名は既に登録されています。 (エラー: IE-C)', 'danger')
+        return redirect(url_for('index'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Add course error: {e}")
+        flash('講義の登録中にエラーが発生しました。', 'danger')
+        return redirect(url_for('index'))
+
 
 @app.route('/search', methods=['POST'])
 @login_required
@@ -201,12 +280,21 @@ def search_course():
 @login_required
 def course_detail(id):
     course = Course.query.get_or_404(id)
-    return render_template('detail.html', course=course)
+    # ユーザーが既にレビュー投稿済みかチェック (任意)
+    # user_has_reviewed = Review.query.filter_by(course_id=id, user_id=current_user.id).first()
+    return render_template('detail.html', course=course) #, user_has_reviewed=user_has_reviewed)
 
 @app.route('/add_review/<int:id>', methods=['POST'])
 @login_required
 def add_review(id):
     course = Course.query.get_or_404(id)
+    
+    # 既にレビュー済みかサーバーサイドでチェック
+    existing_review = Review.query.filter_by(course_id=id, user_id=current_user.id).first()
+    if existing_review:
+        flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')
+        return redirect(url_for('course_detail', id=id))
+
     rating = request.form.get('rating')
     attendance = request.form.get('attendance')
     test = request.form.get('test')
@@ -214,24 +302,38 @@ def add_review(id):
     course_format = request.form.get('course_format')
     classroom = request.form.get('classroom')
     review_text = request.form.get('review')
+    
     if not all([rating, attendance, test, report, course_format]):
         flash('評価、出欠、テスト、レポート、授業形式の項目は必須です。', 'danger')
         return redirect(url_for('course_detail', id=id))
+        
     try:
         rating_float = float(rating)
+        if not (0 <= rating_float <= 5):
+             flash('評価は0から5の間で入力してください。', 'danger')
+             return redirect(url_for('course_detail', id=id))
     except ValueError:
         flash('評価の値が無効です。', 'danger')
         return redirect(url_for('course_detail', id=id))
-    new_review = Review(
-        rating=rating_float, attendance=attendance, test=test, report=report,
-        course_format=course_format, classroom=classroom, review=review_text,
-        course_id=course.id, author=current_user
-    )
-    db.session.add(new_review)
-    db.session.commit()
-    flash('レビューを投稿しました。', 'success')
+        
+    try:
+        new_review = Review(
+            rating=rating_float, attendance=attendance, test=test, report=report,
+            course_format=course_format, classroom=classroom, review=review_text,
+            course_id=course.id, author=current_user
+        )
+        db.session.add(new_review)
+        db.session.commit()
+        flash('レビューを投稿しました。', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Add review error: {e}")
+        flash('レビューの投稿中にエラーが発生しました。', 'danger')
+        
     return redirect(url_for('course_detail', id=id))
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # 開発環境でのみデバッグモードを有効にする
+    # Renderは 'DEBUG' 環境変数を設定しないため、自動的に False になる
+    app.run(debug=os.environ.get('DEBUG', 'False').lower() == 'true')
