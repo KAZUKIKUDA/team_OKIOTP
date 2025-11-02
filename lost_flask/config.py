@@ -10,7 +10,7 @@ class Config:
     # Renderの環境変数 'SECRET_KEY' を読み込む
     SECRET_KEY = os.environ.get('SECRET_KEY', 'default-secret-key-for-dev')
     
-    if SECRET_KEY == 'default-secret-key-for-dev':
+    if SECRET_KEY == 'default-secret-key-for-dev' and os.environ.get('FLASK_ENV') != 'development':
         print("="*50)
         print("警告: 環境変数 'SECRET_KEY' が設定されていません。")
         print("       開発用のデフォルトキーを使用します。")
@@ -25,5 +25,5 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- メール設定 ---
-    # SendGrid APIを使うため、Flask-MailのSMTP設定はすべて不要
+    # SendGrid API (app.pyで直接os.environ.get) を使うため、Flask-Mailの設定はすべて不要
 

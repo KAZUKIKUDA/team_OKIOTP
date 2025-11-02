@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>講義詳細</title>
+    
+    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -16,7 +20,7 @@
 
     <div class="container">
         <header class="main-header">
-            <h1>講義詳細</h1>
+            <h1 class="app-title" style="font-size: 1.8em;">講義詳細</h1>
         </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -41,7 +45,7 @@
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
 
                 <h4>総合評価</h4>
-                <!-- ▼▼▼ Reverted to RTL-based Star Rating HTML ▼▼▼ -->
+                <!-- ▼▼▼ Star Rating HTML ▼▼▼ -->
                 <div class="star-rating-input">
                 <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
                 <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
@@ -54,10 +58,10 @@
                 <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
                 <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
                 </div>
-                <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
+                <!-- ▲▲▲ Star Rating HTML ▲▲▲ -->
 
 
-                <!-- ▼▼▼ Radio button HTML structure updated for custom styling ▼▼▼ -->
+                <!-- ▼▼▼ Radio button HTML ▼▼▼ -->
                 <h4>出席</h4>
                 <div class="radio-group">
                     <label>
@@ -125,7 +129,7 @@
                         <span>その他</span>
                     </label>
                 </div>
-                <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
+                <!-- ▲▲▲ Radio button HTML ▲▲▲ -->
 
                 <h4>開講教室</h4>
                 <input type="text" name="classroom" placeholder="例： 共通教育棟1-101">

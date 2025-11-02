@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <title>講義レビュー</title>
+    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="user-header">
-        {% if current_user.is_authenticated %}
-            <span>こんにちは, {{ current_user.username }} さん</span>
-            <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
-        {% else %}
-            <a href="{{ url_for('login') }}" class="btn">ログイン</a>
-        {% endif %}
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
     </div>
 
     <div class="container">
         <header class="main-header">
-            <h1>講義レビュー</h1>
+            <!-- ▼▼▼ タイトル変更 ▼▼▼ -->
+            <h1 class="app-title">講義レビュー</h1>
+            <!-- ▲▲▲ タイトル変更 ▲▲▲ -->
         </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -31,24 +31,7 @@
             {% endif %}
         {% endwith %}
 
-        <section>
-            <h2>講義登録</h2>
-            <p>講義名・担当教員名は、シラバス等の記載通りに正確にお願いいたします。</p>
-            <form action="{{ url_for('add_course') }}" method="POST">
-                <input type="text" name="name" placeholder="講義名 (例: 知能情報基礎演習Ⅱ 01組)" required>
-                <input type="text" name="teacher" placeholder="担当教員名 (例: 城間 政司)" required>
-                <!-- ▼▼▼ Removed inline style ▼▼▼ -->
-                <input type="url" name="syllabus_url"
-                       placeholder="2025年度 シラバスURL"
-                       pattern="^https://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/.*\.aspx\?lct_year=2025.*"
-                       title="2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。"
-                       required>
-                <button type="submit" class="btn">登録する</button>
-            </form>
-        </section>
-
-        <hr>
-
+        <!-- ▼▼▼ 講義検索フォーム（これがメイン機能） ▼▼▼ -->
         <section>
             <h2>講義検索</h2>
             <form action="{{ url_for('search_course') }}" method="POST">
@@ -56,6 +39,39 @@
                 <button type="submit" class="btn">検索する</button>
             </form>
         </section>
+        <!-- ▲▲▲ 講義検索フォーム ▲▲▲ -->
+
+        <hr>
+
+        <!-- ▼▼▼ 最近登録された講義 ▼▼▼ -->
+        <section>
+            <h2>最近登録された講義</h2>
+            {% if recent_courses %}
+                <!-- search.htmlのスタイルを再利用 -->
+                <table class="search-results-table">
+                    <thead>
+                        <tr>
+                            <th>講義名</th>
+                            <th>担当教員</th>
+                            <th>総合評価</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in recent_courses %}
+                        <tr>
+                            <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
+                            <td>{{ course.teacher }}</td>
+                            <td>★ {{ course.star_rating }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>まだ講義が登録されていません。</p>
+            {% endif %}
+        </section>
+        <!-- ▲▲▲ 最近登録された講義 ▲▲▲ -->
+
     </div>
 </body>
 </html>

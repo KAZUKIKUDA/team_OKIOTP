@@ -3,15 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>ゲストログイン</title>
+    
+    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="auth-container">
+        
+        <!-- ▼▼▼ アプリタイトル ▼▼▼ -->
+        <h1 class="app-title">講義レビュー</h1>
+        <!-- ▲▲▲ アプリタイトル ▲▲▲ -->
+
         <h2>ゲストログイン</h2>
         <p style="text-align: center; font-size: 0.9em; color: #777; margin-bottom: 20px;">デモ用に、お名前だけでログインできます。</p>
+        
+        <!-- ▼▼▼ flashメッセージ (構文エラー修正済み) ▼▼▼ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -19,6 +30,8 @@
             {% endfor %}
           {% endif %}
         {% endwith %}
+        <!-- ▲▲▲ flashメッセージ ▲▲▲ -->
+
         <form method="post">
             <input type="text" name="username" placeholder="お名前" required>
             <button type="submit" class="btn">この名前でログイン</button>
@@ -27,3 +40,4 @@
     </div>
 </body>
 </html>
+

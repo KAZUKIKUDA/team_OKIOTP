@@ -28,21 +28,21 @@
               <div class="flash-message {{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-        {% endwith %} 
+        {% endwith %} <!-- ←←← 【重要】構文エラー修正 -->
         <!-- ▲▲▲ flashメッセージ ▲▲▲ -->
 
         <form method="post">
             <input type="text" name="username" placeholder="ユーザー名" required>
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
             
-            <!-- ▼▼▼ パスワード制約 (前回の修正) ▼▼▼ -->
+            <!-- ▼▼▼ パスワード制約 ▼▼▼ -->
             <input type="password" name="password" placeholder="パスワード" required
                    pattern="^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$"
                    title="パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。">
             
-            <!-- ▼▼▼ 確認用パスワードの入力欄を追加 ▼▼▼ -->
+            <!-- ▼▼▼ 確認用パスワードの入力欄 ▼▼▼ -->
             <input type="password" name="password_confirm" placeholder="パスワード（確認用）" required>
-            <!-- ▲▲▲ 確認用パスワードの入力欄を追加 ▲▲▲ -->
+            <!-- ▲▲▲ 確認用パスワードの入力欄 ▲▲▲ -->
 
             <p class="password-constraint">
                 パスワードは12文字以上で、大文字、小文字、数字を

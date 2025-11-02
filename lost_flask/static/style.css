@@ -7,14 +7,12 @@
  */
 body, html {
     font-family: "Noto Sans JP", sans-serif;
-    
-    /* 既存のスタイルもここに記述 */
-    background-color: var(--bg-color); /* #f8f9fa から変数に変更 */
-    color: var(--text-color);          /* #333 から変数に変更 */
-    line-height: 1.6;           /* 例: 行間 */
+    background-color: var(--bg-color, #f4f7f6); /* 変数が未定義でも動くようにフォールバックを追加 */
+    color: var(--text-color, #333);
     margin: 0;
-    padding: 20px;
+    padding: 0;
     font-size: 16px;
+    line-height: 1.6;
 }
 
 /* --- CSS Variables & Basic Setup --- */
@@ -37,10 +35,7 @@ body, html {
 }
 
 /* --- General Styles --- */
-/*
- * body, html セレクタにマージしたため、
- * 38行目にあった競合する body セレクタは削除しました。
- */
+/* bodyの重複指定を削除 */
 
 .container {
     max-width: 800px;
@@ -70,7 +65,7 @@ hr {
 /* --- Headers --- */
 .user-header {
     max-width: 800px;
-    margin: 0 auto 10px;
+    margin: 20px auto 10px; /* bodyのpaddingを0にしたため、headerにmargin-topを追加 */
     padding: 0 10px;
     text-align: right;
     font-size: 0.9em;
@@ -91,18 +86,16 @@ hr {
 input[type="text"],
 input[type="email"],
 input[type="password"],
-input[type="url"], /* Added style for URL input */
+input[type="url"],
 textarea {
     width: 100%;
     padding: 12px;
-    margin-bottom: 15px; /* Consistent margin */
+    margin-bottom: 15px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     box-sizing: border-box;
     font-size: 1em;
     transition: border-color 0.2s, box-shadow 0.2s;
-    /* Webフォントを継承 */
-    font-family: inherit; 
 }
 input[type="text"]:focus,
 input[type="email"]:focus,
@@ -118,15 +111,10 @@ textarea {
     min-height: 100px;
 }
 
-/* Align syllabus URL input with others */
-form input[name="syllabus_url"] {
-    margin-top: 0; /* Remove extra top margin */
-}
-
 .btn {
     width: 100%;
     padding: 12px;
-    margin-top: 15px; /* Adjusted margin-top for spacing */
+    margin-top: 15px;
     color: #fff;
     border: none;
     border-radius: 6px;
@@ -136,9 +124,7 @@ form input[name="syllabus_url"] {
     transition: background-color 0.2s;
     background-color: var(--primary-color);
     text-decoration: none !important;
-    box-sizing: border-box; /* For layout consistency */
-    /* Webフォントを継承 */
-    font-family: inherit; 
+    box-sizing: border-box;
 }
 .btn:hover {
     background-color: var(--primary-hover-color);
@@ -161,22 +147,22 @@ form input[name="syllabus_url"] {
     padding: 30px 40px;
     border-radius: 12px;
     box-shadow: 0 6px 20px var(--shadow-color);
-    width: 350px;
+    width: 380px; /* パスワード制約文のため少し拡大 */
     margin: 50px auto;
 }
-
-/* ▼▼▼ アプリタイトル用のスタイルを追加 ▼▼▼ */
+/* ▼▼▼ アプリタイトルスタイル ▼▼▼ */
 .app-title {
     text-align: center;
-    font-size: 1.5em; /* 24px */
-    font-weight: 600;
     color: var(--primary-color);
+    font-weight: 700;
+    font-size: 2em;
+    margin-top: 0;
     margin-bottom: 10px;
 }
-
+/* ▲▲▲ アプリタイトルスタイル ▲▲▲ */
 .auth-container h2 {
     text-align: center;
-    margin-top: 0; /* app-titleが入るので上のマージンを削除 */
+    margin-top: 0;
     margin-bottom: 25px;
     color: var(--text-color);
     font-weight: 600;
@@ -196,17 +182,6 @@ form input[name="syllabus_url"] {
     margin-top: 20px;
     font-size: 0.9em;
 }
-
-/* ▼▼▼ パスワード制約のテキストスタイル ▼▼▼ */
-.password-constraint {
-    font-size: 0.85em;
-    color: var(--light-text-color);
-    text-align: left;
-    margin-top: -10px; /* パスワード欄に近づける */
-    margin-bottom: 15px;
-    line-height: 1.4;
-}
-
 .btn-guest {
     display: block;
     text-align: center;
@@ -216,6 +191,16 @@ form input[name="syllabus_url"] {
 .btn-guest:hover {
     background-color: var(--guest-hover-color);
 }
+/* ▼▼▼ パスワード制約のスタイル ▼▼▼ */
+.password-constraint {
+    font-size: 0.85em;
+    color: var(--light-text-color);
+    line-height: 1.4;
+    text-align: left;
+    margin-top: -5px; /* 入力欄との隙間を詰める */
+    margin-bottom: 10px;
+}
+/* ▲▲▲ パスワード制約のスタイル ▲▲▲ */
 
 /* --- Flash Messages --- */
 .flash-message {
@@ -321,15 +306,14 @@ section h2, section h4 {
     display: inline-flex;
     align-items: center;
     cursor: pointer;
-    margin-right: 0; /* Override default */
+    margin-right: 0;
 }
 .radio-group input[type="radio"] {
-    display: none; /* Hide default */
+    display: none;
 }
-.radio-group span { /* Text label */
-    line-height: 1; /* Ensure text aligns with button */
+.radio-group span {
+    line-height: 1;
 }
-/* Custom radio button appearance */
 .radio-group input[type="radio"] + span::before {
     content: '';
     display: inline-block;
@@ -338,20 +322,17 @@ section h2, section h4 {
     border: 2px solid var(--border-color);
     border-radius: 50%;
     margin-right: 8px;
-    vertical-align: -4px; /* Fine-tune vertical alignment */
+    vertical-align: -4px;
     transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
-/* Checked state */
 .radio-group input[type="radio"]:checked + span::before {
     border-color: var(--primary-color);
     background-color: var(--primary-color);
-    box-shadow: inset 0 0 0 4px var(--card-bg-color); /* Inner circle effect */
+    box-shadow: inset 0 0 0 4px var(--card-bg-color);
 }
-/* Focus state for accessibility */
 .radio-group input[type="radio"]:focus + span::before {
      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 0 0 4px var(--card-bg-color);
 }
-/* Ensure checked focus state also looks correct */
 .radio-group input[type="radio"]:checked:focus + span::before {
      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 0 0 4px var(--card-bg-color);
 }
@@ -401,5 +382,4 @@ width: 1em;
 .star-rating-input input:checked ~ label { 
 color: var(--warning-color); 
 }
-
 

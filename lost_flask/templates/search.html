@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>検索結果</title>
+    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         /* search.html専用のスタイル */
@@ -34,16 +36,28 @@
 </head>
 <body>
     <div class="user-header">
-        {% if current_user.is_authenticated %}
-            <span>こんにちは, {{ current_user.username }} さん</span>
-            <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
-        {% endif %}
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
     </div>
 
     <div class="container">
         <header class="main-header">
-            <h1>検索結果</h1>
+            <!-- ▼▼▼ 検索キーワードを表示 ▼▼▼ -->
+            {% if search_term %}
+                <h1 class="app-title">「{{ search_term }}」の検索結果</h1>
+            {% else %}
+                <h1 class="app-title">全講義一覧</h1>
+            {% endif %}
+            <!-- ▲▲▲ 検索キーワードを表示 ▲▲▲ -->
         </header>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
         <section>
             {% if results %}
@@ -72,6 +86,33 @@
         </section>
 
         <a href="{{ url_for('index') }}" class="back-link">ホームに戻る</a>
+
+        <hr>
+
+        <!-- ▼▼▼ 講義登録フォームをここ（検索結果の下）に移動 ▼▼▼ -->
+        <section>
+            <h2>お探しの講義が見つかりませんか？</h2>
+            <p>講義名・担当教員名は、シラバス等の記載通りに正確にお願いいたします。</p>
+            <form action="{{ url_for('add_course') }}" method="POST">
+                
+                <!-- ▼▼▼ 検索キーワードを講義名に自動入力 ▼▼▼ -->
+                <input type="text" name="name" placeholder="講義名 (例: 知能情報基礎演習Ⅱ 01組)" 
+                       value="{{ search_term or '' }}" required>
+                <!-- ▲▲▲ 検索キーワードを講義名に自動入力 ▲▲▲ -->
+
+                <input type="text" name="teacher" placeholder="担当教員名 (例: 城間 政司)" required>
+                
+                <input type="url" name="syllabus_url"
+                       placeholder="2025年度 シラバスURL"
+                       pattern="^https://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/.*\.aspx\?lct_year=2025.*"
+                       title="2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。"
+                       required>
+                <button type="submit" class="btn">この講義を登録する</button>
+            </form>
+        </section>
+        <!-- ▲▲▲ 講義登録フォーム ▲▲▲ -->
+
     </div>
 </body>
 </html>
+

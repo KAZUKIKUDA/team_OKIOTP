@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>ログイン</title>
     
-    <!-- ▼▼▼ Google Fonts 読み込み (前回の修正) ▼▼▼ -->
+    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
 <body>
     <div class="auth-container">
         
-        <!-- ▼▼▼ アプリタイトル (前回の修正) ▼▼▼ -->
+        <!-- ▼▼▼ アプリタイトル ▼▼▼ -->
         <h1 class="app-title">講義レビュー</h1>
         <!-- ▲▲▲ アプリタイトル ▲▲▲ -->
         
@@ -31,7 +31,7 @@
         {% endwith %} 
         <!-- ▲▲▲ flashメッセージ (構文エラー修正済み) ▲▲▲ -->
 
-        <!-- ▼▼▼ ログインフォーム（ここが壊れていた）▼▼▼ -->
+        <!-- ▼▼▼ ログインフォーム（修正済み）▼▼▼ -->
         <form method="post">
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
             <input type="password" name="password" placeholder="パスワード" required>
@@ -39,7 +39,7 @@
         </form>
         <!-- ▲▲▲ ログインフォーム ▲▲▲ -->
 
-        <!-- ▼▼▼ ゲストログイン・新規登録リンク（ここが壊れていた）▼▼▼ -->
+        <!-- ▼▼▼ ゲストログイン・新規登録リンク（修正済み）▼▼▼ -->
         <a href="{{ url_for('guest_login') }}" class="btn btn-guest">ゲストとしてログイン</a>
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
         <!-- ▲▲▲ ゲストログイン・新規登録リンク ▲▲▲ -->

@@ -1,22 +1,30 @@
-# Flask Core
+Flask Core
+
 Flask==3.0.3
 Werkzeug==3.0.3
 click==8.1.7
 itsdangerous==2.2.0
 Jinja2==3.1.4
 
-# Database
+Database
+
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.31
 Flask-Migrate==4.0.7
 alembic==1.13.1
+
+PostgreSQL Adapter (Render用)
+
 psycopg2-binary==2.9.9
 
-# Auth
+Auth
+
 Flask-Login==0.6.3
 
-# Mail (SendGrid)
+Mail (SendGrid)
+
 sendgrid==6.11.0
 
-# Server
+Server
+
 gunicorn==22.0.0
