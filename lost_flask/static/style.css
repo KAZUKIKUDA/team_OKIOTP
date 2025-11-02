@@ -1,5 +1,21 @@
 /* static/style.css (Final Corrected Version) */
 
+/*
+ * body, html にフォントを指定します。
+ * 'Noto Sans JP' が Webフォントとして読み込まれるフォントです。
+ * 'sans-serif' は、万が一フォントが読み込めなかった場合の予備（フォールバック）です。
+ */
+body, html {
+    font-family: "Noto Sans JP", sans-serif;
+    
+    background-color: var(--bg-color); /* #f8f9fa から変数に変更 */
+    color: var(--text-color);          /* #333 から変数に変更 */
+    line-height: 1.6;           /* 例: 行間 */
+    margin: 0;
+    padding: 20px;
+    font-size: 16px;
+}
+
 /* --- CSS Variables & Basic Setup --- */
 :root {
     --primary-color: #3498db;
@@ -20,15 +36,6 @@
 }
 
 /* --- General Styles --- */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    margin: 0;
-    padding: 20px;
-    font-size: 16px;
-    line-height: 1.6;
-}
 
 .container {
     max-width: 800px;
@@ -89,6 +96,8 @@ textarea {
     box-sizing: border-box;
     font-size: 1em;
     transition: border-color 0.2s, box-shadow 0.2s;
+    /* Webフォントを継承 */
+    font-family: inherit; 
 }
 input[type="text"]:focus,
 input[type="email"]:focus,
@@ -123,6 +132,8 @@ form input[name="syllabus_url"] {
     background-color: var(--primary-color);
     text-decoration: none !important;
     box-sizing: border-box; /* For layout consistency */
+    /* Webフォントを継承 */
+    font-family: inherit; 
 }
 .btn:hover {
     background-color: var(--primary-hover-color);
@@ -364,3 +375,4 @@ width: 1em;
 .star-rating-input input:checked ~ label { 
 color: var(--warning-color); 
 }
+
