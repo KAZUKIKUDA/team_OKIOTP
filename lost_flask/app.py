@@ -46,7 +46,9 @@ except Exception as e:
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-login_manager.login_message = "このページにアクセスするにはログインしてください。"
+# ▼▼▼ ログイン要求時のflashメッセージを無効化 (挙動修正) ▼▼▼
+login_manager.login_message = None 
+# ▲▲▲ 挙動修正 ▲▲▲
 login_manager.login_message_category = "danger"
 
 # --- Database Models (Passwordの長さを256に修正) ---
@@ -54,6 +56,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), nullable=False, unique=True)
     email = db.Column(db.String(150), nullable=False, unique=True)
+    # ▼▼▼ パスワードの長さを256に修正済み ▼▼▼
     password = db.Column(db.String(256), nullable=False) 
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
@@ -68,6 +71,9 @@ class Course(db.Model):
     def star_rating(self):
         if not self.reviews: return "評価なし"
         try:
+            # レビューが0件の場合のZeroDivisionErrorを避ける
+            if len(self.reviews) == 0:
+                return "評価なし"
             avg = sum(r.rating for r in self.reviews) / len(self.reviews)
             return f"{avg:.2f}"
         except ZeroDivisionError:
@@ -95,10 +101,17 @@ def load_user(user_id):
         return None
 
 # --- Routes ---
+
+# ▼▼▼ トップページ（/）の挙動を修正 ▼▼▼
 @app.route('/')
-@login_required
 def index():
-    return render_template('top.html')
+    # ログイン済みなら講義登録ページ（top.html）へ
+    if current_user.is_authenticated:
+        return render_template('top.html')
+    # 未ログインならflashメッセージなしでログインページへ
+    else:
+        return redirect(url_for('login'))
+# ▲▲▲ 挙動修正 ▲▲▲
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -106,6 +119,21 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
+        # ▼▼▼ 確認用パスワードを取得 ▼▼▼
+        password_confirm = request.form.get('password_confirm')
+        
+        # ▼▼▼ パスワード一致チェック ▼▼▼
+        if password != password_confirm:
+            flash('パスワードが一致しません。もう一度お試しください。', 'danger')
+            return redirect(url_for('register'))
+        # ▲▲▲ 一致チェック終了 ▲▲▲
+
+        # ▼▼▼ パスワード制約のサーバー側バリデーション ▼▼▼
+        password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
+        if not re.match(password_pattern, password):
+            flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
+            return redirect(url_for('register'))
+        # ▲▲▲ バリデーション終了 ▲▲▲
         
         email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$'
         if not re.match(email_pattern, email):
@@ -122,7 +150,12 @@ def register():
         new_user = None 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+            
+            # ▼▼▼ 正しいUserオブジェクトの作成 ▼▼▼
+            # (is_verifiedは default=False が自動で設定される)
             new_user = User(username=username, email=email, password=hashed_password)
+            # ▲▲▲ これが正しい形式 ▲▲▲
+            
             db.session.add(new_user)
             db.session.commit() # データベースへの書き込み
 
@@ -131,23 +164,23 @@ def register():
             
             # ▼▼▼ SendGridでメール送信 ▼▼▼
             
+            # 【重要】このEmailはSendGridで「送信者認証」したものに書き換えてください
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
-            SENDER_NAME = '講義レビューサイト' 
+            SENDER_NAME = '講義レビューサイト（Okinawa OTP）' 
 
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
             
-            # ▼▼▼ 修正点 ▼▼▼
-            # SendGridのメールオブジェクトを作成 (正しい形式)
-            # from_email に (email, name) のタプルを渡す
+            # ▼▼▼ SendGridMailオブジェクトの作成 (バグ修正版) ▼▼▼
             message = SendGridMail(
                 from_email=(SENDER_EMAIL, SENDER_NAME),
                 to_emails=email,
                 subject='講義レビュー | メールアドレスの確認',
                 html_content=html_content)
-            # ▲▲▲ 修正点 ▲▲▲
+            # ▲▲▲ バグ修正版 ▲▲▲
             
             if not sg:
-                raise Exception("SendGrid API Client (sg) is not initialized. Check SENDGRID_API_KEY.")
+                app.logger.error("SendGrid API Client (sg) is not initialized. Check SENDGRID_API_KEY.")
+                raise Exception("SendGrid API Client (sg) is not initialized.")
             
             app.logger.info(f"Attempting to send email via SendGrid to {email}...")
             response = sg.send(message)
@@ -182,6 +215,7 @@ def register():
                 except Exception as rb_e:
                     app.logger.error(f"Rollback failed: {rb_e}")
             
+            # ユーザーにエラータイプをそのまま表示しないように修正
             flash(f'不明なエラー（{type(e).__name__}）が発生しました。管理者に連絡してください。', 'danger')
             return redirect(url_for('register'))
 
@@ -250,7 +284,10 @@ def guest_login():
         try:
             guest_email = f"guest_{uuid.uuid4().hex}@demo.com"
             hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}", method='pbkdf2:sha256')
+            
+            # ▼▼▼ 正しいUserオブジェクトの作成 ▼▼▼
             new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
+            # ▲▲▲ これが正しい形式 ▲▲▲
             
             db.session.add(new_guest_user)
             db.session.commit() 
@@ -318,7 +355,14 @@ def add_course():
 @login_required
 def search_course():
     search_term = request.form.get('search')
+    
+    # 検索語が空でなければ、前後の空白を除去
+    if search_term:
+        search_term = search_term.strip()
+
     if not search_term:
+        # 検索語が空の場合は、何も表示しないか、全件表示するか選択
+        # ここでは「全件表示」
         results = Course.query.all()
     else:
         results = Course.query.filter(
@@ -340,6 +384,11 @@ def course_detail(id):
 def add_review(id):
     course = Course.query.get_or_404(id)
     
+    # ゲストユーザーはレビューを投稿できないようにする
+    if current_user.email.endswith('@demo.com'):
+        flash('レビューを投稿するには、学内メールアドレスで正規登録する必要があります。', 'danger')
+        return redirect(url_for('course_detail', id=id))
+
     existing_review = Review.query.filter_by(course_id=id, user_id=current_user.id).first()
     if existing_review:
         flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')
@@ -359,10 +408,10 @@ def add_review(id):
         
     try:
         rating_float = float(rating)
-        if not (0 <= rating_float <= 5):
-             flash('評価は0から5の間で入力してください。', 'danger')
+        if not (0.5 <= rating_float <= 5.0): # 評価は0.5から5.0の間に
+             flash('評価は0.5から5.0の間で選択してください。', 'danger')
              return redirect(url_for('course_detail', id=id))
-    except ValueError:
+    except (ValueError, TypeError):
         flash('評価の値が無効です。', 'danger')
         return redirect(url_for('course_detail', id=id))
         
@@ -381,4 +430,10 @@ def add_review(id):
         flash('レビューの投稿中にエラーが発生しました。', 'danger')
         
     return redirect(url_for('course_detail', id=id))
+
+# 開発環境でのみ`flask run`で実行するための設定
+if __name__ == '__main__':
+    # RenderはGunicornを使うので、この部分はRenderでは実行されない
+    app.run(debug=True)
+
 

@@ -1,36 +1,50 @@
-<!-- templates/login.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <title>ログイン</title>
+    
+    <!-- ▼▼▼ Google Fonts 読み込み (前回の修正) ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="auth-container">
+        
+        <!-- ▼▼▼ アプリタイトル (前回の修正) ▼▼▼ -->
+        <h1 class="app-title">講義レビュー</h1>
+        <!-- ▲▲▲ アプリタイトル ▲▲▲ -->
+        
         <h2>ログイン</h2>
+        
+        <!-- ▼▼▼ flashメッセージ (構文エラー修正済み) ▼▼▼ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
               <div class="flash-message {{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-        {% endwith %}
+        {% endwith %} 
+        <!-- ▲▲▲ flashメッセージ (構文エラー修正済み) ▲▲▲ -->
 
+        <!-- ▼▼▼ ログインフォーム（ここが壊れていた）▼▼▼ -->
         <form method="post">
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
             <input type="password" name="password" placeholder="パスワード" required>
             <button type="submit" class="btn">ログイン</button>
         </form>
+        <!-- ▲▲▲ ログインフォーム ▲▲▲ -->
 
-        <!-- ▼▼▼ ゲストログイン用のボタン（リンク）を追加 ▼▼▼ -->
+        <!-- ▼▼▼ ゲストログイン・新規登録リンク（ここが壊れていた）▼▼▼ -->
         <a href="{{ url_for('guest_login') }}" class="btn btn-guest">ゲストとしてログイン</a>
-        <!-- ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ -->
-
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
+        <!-- ▲▲▲ ゲストログイン・新規登録リンク ▲▲▲ -->
+
     </div>
 </body>
 </html>
+

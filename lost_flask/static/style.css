@@ -8,6 +8,7 @@
 body, html {
     font-family: "Noto Sans JP", sans-serif;
     
+    /* 既存のスタイルもここに記述 */
     background-color: var(--bg-color); /* #f8f9fa から変数に変更 */
     color: var(--text-color);          /* #333 から変数に変更 */
     line-height: 1.6;           /* 例: 行間 */
@@ -36,6 +37,10 @@ body, html {
 }
 
 /* --- General Styles --- */
+/*
+ * body, html セレクタにマージしたため、
+ * 38行目にあった競合する body セレクタは削除しました。
+ */
 
 .container {
     max-width: 800px;
@@ -159,9 +164,19 @@ form input[name="syllabus_url"] {
     width: 350px;
     margin: 50px auto;
 }
+
+/* ▼▼▼ アプリタイトル用のスタイルを追加 ▼▼▼ */
+.app-title {
+    text-align: center;
+    font-size: 1.5em; /* 24px */
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
 .auth-container h2 {
     text-align: center;
-    margin-top: 0;
+    margin-top: 0; /* app-titleが入るので上のマージンを削除 */
     margin-bottom: 25px;
     color: var(--text-color);
     font-weight: 600;
@@ -181,6 +196,17 @@ form input[name="syllabus_url"] {
     margin-top: 20px;
     font-size: 0.9em;
 }
+
+/* ▼▼▼ パスワード制約のテキストスタイル ▼▼▼ */
+.password-constraint {
+    font-size: 0.85em;
+    color: var(--light-text-color);
+    text-align: left;
+    margin-top: -10px; /* パスワード欄に近づける */
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
 .btn-guest {
     display: block;
     text-align: center;
@@ -375,4 +401,5 @@ width: 1em;
 .star-rating-input input:checked ~ label { 
 color: var(--warning-color); 
 }
+
 

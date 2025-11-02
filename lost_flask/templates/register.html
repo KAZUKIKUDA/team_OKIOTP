@@ -3,28 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <title>新規登録</title>
+    
+    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="auth-container">
+        
+        <!-- ▼▼▼ アプリタイトル ▼▼▼ -->
+        <h1 class="app-title">講義レビュー</h1>
+        <!-- ▲▲▲ アプリタイトル ▲▲▲ -->
+        
         <h2>新規登録</h2>
+        
+        <!-- ▼▼▼ flashメッセージ (構文エラー修正済み) ▼▼▼ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
               <div class="flash-message {{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-        {% endwith %}
+        {% endwith %} 
+        <!-- ▲▲▲ flashメッセージ ▲▲▲ -->
+
         <form method="post">
             <input type="text" name="username" placeholder="ユーザー名" required>
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
-            <input type="password" name="password" placeholder="パスワード" required>
+            
+            <!-- ▼▼▼ パスワード制約 (前回の修正) ▼▼▼ -->
+            <input type="password" name="password" placeholder="パスワード" required
+                   pattern="^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$"
+                   title="パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。">
+            
+            <!-- ▼▼▼ 確認用パスワードの入力欄を追加 ▼▼▼ -->
+            <input type="password" name="password_confirm" placeholder="パスワード（確認用）" required>
+            <!-- ▲▲▲ 確認用パスワードの入力欄を追加 ▲▲▲ -->
+
+            <p class="password-constraint">
+                パスワードは12文字以上で、大文字、小文字、数字を
+                それぞれ1文字以上含める必要があります。
+            </p>
+            <!-- ▲▲▲ パスワード制約 ▲▲▲ -->
+            
             <button type="submit" class="btn btn-register">登録</button>
         </form>
         <a href="{{ url_for('login') }}" class="auth-link">ログインはこちら</a>
     </div>
 </body>
 </html>
+
