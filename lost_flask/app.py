@@ -125,21 +125,17 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-        # ▼▼▼ 確認用パスワードを取得 ▼▼▼
         password_confirm = request.form.get('password_confirm')
         
-        # ▼▼▼ パスワード一致チェック ▼▼▼
+        # --- 入力チェック (ここは変更なし) ---
         if password != password_confirm:
             flash('パスワードが一致しません。もう一度お試しください。', 'danger')
             return redirect(url_for('register'))
-        # ▲▲▲ 一致チェック終了 ▲▲▲
 
-        # ▼▼▼ パスワード制約のサーバー側バリデーション ▼▼▼
         password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
         if not re.match(password_pattern, password):
             flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
             return redirect(url_for('register'))
-        # ▲▲▲ パスワード制約終了 ▲▲▲
         
         email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$'
         if not re.match(email_pattern, email):
@@ -153,17 +149,16 @@ def register():
             flash('このメールアドレスは既に使用されています。', 'danger')
             return redirect(url_for('register'))
 
-        new_user = None 
+        # ▼▼▼ トランザクション修正 ▼▼▼
         try:
+            # 1. データベースオブジェクトを準備（まだコミットしない）
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             new_user = User(username=username, email=email, password=hashed_password)
             db.session.add(new_user)
-            db.session.commit() # データベースへの書き込み
-
+            
+            # 2. メールの準備と送信
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
-            
-            # ▼▼▼ SendGridでメール送信 ▼▼▼
             
             # 【重要】ここはあなたのSendGrid認証済みアドレスに書き換えてください
             SENDER_EMAIL = 'e235701@cs.u-ryukyu.ac.jp' 
@@ -171,32 +166,32 @@ def register():
 
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
             
-            # ▼▼▼ SendGridMailオブジェクト作成（バグ修正済み）▼▼▼
             message = SendGridMail(
                 from_email=(SENDER_EMAIL, SENDER_NAME),
                 to_emails=email,
                 subject='講義レビュー | メールアドレスの確認',
                 html_content=html_content)
-            # ▲▲▲ SendGridMailオブジェクト作成（バグ修正済み）▲▲▲
             
             if not sg:
                 raise Exception("SendGrid API Client (sg) is not initialized. Check SENDGRID_API_KEY.")
             
             app.logger.info(f"Attempting to send email via SendGrid to {email}...")
-            response = sg.send(message)
+            response = sg.send(message) # <<< メール送信を試行
             app.logger.info(f"SendGrid response status code: {response.status_code}")
             
             if response.status_code < 200 or response.status_code >= 300:
                 app.logger.error(f"SendGrid API Error: {response.body}")
                 raise Exception(f"SendGrid API error (Status {response.status_code})")
 
-            # ▲▲▲ SendGrid ▲▲▲
+            # 3. メール送信が成功した場合のみ、データベースにコミット
+            db.session.commit() # <<< 成功した場合のみDBを確定
             
             flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
             return redirect(url_for('login'))
 
         except IntegrityError: 
-            db.session.rollback() 
+            # 3のコミットが（万が一の）重複エラーを起こした場合
+            db.session.rollback() # 念のためロールバック
             if User.query.filter_by(username=username).first():
                 flash('そのユーザー名は既に使用されています。 (エラー: IE-U)', 'danger')
             elif User.query.filter_by(email=email).first():
@@ -206,17 +201,13 @@ def register():
             return redirect(url_for('register'))
             
         except Exception as e:
-            app.logger.error(f"Registration error (user {email}): {e}")
-            # メール送信などでエラーが出た場合、作成したユーザーをロールバック
-            if new_user and new_user in db.session:
-                try:
-                    db.session.rollback()
-                    app.logger.info(f"User creation for {email} rolled back due to subsequent error.")
-                except Exception as rb_e:
-                    app.logger.error(f"Rollback failed: {rb_e}")
+            # 2のメール送信が失敗した場合、またはその他のエラー
+            db.session.rollback() # <<< 【重要】db.session.add(new_user) をここで取り消す
             
+            app.logger.error(f"Registration error (user {email}): {e}")
             flash(f'不明なエラー（{type(e).__name__}）が発生しました。管理者に連絡してください。', 'danger')
             return redirect(url_for('register'))
+        # ▲▲▲ トランザクション修正完了 ▲▲▲
 
     return render_template('register.html')
 
@@ -244,9 +235,7 @@ def confirm_email(token):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        # ▼▼▼ ログイン済みユーザーはトップページ（検索）へ ▼▼▼
         return redirect(url_for('index'))
-        # ▲▲▲ ログイン済み ▲▲▲
         
     if request.method == 'POST':
         email = request.form.get('email')
