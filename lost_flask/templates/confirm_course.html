@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>登録内容の確認</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .confirmation-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 25px;
+        }
+        .btn-cancel {
+            background-color: var(--light-text-color, #aaa);
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 1em;
+            border: none;
+        }
+         .btn-cancel:hover {
+            background-color: var(--guest-hover-color, #888);
+            text-decoration: none;
+         }
+        
+         /* .btn の width: 100% を上書き */
+         .confirmation-actions .btn {
+            width: auto;
+            font-size: 1.1em;
+            margin-top: 0; /* 元の .btn の margin-top: 15px をリセット */
+         }
+    </style>
+</head>
+<body>
+    <div class="user-header">
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1 class="app-title" style="font-size: 1.8em;">講義情報の確認</h1>
+        </header>
+
+        <p style="text-align: center; margin-bottom: 20px;">シラバスから以下の情報を取得しました。内容を確認し、登録してください。</p>
+
+        <section class="course-info" style="border-bottom: none; padding-bottom: 0;">
+            <p><strong>講義名：</strong> {{ course_data['講義名'] }}</p>
+            <p><strong>担当教員：</strong> {{ course_data['教員名'] }}</p>
+            <p><strong>科目番号：</strong> {{ course_data['科目番号'] or '情報なし' }}</p>
+            <p><strong>開講年度：</strong> {{ course_data['開講年度'] or '情報なし' }}</p>
+            <p><strong>開講学部等：</strong> {{ course_data['開講学部等'] or '情報なし' }}</p>
+            <p><strong>期間：</strong> {{ course_data['期間'] or '情報なし' }}</p>
+            <p><strong>曜日時限：</strong> {{ course_data['曜日時限'] or '情報なし' }}</p>
+            <p><strong>単位数：</strong> {{ course_data['単位数'] or '情報なし' }}</p>
+            <p><strong>開講教室：</strong> {{ course_data['開講教室'] or '情報なし' }}</p>
+            <p><strong>授業形式 (対面/遠隔)：</strong> {{ course_data['対面/遠隔'] or '情報なし' }}</p>
+            <p><strong>シラバス：</strong> <a href="{{ course_data['シラバスURL'] }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
+        </section>
+        <form action="{{ url_for('add_course_step2_create') }}" method="post">
+            <input type="hidden" name="name" value="{{ course_data['講義名'] }}">
+            <input type="hidden" name="teacher" value="{{ course_data['教員名'] }}">
+            <input type="hidden" name="syllabus_url" value="{{ course_data['シラバスURL'] }}">
+            <input type="hidden" name="subject_code" value="{{ course_data['科目番号'] or '' }}">
+            <input type="hidden" name="classroom" value="{{ course_data['開講教室'] or '' }}">
+            <input type="hidden" name="format" value="{{ course_data['対面/遠隔'] or '' }}">
+            <input type="hidden" name="year" value="{{ course_data['開講年度'] or '' }}">
+            <input type="hidden" name="term" value="{{ course_data['期間'] or '' }}">
+            <input type="hidden" name="schedule" value="{{ course_data['曜日時限'] or '' }}">
+            <input type="hidden" name="department" value="{{ course_data['開講学部等'] or '' }}">
+            <input type="hidden" name="credits" value="{{ course_data['単位数'] or '' }}">
+            <div class="confirmation-actions">
+                <a href="{{ url_for('search_course', search='') }}" class="btn-cancel">« キャンセルして一覧に戻る</a>
+                <button type="submit" class="btn">この内容で登録する</button>
+            </div>
+        </form>
+
+    </div>
+</body>
+</html>

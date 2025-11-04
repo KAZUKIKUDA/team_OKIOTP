@@ -4,14 +4,33 @@
     <meta charset="UTF-8">
     <title>講義詳細</title>
     
-    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
+    
+    <style>
+        .page-navigation {
+            display: flex; 
+            justify-content: space-between;
+            align-items: center; 
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .page-navigation .btn, .page-navigation .back-link {
+            width: auto;
+            flex-grow: 0;
+            margin-top: 0;
+        }
+        .page-navigation .links-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+    </style>
+    </head>
 <body>
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
@@ -35,17 +54,25 @@
             <p><strong>講義名：</strong> {{ course.name }}</p>
             <p><strong>担当教員：</strong> {{ course.teacher }}</p>
             <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
+            
+            <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
+            <p><strong>開講年度：</strong> {{ course.year or '未登録' }}</p>
+            <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
+            <p><strong>期間：</strong> {{ course.term or '未登録' }}</p>
+            <p><strong>曜日時限：</strong> {{ course.schedule or '未登録' }}</p>
+            <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
+            <p><strong>開講教室：</strong> {{ course.classroom or '未登録' }}</p>
+            <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
+            
             {% if course.syllabus_url %}
             <p><strong>シラバス：</strong> <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
             {% endif %}
         </section>
-
         <section>
             <h2>レビューを追加</h2>
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
 
                 <h4>総合評価</h4>
-                <!-- ▼▼▼ Star Rating HTML ▼▼▼ -->
                 <div class="star-rating-input">
                 <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
                 <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
@@ -58,10 +85,6 @@
                 <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
                 <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
                 </div>
-                <!-- ▲▲▲ Star Rating HTML ▲▲▲ -->
-
-
-                <!-- ▼▼▼ Radio button HTML ▼▼▼ -->
                 <h4>出席</h4>
                 <div class="radio-group">
                     <label>
@@ -110,10 +133,10 @@
                     </label>
                 </div>
 
-                <h4>授業形式</h4>
+                <h4>授業形式 <small style="font-weight:normal; color:var(--light-text-color)">(任意)</small></h4>
                 <div class="radio-group">
                     <label>
-                        <input type="radio" name="course_format" value="対面" required>
+                        <input type="radio" name="course_format" value="対面">
                         <span>対面</span>
                     </label>
                     <label>
@@ -129,11 +152,6 @@
                         <span>その他</span>
                     </label>
                 </div>
-                <!-- ▲▲▲ Radio button HTML ▲▲▲ -->
-
-                <h4>開講教室</h4>
-                <input type="text" name="classroom" placeholder="例： 共通教育棟1-101">
-
                 <h4>備考欄 <small style="font-weight:normal; color:var(--light-text-color)">(任意)</small></h4>
                 <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など"></textarea>
 
@@ -155,8 +173,7 @@
                             <span><strong>テスト:</strong> {{ review.test }}</span>
                             <span><strong>レポート:</strong> {{ review.report }}</span>
                             <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
-                            <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
-                        </div>
+                            </div>
                         {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>
                         {% endif %}
@@ -168,16 +185,17 @@
             <p>この講義にはまだレビューがありません。</p>
             {% endif %}
         </section>
+        
         <div class="page-navigation">
-            
-            <div>
+            <div class="links-container">
                 <a href="javascript:history.back()" class="back-link">« 前のページに戻る</a>
-                
-                <br> <a href="{{ url_for('index') }}" class="back-link" style="margin-top: 10px; display: inline-block;">« ホームに戻る</a>
+                <a href="{{ url_for('index') }}" class="back-link">« ホームに戻る</a>
             </div>
-
-
-    </div>
+            
+            <a href="{{ url_for('course_view_detail', id=course.id) }}" class="btn" style="background-color: var(--guest-color);">
+                レビュー閲覧専用ページへ
+            </a>
+        </div>
+        </div>
 </body>
 </html>
-

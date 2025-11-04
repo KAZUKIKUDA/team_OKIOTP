@@ -1,8 +1,8 @@
-"""Create all tables from scratch
+"""Initial migration with composite unique constraint
 
-Revision ID: 3cbfe3f9289e
+Revision ID: f6e48704d79a
 Revises: 
-Create Date: 2025-10-28 19:54:00.548566
+Create Date: 2025-11-04 17:11:53.660973
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3cbfe3f9289e'
+revision = 'f6e48704d79a'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,14 +23,22 @@ def upgrade():
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('teacher', sa.String(length=100), nullable=False),
     sa.Column('syllabus_url', sa.String(length=300), nullable=True),
+    sa.Column('subject_code', sa.String(length=50), nullable=True),
+    sa.Column('classroom', sa.String(length=100), nullable=True),
+    sa.Column('format', sa.String(length=50), nullable=True),
+    sa.Column('year', sa.String(length=20), nullable=True),
+    sa.Column('term', sa.String(length=50), nullable=True),
+    sa.Column('schedule', sa.String(length=100), nullable=True),
+    sa.Column('department', sa.String(length=100), nullable=True),
+    sa.Column('credits', sa.String(length=10), nullable=True),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.UniqueConstraint('name', 'teacher', name='_name_teacher_uc')
     )
     op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=150), nullable=False),
     sa.Column('email', sa.String(length=150), nullable=False),
-    sa.Column('password', sa.String(length=150), nullable=False),
+    sa.Column('password', sa.String(length=256), nullable=False),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),

@@ -10,6 +10,9 @@ from flask_migrate import Migrate
 from sqlalchemy.exc import IntegrityError
 import os
 import logging # ログ出力のため
+import time # ▼▼▼ スリープのために追加 ▼▼▼
+import requests # ▼▼▼ スクレイピングのために追加 ▼▼▼
+from bs4 import BeautifulSoup # ▼▼▼ スクレイピングのために追加 ▼▼▼
 
 # ▼▼▼ SendGrid のためのインポート ▼▼▼
 from sendgrid import SendGridAPIClient
@@ -64,10 +67,31 @@ class User(UserMixin, db.Model):
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    teacher = db.Column(db.String(100), nullable=False)
-    syllabus_url = db.Column(db.String(300), nullable=True)
+    # ▼▼▼ 修正: unique=True を削除 ▼▼▼
+    name = db.Column(db.String(100), nullable=False) # 講義名
+    # ▲▲▲ 修正ここまで ▲▲▲
+    teacher = db.Column(db.String(100), nullable=False) # 教員名
+    syllabus_url = db.Column(db.String(300), nullable=True) # シラバスURL
+    
+    # ▼▼▼ スクレイピングで取得するカラムを追加 ▼▼▼
+    subject_code = db.Column(db.String(50), nullable=True) # 科目番号
+    classroom = db.Column(db.String(100), nullable=True) # 開講教室
+    format = db.Column(db.String(50), nullable=True) # 対面/遠隔
+    year = db.Column(db.String(20), nullable=True) # 開講年度
+    term = db.Column(db.String(50), nullable=True) # 期間
+    schedule = db.Column(db.String(100), nullable=True) # 曜日時限
+    department = db.Column(db.String(100), nullable=True) # 開講学部等
+    credits = db.Column(db.String(10), nullable=True) # 単位数
+    # ▲▲▲ 追加ここまで ▲▲▲
+
     reviews = db.relationship('Review', backref='course', lazy=True, cascade="all, delete-orphan")
+
+    # ▼▼▼ 修正: 講義名と教員名の組み合わせでユニーク制約を追加 ▼▼▼
+    __table_args__ = (
+        db.UniqueConstraint('name', 'teacher', name='_name_teacher_uc'),
+    )
+    # ▲▲▲ 修正ここまで ▲▲▲
+
     @property
     def star_rating(self):
         if not self.reviews: return "評価なし"
@@ -88,8 +112,8 @@ class Review(db.Model):
     attendance = db.Column(db.String(10), nullable=False)
     test = db.Column(db.String(10), nullable=False)
     report = db.Column(db.String(10), nullable=False)
-    course_format = db.Column(db.String(20), nullable=True)
-    classroom = db.Column(db.String(100), nullable=True)
+    course_format = db.Column(db.String(20), nullable=True) # 授業形式 (任意)
+    classroom = db.Column(db.String(100), nullable=True) # 開講教室 (任意)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -101,6 +125,76 @@ def load_user(user_id):
     except Exception as e:
         app.logger.error(f"Error loading user {user_id}: {e}")
         return None
+
+# ▼▼▼ スクレイピング関数をここに追加 ▼▼▼
+def scrape_syllabus(url):
+    """
+    指定されたシラバスURLから情報を抽出する
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        syllabus_data = {
+            "科目番号": None, "開講教室": None, "対面/遠隔": None, "開講年度": None,
+            "期間": None, "曜日時限": None, "開講学部等": None, "講義名": None,
+            "単位数": None, "教員名": None, "シラバスURL": url # URLも渡す
+        }
+
+        main_content = soup.find('table', id='ctl00_phContents_Detail_Table2')
+        if not main_content:
+            app.logger.error(f"Scrape Error: メインコンテナが見つかりません (URL: {url})")
+            return None 
+
+        all_tds = main_content.find_all('td')
+
+        for i, td in enumerate(all_tds):
+            text = td.get_text(strip=True)
+            try:
+                if text == '科目番号':
+                    syllabus_data['科目番号'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '教室':
+                    syllabus_data['開講教室'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '対面/遠隔':
+                    syllabus_data['対面/遠隔'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '開講年度':
+                    syllabus_data['開講年度'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '期間':
+                    syllabus_data['期間'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '曜日時限':
+                    syllabus_data['曜日時限'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '開講学部等':
+                    syllabus_data['開講学部等'] = all_tds[i + 5].get_text(strip=True)
+                elif text == '科目名[英文名]':
+                    syllabus_data['講義名'] = all_tds[i + 3].get_text(strip=True)
+                elif text == '単位数':
+                    syllabus_data['単位数'] = all_tds[i + 3].get_text(strip=True)
+                elif text == '担当教員[ローマ字表記]':
+                    syllabus_data['教員名'] = all_tds[i + 1].get_text(strip=True)
+            except IndexError:
+                app.logger.warning(f"Scrape Warning: '{text}' のデータ取得中にIndexError (URL: {url})")
+                pass
+        
+        # 必須項目チェック
+        if not syllabus_data.get('講義名') or not syllabus_data.get('教員名'):
+            app.logger.error(f"Scrape Error: 必須項目（講義名または教員名）が取得できませんでした (URL: {url})")
+            return None
+
+        return syllabus_data
+
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"HTTPリクエストエラー (URL: {url}): {e}")
+        return None
+    except Exception as e:
+        app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
+        return None
+# ▲▲▲ スクレイピング関数ここまで ▲▲▲
+
 
 # --- Routes ---
 
@@ -121,6 +215,11 @@ def index():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # ▼▼▼ 修正: ログイン済みのユーザーは登録ページにアクセスさせない ▼▼▼
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    # ▲▲▲ 修正ここまで ▲▲▲
+        
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -302,56 +401,143 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/add', methods=['POST'])
+# ▼▼▼ 講義登録ルート (Step 1: スクレイピングと確認) ▼▼▼
+@app.route('/add_course', methods=['POST'])
 @login_required
-def add_course():
-    name = request.form.get('name')
-    teacher = request.form.get('teacher')
+def add_course_step1_scrape():
+    # ▼▼▼ 修正: ゲストユーザーは登録不可 ▼▼▼
+    if current_user.email.endswith('@demo.com'):
+        flash('ゲストユーザーは講義を登録できません。学内メールで登録してください。', 'warning')
+        return redirect(url_for('search_course')) # 修正: search_course (GET) にリダイレクト
+    # ▲▲▲ 修正ここまで ▲▲▲
+
     syllabus_url = request.form.get('syllabus_url')
     
-    if not name or not teacher:
-        flash('講義名と担当教員名は必須です。', 'danger')
-        return redirect(url_for('search_course')) # 失敗時は検索ページに戻す
+    # ▼▼▼ 修正: URLバリデーションを年度指定なしに変更 ▼▼▼
+    url_pattern = "tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/DetailMain.aspx?lct_year="
+    if not syllabus_url or url_pattern not in syllabus_url:
+        flash('正しいシラバス詳細URL (DetailMain.aspx?lct_year=... を含む) を入力してください。', 'danger')
+        return redirect(url_for('search_course')) # 検索ページに戻す
+    # ▲▲▲ 修正ここまで ▲▲▲
+    
+    # --- サーバー負荷軽減のため3秒待機 ---
+    app.logger.info("Waiting 3 seconds before scraping...")
+    time.sleep(3)
+    # ---------------------------------
         
-    if not syllabus_url or not syllabus_url.startswith('https://tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/'):
-        flash('2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。', 'danger')
-        return redirect(url_for('search_course')) # 失敗時は検索ページに戻す
-        
-    existing_course = Course.query.filter_by(name=name).first()
+    # スクレイピング実行
+    app.logger.info(f"Attempting to scrape URL: {syllabus_url}")
+    course_data = scrape_syllabus(syllabus_url)
+    
+    if course_data is None:
+        flash('シラバス情報の取得に失敗しました。URLが正しいか、サイトの仕様が変更されていないか確認してください。', 'danger')
+        return redirect(url_for('search_course')) # 検索ページに戻す
+    
+    # ▼▼▼ 修正: 講義名と教員名の「両方」で重複チェック ▼▼▼
+    scraped_name = course_data.get('講義名')
+    scraped_teacher = course_data.get('教員名')
+
+    existing_course = Course.query.filter_by(
+        name=scraped_name,
+        teacher=scraped_teacher
+    ).first()
+    
     if existing_course:
-        flash('この講義名は既に登録されています。', 'info')
+        flash(f"講義「{scraped_name} (担当: {scraped_teacher})」は既に登録されています。", 'info')
+        return redirect(url_for('course_detail', id=existing_course.id))
+    # ▲▲▲ 修正ここまで ▲▲▲
+
+    # 取得成功。確認ページへ
+    return render_template('confirm_course.html', course_data=course_data)
+# ▲▲▲ 講義登録ルート (Step 1) ▲▲▲
+
+# ▼▼▼ 講義登録ルート (Step 2: DBへ登録) ▼▼▼
+@app.route('/create_course', methods=['POST'])
+@login_required
+def add_course_step2_create():
+    # ▼▼▼ 修正: ゲストユーザーは登録不可 ▼▼▼
+    if current_user.email.endswith('@demo.com'):
+        flash('ゲストユーザーは講義を登録できません。', 'warning')
         return redirect(url_for('index'))
-        
+    # ▲▲▲ 修正ここまで ▲▲▲
+    
     try:
-        new_course = Course(name=name, teacher=teacher, syllabus_url=syllabus_url)
+        # POSTフォームからデータを取得
+        name = request.form.get('name')
+        teacher = request.form.get('teacher')
+        syllabus_url = request.form.get('syllabus_url')
+        
+        if not name or not teacher or not syllabus_url:
+            flash('登録データが不足しています。もう一度最初からやり直してください。', 'danger')
+            return redirect(url_for('index')) # ホームに戻す
+
+        # ▼▼▼ 修正: 講義名と教員名の「両方」で重複チェック (レースコンディション対策) ▼▼▼
+        if Course.query.filter_by(name=name, teacher=teacher).first():
+            flash(f'講義「{name} (担当: {teacher})」は既に登録されています。 (エラー: C-RACE)', 'info')
+            return redirect(url_for('index')) # ホームに戻す
+        # ▲▲▲ 修正ここまで ▲▲▲
+            
+        # Course オブジェクトの作成
+        new_course = Course(
+            name=name,
+            teacher=teacher,
+            syllabus_url=syllabus_url,
+            subject_code=request.form.get('subject_code'),
+            classroom=request.form.get('classroom'),
+            format=request.form.get('format'),
+            year=request.form.get('year'),
+            term=request.form.get('term'),
+            schedule=request.form.get('schedule'),
+            department=request.form.get('department'),
+            credits=request.form.get('credits')
+        )
+        
         db.session.add(new_course)
         db.session.commit()
+        
         flash('講義を登録しました。続けてレビューを追加できます。', 'success')
         return redirect(url_for('course_detail', id=new_course.id))
+
     except IntegrityError:
+        # ▼▼▼ 修正: 複合ユニーク制約違反の場合のエラー ▼▼▼
         db.session.rollback()
-        flash('この講義名は既に登録されています。 (エラー: IE-C)', 'danger')
-        return redirect(url_for('index'))
+        flash('この講義名と教員の組み合わせは既に登録されています。 (エラー: IE-C)', 'danger')
+        return redirect(url_for('index')) # ホームに戻す
+        # ▲▲▲ 修正ここまで ▲▲▲
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Add course error: {e}")
+        app.logger.error(f"Add course (create) error: {e}")
         flash('講義の登録中にエラーが発生しました。', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('index')) # ホームに戻す
+# ▲▲▲ 講義登録ルート (Step 2) ▲▲▲
 
-@app.route('/search', methods=['POST'])
+# ▼▼▼ 修正: /search ルートで GET メソッドも許可する ▼▼▼
+@app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
-    search_term = request.form.get('search')
-    if not search_term:
+    search_term = None
+    results = []
+
+    if request.method == 'POST':
+        search_term = request.form.get('search')
+        if not search_term:
+            results = Course.query.all()
+        else:
+            results = Course.query.filter(
+                db.or_(
+                    Course.name.like(f'%{search_term}%'),
+                    Course.teacher.like(f'%{search_term}%')
+                )
+            ).all()
+    else: 
+        # GETリクエストの場合
+        # (ゲストがリダイレクトされた時や、URL直打ちで /search に来た場合)
+        # 全件一覧を表示する
         results = Course.query.all()
-    else:
-        results = Course.query.filter(
-            db.or_(
-                Course.name.like(f'%{search_term}%'),
-                Course.teacher.like(f'%{search_term}%')
-            )
-        ).all()
+        # search_term は None (デフォルト) のまま
+        
     return render_template('search.html', results=results, search_term=search_term)
+# ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/course/<int:id>')
 @login_required
@@ -383,13 +569,15 @@ def add_review(id):
     attendance = request.form.get('attendance')
     test = request.form.get('test')
     report = request.form.get('report')
-    course_format = request.form.get('course_format')
-    classroom = request.form.get('classroom')
+    course_format = request.form.get('course_format') # 任意
+    # classroom = request.form.get('classroom') # 削除
     review_text = request.form.get('review')
     
-    if not all([rating, attendance, test, report, course_format]):
-        flash('評価、出欠、テスト、レポート、授業形式の項目は必須です。', 'danger')
+    # ▼▼▼ 修正: 必須項目チェックから course_format を削除 ▼▼▼
+    if not all([rating, attendance, test, report]):
+        flash('評価、出欠、テスト、レポートの項目は必須です。', 'danger')
         return redirect(url_for('course_detail', id=id))
+    # ▲▲▲ 修正ここまで ▲▲▲
         
     try:
         rating_float = float(rating)
@@ -403,7 +591,9 @@ def add_review(id):
     try:
         new_review = Review(
             rating=rating_float, attendance=attendance, test=test, report=report,
-            course_format=course_format, classroom=classroom, review=review_text,
+            course_format=course_format, 
+            classroom=None, # ▼▼▼ 修正: classroom は入力させない（NoneをDBに保存）
+            review=review_text,
             course_id=course.id, author=current_user
         )
         db.session.add(new_review)

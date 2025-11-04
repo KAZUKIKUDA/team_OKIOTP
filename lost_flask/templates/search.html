@@ -133,23 +133,30 @@
         <a href="{{ url_for('index') }}" class="back-link">検索に戻る (ホーム)</a>
         <hr>
 
+        {% if not current_user.email.endswith('@demo.com') %}
         <section>
             <h2>お探しの講義が見つかりませんか？</h2>
-            <p>講義名・担当教員名は、シラバス等の記載通りに正確にお願いいたします。</p>
-            <form action="{{ url_for('add_course') }}" method="POST">
-                
-                <input type="text" name="name" placeholder="講義名 (例: 知能情報基礎演習Ⅱ 01組)" 
-                       value="{{ search_term or '' }}" required>
-                <input type="text" name="teacher" placeholder="担当教員名 (例: 城間 政司)" required>
+
+            <p style="text-align: center; margin-bottom: 20px;">
+                <a href="https://tiglon.jim.u-ryukyu.ac.jp/Portal/Public/Syllabus/SearchMain.aspx" 
+                   target="_blank" rel="noopener noreferrer" 
+                   class="btn" style="background-color: var(--success-color); width: auto; padding: 10px 15px; margin-top: 0; font-size: 1em;">
+                    シラバス検索ページを開く (別タブ)
+                </a>
+            </p>
+            <p>シラバス検索ページで講義URLを探し、入力してください。</p>
+            
+            <form action="{{ url_for('add_course_step1_scrape') }}" method="POST">
                 
                 <input type="url" name="syllabus_url"
-                       placeholder="2025年度 シラバスURL"
-                       pattern="^https://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/.*\.aspx\?lct_year=2025.*"
-                       title="2025年度の正しいシラバスURL (https://tiglon...で始まる) を入力してください。"
+                       placeholder="シラバス詳細URL (https://tiglon...)"
+                       pattern="^https?://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/DetailMain\.aspx\?lct_year=.*"
+                       title="正しいシラバス詳細URL (https://tiglon...DetailMain.aspx?lct_year=...) を入力してください。"
                        required>
-                <button type="submit" class="btn">この講義を登録する</button>
+            <button type="submit" class="btn">このシラバスURLで登録する</button>
             </form>
         </section>
+        {% endif %}
         </div>
 
     <script>
