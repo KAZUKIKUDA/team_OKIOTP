@@ -414,7 +414,7 @@ def add_course_step1_scrape():
     syllabus_url = request.form.get('syllabus_url')
     
     # ▼▼▼ 修正: URLバリデーションを年度指定なしに変更 ▼▼▼
-    url_pattern = "tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/DetailMain.aspx?lct_year="
+    url_pattern = "tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/"
     if not syllabus_url or url_pattern not in syllabus_url:
         flash('正しいシラバス詳細URL (DetailMain.aspx?lct_year=... を含む) を入力してください。', 'danger')
         return redirect(url_for('search_course')) # 検索ページに戻す
