@@ -168,7 +168,15 @@
             <p>この講義にはまだレビューがありません。</p>
             {% endif %}
         </section>
-        <a href="{{ url_for('index') }}" class="back-link">ホームに戻る</a>
+        <div class="page-navigation">
+            
+            <div>
+                <a href="javascript:history.back()" class="back-link">« 前のページに戻る</a>
+                
+                <br> <a href="{{ url_for('index') }}" class="back-link" style="margin-top: 10px; display: inline-block;">« ホームに戻る</a>
+            </div>
+
+
     </div>
 </body>
 </html>

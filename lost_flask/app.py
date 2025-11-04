@@ -357,7 +357,15 @@ def search_course():
 @login_required
 def course_detail(id):
     course = Course.query.get_or_404(id)
+    # 投稿・閲覧ができる 'detail.html' を表示
     return render_template('detail.html', course=course)
+
+@app.route('/course_view/<int:id>')
+@login_required
+def course_view_detail(id):
+    course = Course.query.get_or_404(id)
+    # 閲覧専用の 'detail2.html' を表示
+    return render_template('detail2.html', course=course)
 
 @app.route('/add_review/<int:id>', methods=['POST'])
 @login_required
@@ -415,5 +423,7 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
-    app.run(debug=True)
-
+    # ▼▼▼ 変更点 ▼▼▼
+    # ポート5000番がAirPlayなどで使われている場合があるため、5001番に変更
+    app.run(debug=True, port=5001)
+    # ▲▲▲ 変更ここまで ▲▲▲

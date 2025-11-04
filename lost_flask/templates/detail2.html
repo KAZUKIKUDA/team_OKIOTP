@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>講義詳細（閲覧）</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <style>
+        /* ページ下部のボタン用コンテナ */
+        .page-navigation {
+            display: flex; /* ボタンを横並び(Flexbox)にする */
+            justify-content: space-between; /* 両端に配置 */
+            align-items: center; /* 縦方向の中央揃え */
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee; /* 区切り線 */
+        }
+        
+        /* ボタンがコンテナいっぱいに広がるのを防ぐ
+           (style.css に .page-navigation .btn { width: auto; } があれば不要ですが、念のため) 
+        */
+        .page-navigation .btn {
+            width: auto;
+            flex-grow: 0;
+        }
+    </style>
+    </head>
+<body>
+    <div class="user-header">
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1 class="app-title" style="font-size: 1.8em;">講義詳細（閲覧）</h1>
+            </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="course-info">
+            <p><strong>講義名：</strong> {{ course.name }}</p>
+            <p><strong>担当教員：</strong> {{ course.teacher }}</p>
+            <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
+            {% if course.syllabus_url %}
+            <p><strong>シラバス：</strong> <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
+            {% endif %}
+        </section>
+
+        <section>
+            <h2>レビュー一覧 ({{ course.reviews|length }}件)</h2>
+            {% if course.reviews %}
+            <table class="review-table">
+                {% for review in course.reviews | reverse %}
+                <tr>
+                    <td>
+                        <div class="review-meta">
+                            <span><strong>投稿者:</strong> {{ review.author.username }}</span>
+                            <span><strong>評価:</strong> ★{{ "%.1f"|format(review.rating) }}</span>
+                            <span><strong>出席:</strong> {{ review.attendance }}</span>
+                            <span><strong>テスト:</strong> {{ review.test }}</span>
+                            <span><strong>レポート:</strong> {{ review.report }}</span>
+                            <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
+                            <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
+                        </div>
+                        {% if review.review %}
+                        <p class="review-text">{{ review.review }}</p>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p>この講義にはまだレビューがありません。</p>
+            {% endif %}
+        </section>
+        <div class="page-navigation">
+            <a href="{{ url_for('course_detail', id=course.id) }}" class="btn">
+                この講義のレビューを投稿する
+            </a>
+        </div>
+        <a href="javascript:history.back()" class="back-link">« 前のページに戻る</a>
+        <br> <a href="{{ url_for('index') }}" class="back-link" style="margin-top: 10px; display: inline-block;">« ホームに戻る</a></br>
+        </div>
+</body>
+</html>

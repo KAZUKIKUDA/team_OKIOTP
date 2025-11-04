@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>検索結果</title>
-    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
     <style>
         /* search.html専用のスタイル */
         .search-results-table {
@@ -29,11 +28,51 @@
             font-weight: bold;
         }
 
-        .search-results-table tr:hover {
+        /* 選択可能な行であることを示す (カーソルをポインターに) */
+        .selectable-row:hover {
+            background-color: #f5f5f5; /* ホバー時の色 */
+            cursor: pointer;
+        }
+
+        /* 選択中の行のハイライト色 */
+        .selected-row {
+            background-color: #e0e7ff; /* 選択時の色 (例: 青みがかった色) */
+        }
+        
+        /* ボタンコンテナ (最初は非表示) */
+        .action-buttons {
+            display: none; /* JavaScriptで表示するまで隠す */
+            margin-top: 20px;
+            padding: 15px;
             background-color: #f9f9f9;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .action-buttons h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        /* ボタンのスタイル */
+        .action-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 0 10px;
+            text-decoration: none;
+            color: white;
+            background-color: #007bff; /* プライマリボタンの色 */
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .action-btn.secondary {
+            background-color: #6c757d; /* セカンダリボタンの色 */
         }
     </style>
-</head>
+    </head>
 <body>
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
@@ -42,14 +81,12 @@
 
     <div class="container">
         <header class="main-header">
-            <!-- ▼▼▼ 検索キーワードを表示 ▼▼▼ -->
             {% if search_term %}
                 <h1 class="app-title">「{{ search_term }}」の検索結果</h1>
             {% else %}
                 <h1 class="app-title">全講義一覧</h1>
             {% endif %}
-            <!-- ▲▲▲ 検索キーワードを表示 ▲▲▲ -->
-        </header>
+            </header>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -61,7 +98,7 @@
 
         <section>
             {% if results %}
-                <p>{{ results|length }}件の講義が見つかりました。</p>
+                <p>{{ results|length }}件の講義が見つかりました。講義を選択してください。</p>
                 <table class="search-results-table">
                     <thead>
                         <tr>
@@ -72,34 +109,37 @@
                     </thead>
                     <tbody>
                         {% for course in results %}
-                        <tr>
-                            <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
+                        <tr class="selectable-row" data-course-id="{{ course.id }}" data-course-name="{{ course.name }}">
+                            <td>{{ course.name }}</td>
                             <td>{{ course.teacher }}</td>
                             <td>★ {{ course.star_rating }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-            {% else %}
+
+                <div id="action-container" class="action-buttons">
+                    <h3 id="selected-course-name"></h3>
+                    
+                    <a id="view-review-btn" href="#" class="action-btn">レビューを閲覧する</a>
+                    
+                    <a id="add-review-btn" href="#" class="action-btn secondary">レビューを投稿する</a>
+                </div>
+                {% else %}
                 <p>該当する講義は見つかりませんでした。</p>
             {% endif %}
         </section>
 
-        <a href="{{ url_for('index') }}" class="back-link">ホームに戻る</a>
-
+        <a href="{{ url_for('index') }}" class="back-link">検索に戻る (ホーム)</a>
         <hr>
 
-        <!-- ▼▼▼ 講義登録フォームをここ（検索結果の下）に移動 ▼▼▼ -->
         <section>
             <h2>お探しの講義が見つかりませんか？</h2>
             <p>講義名・担当教員名は、シラバス等の記載通りに正確にお願いいたします。</p>
             <form action="{{ url_for('add_course') }}" method="POST">
                 
-                <!-- ▼▼▼ 検索キーワードを講義名に自動入力 ▼▼▼ -->
                 <input type="text" name="name" placeholder="講義名 (例: 知能情報基礎演習Ⅱ 01組)" 
                        value="{{ search_term or '' }}" required>
-                <!-- ▲▲▲ 検索キーワードを講義名に自動入力 ▲▲▲ -->
-
                 <input type="text" name="teacher" placeholder="担当教員名 (例: 城間 政司)" required>
                 
                 <input type="url" name="syllabus_url"
@@ -110,9 +150,51 @@
                 <button type="submit" class="btn">この講義を登録する</button>
             </form>
         </section>
-        <!-- ▲▲▲ 講義登録フォーム ▲▲▲ -->
+        </div>
 
-    </div>
-</body>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('.selectable-row');
+            const actionContainer = document.getElementById('action-container');
+            const selectedCourseName = document.getElementById('selected-course-name');
+            const viewButton = document.getElementById('view-review-btn');
+            const addButton = document.getElementById('add-review-btn');
+            
+            let selectedRow = null;
+
+            rows.forEach(row => {
+                row.addEventListener('click', function() {
+                    // 1. 選択された講義のIDと名前を取得
+                    const courseId = row.getAttribute('data-course-id');
+                    const courseName = row.getAttribute('data-course-name');
+                    
+                    // 2. ボタンのリンク先URLを動的に生成
+                    
+                    // 「レビューを閲覧する」ボタンのURL (detail2.html へ)
+                    const viewUrl = `/course_view/${courseId}`;
+                    
+                    // 「レビューを投稿する」ボタンのURL (detail.html へ)
+                    const addUrl = `/course/${courseId}`; 
+                    
+                    // 3. 各ボタンにURLを設定
+                    viewButton.href = viewUrl;   // ← 閲覧ボタン
+                    addButton.href = addUrl;    // ← 投稿ボタン
+                    
+                    // 4. 選択した講義名を表示
+                    selectedCourseName.textContent = `「${courseName}」を選択中`;
+                    
+                    // 5. ボタンコンテナを表示
+                    actionContainer.style.display = 'block';
+                    
+                    // 6. 選択行のハイライト処理
+                    if (selectedRow) {
+                        selectedRow.classList.remove('selected-row');
+                    }
+                    row.classList.add('selected-row');
+                    selectedRow = row; 
+                });
+            });
+        });
+    </script>
+    </body>
 </html>
-
