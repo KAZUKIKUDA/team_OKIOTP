@@ -161,7 +161,7 @@ def register():
             confirm_url = url_for('confirm_email', token=token, _external=True)
             
             # 【重要】ここはあなたのSendGrid認証済みアドレスに書き換えてください
-            SENDER_EMAIL = 'e235735@cs.u-ryukyu.ac.jp' 
+            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
             SENDER_NAME = '講義レビューサイト' # 送信者名
 
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
