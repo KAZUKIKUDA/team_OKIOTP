@@ -65,28 +65,23 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
 
+# ▼▼▼ 修正: Courseモデルを簡略化 ▼▼▼
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # ▼▼▼ 修正: unique=True を削除 ▼▼▼
     name = db.Column(db.String(100), nullable=False) # 講義名
-    # ▲▲▲ 修正ここまで ▲▲▲
     teacher = db.Column(db.String(100), nullable=False) # 教員名
     syllabus_url = db.Column(db.String(300), nullable=True) # シラバスURL
     
-    # ▼▼▼ スクレイピングで取得するカラムを追加 ▼▼▼
+    # ▼▼▼ 登録時に取得する6項目 ▼▼▼
     subject_code = db.Column(db.String(50), nullable=True) # 科目番号
-    classroom = db.Column(db.String(100), nullable=True) # 開講教室
-    format = db.Column(db.String(50), nullable=True) # 対面/遠隔
-    year = db.Column(db.String(20), nullable=True) # 開講年度
-    term = db.Column(db.String(50), nullable=True) # 期間
-    schedule = db.Column(db.String(100), nullable=True) # 曜日時限
     department = db.Column(db.String(100), nullable=True) # 開講学部等
     credits = db.Column(db.String(10), nullable=True) # 単位数
-    # ▲▲▲ 追加ここまで ▲▲▲
+    format = db.Column(db.String(50), nullable=True) # 授業形式 (対面/遠隔)
+    # ▲▲▲ 6項目ここまで ▲▲▲
 
     reviews = db.relationship('Review', backref='course', lazy=True, cascade="all, delete-orphan")
 
-    # ▼▼▼ 修正: 講義名と教員名の組み合わせでユニーク制約を追加 ▼▼▼
+    # ▼▼▼ 修正: ユニーク制約を 'name' と 'teacher' の2つに戻す ▼▼▼
     __table_args__ = (
         db.UniqueConstraint('name', 'teacher', name='_name_teacher_uc'),
     )
@@ -96,15 +91,15 @@ class Course(db.Model):
     def star_rating(self):
         if not self.reviews: return "評価なし"
         try:
-            # ▼▼▼ レビュー0件の場合のエラーをハンドリング ▼▼▼
             if len(self.reviews) == 0:
                 return "評価なし"
             avg = sum(r.rating for r in self.reviews) / len(self.reviews)
             return f"{avg:.2f}"
         except ZeroDivisionError:
             return "評価なし"
-        # ▲▲▲ エラーハンドリング ▲▲▲
+# ▲▲▲ Courseモデル修正ここまで ▲▲▲
 
+# ▼▼▼ 修正: Reviewモデルに 'year' と 'classroom' を追加 ▼▼▼
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     review = db.Column(db.Text, nullable=True)
@@ -113,9 +108,15 @@ class Review(db.Model):
     test = db.Column(db.String(10), nullable=False)
     report = db.Column(db.String(10), nullable=False)
     course_format = db.Column(db.String(20), nullable=True) # 授業形式 (任意)
+    
+    # ▼▼▼ レビュー投稿時に任意で入力する項目 ▼▼▼
+    year = db.Column(db.String(20), nullable=True) # 開講年度 (任意)
     classroom = db.Column(db.String(100), nullable=True) # 開講教室 (任意)
+    # ▲▲▲ 追加ここまで ▲▲▲
+    
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+# ▲▲▲ Reviewモデル修正ここまで ▲▲▲
 
 
 @login_manager.user_loader
@@ -126,7 +127,7 @@ def load_user(user_id):
         app.logger.error(f"Error loading user {user_id}: {e}")
         return None
 
-# ▼▼▼ スクレイピング関数をここに追加 ▼▼▼
+# ▼▼▼ 修正: スクレイピング関数 (6項目のみ取得) ▼▼▼
 def scrape_syllabus(url):
     """
     指定されたシラバスURLから情報を抽出する
@@ -140,11 +141,13 @@ def scrape_syllabus(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
+        # ▼▼▼ 取得するデータを6 (+1) に限定 ▼▼▼
         syllabus_data = {
-            "科目番号": None, "開講教室": None, "対面/遠隔": None, "開講年度": None,
-            "期間": None, "曜日時限": None, "開講学部等": None, "講義名": None,
-            "単位数": None, "教員名": None, "シラバスURL": url # URLも渡す
+            "科目番号": None, "開講学部等": None, "講義名": None,
+            "単位数": None, "教員名": None, "授業形式": None,
+            "シラバスURL": url
         }
+        # ▲▲▲ 修正ここまで ▲▲▲
 
         main_content = soup.find('table', id='ctl00_phContents_Detail_Table2')
         if not main_content:
@@ -156,18 +159,11 @@ def scrape_syllabus(url):
         for i, td in enumerate(all_tds):
             text = td.get_text(strip=True)
             try:
+                # ▼▼▼ 取得する6項目 ▼▼▼
                 if text == '科目番号':
                     syllabus_data['科目番号'] = all_tds[i + 5].get_text(strip=True)
-                elif text == '教室':
-                    syllabus_data['開講教室'] = all_tds[i + 5].get_text(strip=True)
                 elif text == '対面/遠隔':
-                    syllabus_data['対面/遠隔'] = all_tds[i + 5].get_text(strip=True)
-                elif text == '開講年度':
-                    syllabus_data['開講年度'] = all_tds[i + 5].get_text(strip=True)
-                elif text == '期間':
-                    syllabus_data['期間'] = all_tds[i + 5].get_text(strip=True)
-                elif text == '曜日時限':
-                    syllabus_data['曜日時限'] = all_tds[i + 5].get_text(strip=True)
+                    syllabus_data['授業形式'] = all_tds[i + 5].get_text(strip=True)
                 elif text == '開講学部等':
                     syllabus_data['開講学部等'] = all_tds[i + 5].get_text(strip=True)
                 elif text == '科目名[英文名]':
@@ -176,6 +172,8 @@ def scrape_syllabus(url):
                     syllabus_data['単位数'] = all_tds[i + 3].get_text(strip=True)
                 elif text == '担当教員[ローマ字表記]':
                     syllabus_data['教員名'] = all_tds[i + 1].get_text(strip=True)
+                # ▲▲▲ 修正ここまで ▲▲▲
+                    
             except IndexError:
                 app.logger.warning(f"Scrape Warning: '{text}' のデータ取得中にIndexError (URL: {url})")
                 pass
@@ -193,32 +191,26 @@ def scrape_syllabus(url):
     except Exception as e:
         app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
         return None
-# ▲▲▲ スクレイピング関数ここまで ▲▲▲
+# ▲▲▲ スクレイピング関数修正ここまで ▲▲▲
 
 
 # --- Routes ---
 
-# ▼▼▼ トップページ（/）の挙動を修正 ▼▼▼
 @app.route('/')
-@login_required # ログイン必須は維持
+@login_required 
 def index():
-    # ログイン済みユーザーには、検索フォームと最近の講義を表示
     try:
-        # DBからIDを降順（新しい順）で3件取得
         recent_courses = Course.query.order_by(db.desc(Course.id)).limit(3).all()
     except Exception as e:
         app.logger.error(f"Error fetching recent courses: {e}")
         recent_courses = []
         
     return render_template('top.html', recent_courses=recent_courses)
-# ▲▲▲ 挙動修正 ▲▲▲
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # ▼▼▼ 修正: ログイン済みのユーザーは登録ページにアクセスさせない ▼▼▼
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    # ▲▲▲ 修正ここまで ▲▲▲
         
     if request.method == 'POST':
         username = request.form.get('username')
@@ -226,7 +218,6 @@ def register():
         password = request.form.get('password')
         password_confirm = request.form.get('password_confirm')
         
-        # --- 入力チェック (ここは変更なし) ---
         if password != password_confirm:
             flash('パスワードが一致しません。もう一度お試しください。', 'danger')
             return redirect(url_for('register'))
@@ -248,18 +239,14 @@ def register():
             flash('このメールアドレスは既に使用されています。', 'danger')
             return redirect(url_for('register'))
 
-        # ▼▼▼ トランザクション修正 ▼▼▼
         try:
-            # 1. データベースオブジェクトを準備（まだコミットしない）
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             new_user = User(username=username, email=email, password=hashed_password)
             db.session.add(new_user)
             
-            # 2. メールの準備と送信
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
             
-            # 【重要】ここはあなたのSendGrid認証済みアドレスに書き換えてください
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
             SENDER_NAME = '講義レビューサイト' # 送信者名
 
@@ -282,14 +269,12 @@ def register():
                 app.logger.error(f"SendGrid API Error: {response.body}")
                 raise Exception(f"SendGrid API error (Status {response.status_code})")
 
-            # 3. メール送信が成功した場合のみ、データベースにコミット
             db.session.commit() # <<< 成功した場合のみDBを確定
             
             flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
             return redirect(url_for('login'))
 
         except IntegrityError: 
-            # 3のコミットが（万が一の）重複エラーを起こした場合
             db.session.rollback() # 念のためロールバック
             if User.query.filter_by(username=username).first():
                 flash('そのユーザー名は既に使用されています。 (エラー: IE-U)', 'danger')
@@ -300,13 +285,11 @@ def register():
             return redirect(url_for('register'))
             
         except Exception as e:
-            # 2のメール送信が失敗した場合、またはその他のエラー
             db.session.rollback() # <<< 【重要】db.session.add(new_user) をここで取り消す
             
             app.logger.error(f"Registration error (user {email}): {e}")
             flash(f'不明なエラー（{type(e).__name__}）が発生しました。管理者に連絡してください。', 'danger')
             return redirect(url_for('register'))
-        # ▲▲▲ トランザクション修正完了 ▲▲▲
 
     return render_template('register.html')
 
@@ -405,35 +388,28 @@ def logout():
 @app.route('/add_course', methods=['POST'])
 @login_required
 def add_course_step1_scrape():
-    # ▼▼▼ 修正: ゲストユーザーは登録不可 ▼▼▼
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーは講義を登録できません。学内メールで登録してください。', 'warning')
-        return redirect(url_for('search_course')) # 修正: search_course (GET) にリダイレクト
-    # ▲▲▲ 修正ここまで ▲▲▲
-
+        return redirect(url_for('search_course')) 
+    
     syllabus_url = request.form.get('syllabus_url')
     
-    # ▼▼▼ 修正: URLバリデーションを年度指定なしに変更 ▼▼▼
     url_pattern = "tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/"
     if not syllabus_url or url_pattern not in syllabus_url:
         flash('正しいシラバス詳細URL (DetailMain.aspx?lct_year=... を含む) を入力してください。', 'danger')
-        return redirect(url_for('search_course')) # 検索ページに戻す
-    # ▲▲▲ 修正ここまで ▲▲▲
+        return redirect(url_for('search_course')) 
     
-    # --- サーバー負荷軽減のため3秒待機 ---
     app.logger.info("Waiting 3 seconds before scraping...")
     time.sleep(3)
-    # ---------------------------------
         
-    # スクレイピング実行
     app.logger.info(f"Attempting to scrape URL: {syllabus_url}")
     course_data = scrape_syllabus(syllabus_url)
     
     if course_data is None:
         flash('シラバス情報の取得に失敗しました。URLが正しいか、サイトの仕様が変更されていないか確認してください。', 'danger')
-        return redirect(url_for('search_course')) # 検索ページに戻す
+        return redirect(url_for('search_course')) 
     
-    # ▼▼▼ 修正: 講義名と教員名の「両方」で重複チェック ▼▼▼
+    # ▼▼▼ 修正: 講義名と教員名の「2つ」で重複チェック ▼▼▼
     scraped_name = course_data.get('講義名')
     scraped_teacher = course_data.get('教員名')
 
@@ -447,50 +423,42 @@ def add_course_step1_scrape():
         return redirect(url_for('course_detail', id=existing_course.id))
     # ▲▲▲ 修正ここまで ▲▲▲
 
-    # 取得成功。確認ページへ
     return render_template('confirm_course.html', course_data=course_data)
-# ▲▲▲ 講義登録ルート (Step 1) ▲▲▲
 
 # ▼▼▼ 講義登録ルート (Step 2: DBへ登録) ▼▼▼
 @app.route('/create_course', methods=['POST'])
 @login_required
 def add_course_step2_create():
-    # ▼▼▼ 修正: ゲストユーザーは登録不可 ▼▼▼
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーは講義を登録できません。', 'warning')
         return redirect(url_for('index'))
-    # ▲▲▲ 修正ここまで ▲▲▲
     
     try:
-        # POSTフォームからデータを取得
         name = request.form.get('name')
         teacher = request.form.get('teacher')
         syllabus_url = request.form.get('syllabus_url')
         
         if not name or not teacher or not syllabus_url:
             flash('登録データが不足しています。もう一度最初からやり直してください。', 'danger')
-            return redirect(url_for('index')) # ホームに戻す
+            return redirect(url_for('index')) 
 
-        # ▼▼▼ 修正: 講義名と教員名の「両方」で重複チェック (レースコンディション対策) ▼▼▼
+        # ▼▼▼ 修正: 講義名と教員名の「2つ」で重複チェック ▼▼▼
         if Course.query.filter_by(name=name, teacher=teacher).first():
             flash(f'講義「{name} (担当: {teacher})」は既に登録されています。 (エラー: C-RACE)', 'info')
-            return redirect(url_for('index')) # ホームに戻す
+            return redirect(url_for('index')) 
         # ▲▲▲ 修正ここまで ▲▲▲
             
-        # Course オブジェクトの作成
+        # ▼▼▼ 修正: Course オブジェクトの作成 (6項目のみ) ▼▼▼
         new_course = Course(
             name=name,
             teacher=teacher,
             syllabus_url=syllabus_url,
             subject_code=request.form.get('subject_code'),
-            classroom=request.form.get('classroom'),
-            format=request.form.get('format'),
-            year=request.form.get('year'),
-            term=request.form.get('term'),
-            schedule=request.form.get('schedule'),
             department=request.form.get('department'),
-            credits=request.form.get('credits')
+            credits=request.form.get('credits'),
+            format=request.form.get('format')
         )
+        # ▲▲▲ 修正ここまで ▲▲▲
         
         db.session.add(new_course)
         db.session.commit()
@@ -499,19 +467,16 @@ def add_course_step2_create():
         return redirect(url_for('course_detail', id=new_course.id))
 
     except IntegrityError:
-        # ▼▼▼ 修正: 複合ユニーク制約違反の場合のエラー ▼▼▼
         db.session.rollback()
         flash('この講義名と教員の組み合わせは既に登録されています。 (エラー: IE-C)', 'danger')
-        return redirect(url_for('index')) # ホームに戻す
-        # ▲▲▲ 修正ここまで ▲▲▲
+        return redirect(url_for('index')) 
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Add course (create) error: {e}")
         flash('講義の登録中にエラーが発生しました。', 'danger')
-        return redirect(url_for('index')) # ホームに戻す
-# ▲▲▲ 講義登録ルート (Step 2) ▲▲▲
+        return redirect(url_for('index'))
 
-# ▼▼▼ 修正: /search ルートで GET メソッドも許可する ▼▼▼
+# ▼▼▼ 修正: /search ルート (GETメソッド許可) ▼▼▼
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
@@ -531,10 +496,7 @@ def search_course():
             ).all()
     else: 
         # GETリクエストの場合
-        # (ゲストがリダイレクトされた時や、URL直打ちで /search に来た場合)
-        # 全件一覧を表示する
         results = Course.query.all()
-        # search_term は None (デフォルト) のまま
         
     return render_template('search.html', results=results, search_term=search_term)
 # ▲▲▲ 修正ここまで ▲▲▲
@@ -543,41 +505,39 @@ def search_course():
 @login_required
 def course_detail(id):
     course = Course.query.get_or_404(id)
-    # 投稿・閲覧ができる 'detail.html' を表示
     return render_template('detail.html', course=course)
 
 @app.route('/course_view/<int:id>')
 @login_required
 def course_view_detail(id):
     course = Course.query.get_or_404(id)
-    # 閲覧専用の 'detail2.html' を表示
     return render_template('detail2.html', course=course)
 
+# ▼▼▼ 修正: add_review (year, classroom を任意で取得) ▼▼▼
 @app.route('/add_review/<int:id>', methods=['POST'])
 @login_required
 def add_review(id):
     course = Course.query.get_or_404(id)
     
-    # ▼▼▼ 1ユーザー1レビューの制約 ▼▼▼
-    existing_review = Review.query.filter_by(course_id=id, user_id=current_user.id).first()
-    if existing_review:
+    if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
         flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')
         return redirect(url_for('course_detail', id=id))
-    # ▲▲▲ 1ユーザー1レビュー ▲▲▲
 
     rating = request.form.get('rating')
     attendance = request.form.get('attendance')
     test = request.form.get('test')
     report = request.form.get('report')
     course_format = request.form.get('course_format') # 任意
-    # classroom = request.form.get('classroom') # 削除
     review_text = request.form.get('review')
     
-    # ▼▼▼ 修正: 必須項目チェックから course_format を削除 ▼▼▼
+    # ▼▼▼ 任意項目 (year, classroom) を取得 ▼▼▼
+    year = request.form.get('year')
+    classroom = request.form.get('classroom')
+    # ▲▲▲ 修正ここまで ▲▲▲
+
     if not all([rating, attendance, test, report]):
         flash('評価、出欠、テスト、レポートの項目は必須です。', 'danger')
         return redirect(url_for('course_detail', id=id))
-    # ▲▲▲ 修正ここまで ▲▲▲
         
     try:
         rating_float = float(rating)
@@ -589,13 +549,17 @@ def add_review(id):
         return redirect(url_for('course_detail', id=id))
         
     try:
+        # ▼▼▼ new_review に year と classroom を追加 ▼▼▼
         new_review = Review(
             rating=rating_float, attendance=attendance, test=test, report=report,
             course_format=course_format, 
-            classroom=None, # ▼▼▼ 修正: classroom は入力させない（NoneをDBに保存）
+            year=year, # 追加
+            classroom=classroom, # 追加
             review=review_text,
             course_id=course.id, author=current_user
         )
+        # ▲▲▲ 修正ここまで ▲▲▲
+        
         db.session.add(new_review)
         db.session.commit()
         flash('レビューを投稿しました。', 'success')
@@ -605,6 +569,7 @@ def add_review(id):
         flash('レビューの投稿中にエラーが発生しました。', 'danger')
         
     return redirect(url_for('course_detail', id=id))
+# ▲▲▲ 修正ここまで ▲▲▲
 
 
 # 開発環境でのみ`flask run`で実行するための設定

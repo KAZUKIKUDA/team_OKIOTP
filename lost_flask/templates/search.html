@@ -144,13 +144,14 @@
                     シラバス検索ページを開く (別タブ)
                 </a>
             </p>
+            
             <p>シラバス検索ページで講義URLを探し、入力してください。</p>
             
             <form action="{{ url_for('add_course_step1_scrape') }}" method="POST">
                 
                 <input type="url" name="syllabus_url"
                        placeholder="シラバス詳細URL (https://tiglon...)"
-                       pattern="^https?://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus.*"
+                       pattern="^https?://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/.*"
                        title="正しいシラバス詳細URL (https://tiglon...DetailMain.aspx?lct_year=...) を入力してください。"
                        required>
             <button type="submit" class="btn">このシラバスURLで登録する</button>
@@ -176,11 +177,7 @@
                     const courseName = row.getAttribute('data-course-name');
                     
                     // 2. ボタンのリンク先URLを動的に生成
-                    
-                    // 「レビューを閲覧する」ボタンのURL (detail2.html へ)
                     const viewUrl = `/course_view/${courseId}`;
-                    
-                    // 「レビューを投稿する」ボタンのURL (detail.html へ)
                     const addUrl = `/course/${courseId}`; 
                     
                     // 3. 各ボタンにURLを設定

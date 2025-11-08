@@ -55,12 +55,8 @@
             <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
             
             <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
-            <p><strong>開講年度：</strong> {{ course.year or '未登録' }}</p>
             <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
-            <p><strong>期間：</strong> {{ course.term or '未登録' }}</p>
-            <p><strong>曜日時限：</strong> {{ course.schedule or '未登録' }}</p>
             <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
-            <p><strong>開講教室：</strong> {{ course.classroom or '未登録' }}</p>
             <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
             
             {% if course.syllabus_url %}
@@ -81,7 +77,9 @@
                             <span><strong>テスト:</strong> {{ review.test }}</span>
                             <span><strong>レポート:</strong> {{ review.report }}</span>
                             <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
-                            </div>
+                            <span><strong>開講年度:</strong> {{ review.year or '未登録' }}</span>
+                            <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
+                        </div>
                         {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>
                         {% endif %}
