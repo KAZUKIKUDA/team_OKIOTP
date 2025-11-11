@@ -1,8 +1,8 @@
-"""Initial migration with composite unique constraint
+"""Syllabus models
 
-Revision ID: f6e48704d79a
+Revision ID: 724784fc4a1b
 Revises: 
-Create Date: 2025-11-04 17:11:53.660973
+Create Date: 2025-11-11 15:37:56.422054
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'f6e48704d79a'
+revision = '724784fc4a1b'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -24,13 +24,9 @@ def upgrade():
     sa.Column('teacher', sa.String(length=100), nullable=False),
     sa.Column('syllabus_url', sa.String(length=300), nullable=True),
     sa.Column('subject_code', sa.String(length=50), nullable=True),
-    sa.Column('classroom', sa.String(length=100), nullable=True),
-    sa.Column('format', sa.String(length=50), nullable=True),
-    sa.Column('year', sa.String(length=20), nullable=True),
-    sa.Column('term', sa.String(length=50), nullable=True),
-    sa.Column('schedule', sa.String(length=100), nullable=True),
     sa.Column('department', sa.String(length=100), nullable=True),
     sa.Column('credits', sa.String(length=10), nullable=True),
+    sa.Column('format', sa.String(length=50), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', 'teacher', name='_name_teacher_uc')
     )
@@ -52,6 +48,7 @@ def upgrade():
     sa.Column('test', sa.String(length=10), nullable=False),
     sa.Column('report', sa.String(length=10), nullable=False),
     sa.Column('course_format', sa.String(length=20), nullable=True),
+    sa.Column('year', sa.String(length=20), nullable=True),
     sa.Column('classroom', sa.String(length=100), nullable=True),
     sa.Column('course_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
