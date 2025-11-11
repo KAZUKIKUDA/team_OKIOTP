@@ -19,6 +19,11 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail as SendGridMail
 # ▲▲▲ SendGrid ▲▲▲
 
+# ▼▼▼ 検索ロジックのために追加 ▼▼▼
+from collections import Counter
+from sqlalchemy.orm import joinedload
+# ▲▲▲ 追加ここまで ▲▲▲
+
 # --- Application Setup ---
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -104,10 +109,10 @@ class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     review = db.Column(db.Text, nullable=True)
     rating = db.Column(db.Float, nullable=False) 
-    attendance = db.Column(db.String(10), nullable=False)
+    attendance = db.Column(db.String(10), nullable=False) # "あり", "なし", "時々" など
     test = db.Column(db.String(10), nullable=False)
     report = db.Column(db.String(10), nullable=False)
-    course_format = db.Column(db.String(20), nullable=True) # 授業形式 (任意)
+    course_format = db.Column(db.String(20), nullable=True) # "オンライン", "ハイブリッド", "対面" など
     
     # ▼▼▼ レビュー投稿時に任意で入力する項目 ▼▼▼
     year = db.Column(db.String(20), nullable=True) # 開講年度 (任意)
@@ -200,12 +205,17 @@ def scrape_syllabus(url):
 @login_required 
 def index():
     try:
+        # フォームの入力値を保持するための空の辞書を渡す
+        form_data = {
+            'lecture_name': '', 'teacher_name': '', 'course_format': '',
+            'attendance': '', 'test': '', 'report': ''
+        }
         recent_courses = Course.query.order_by(db.desc(Course.id)).limit(3).all()
     except Exception as e:
         app.logger.error(f"Error fetching recent courses: {e}")
         recent_courses = []
         
-    return render_template('top.html', recent_courses=recent_courses)
+    return render_template('top.html', recent_courses=recent_courses, form_data=form_data)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -476,29 +486,151 @@ def add_course_step2_create():
         flash('講義の登録中にエラーが発生しました。', 'danger')
         return redirect(url_for('index'))
 
-# ▼▼▼ 修正: /search ルート (GETメソッド許可) ▼▼▼
+# ▼▼▼ 修正: /search ルート (GETメソッド許可 & 詳細検索ロジック) ▼▼▼
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
-    search_term = None
+    search_term = None # 旧ロジックの名残だが、互換性のため残す
     results = []
+    
+    # ▼▼▼【！！変更点！！】▼▼▼
+    # フォームからの検索条件を保持するための辞書
+    form_data = {
+        'lecture_name': request.form.get('lecture_name', ''),
+        'teacher_name': request.form.get('teacher_name', ''),
+        'course_format': request.form.get('course_format', ''),
+        'attendance': request.form.get('attendance', ''),
+        'test': request.form.get('test', ''),     # 'test' を追加
+        'report': request.form.get('report', '')  # 'report' を追加
+        # 'full_text' を削除
+    }
 
     if request.method == 'POST':
-        search_term = request.form.get('search')
-        if not search_term:
-            results = Course.query.all()
-        else:
-            results = Course.query.filter(
-                db.or_(
-                    Course.name.like(f'%{search_term}%'),
-                    Course.teacher.like(f'%{search_term}%')
-                )
-            ).all()
-    else: 
-        # GETリクエストの場合
-        results = Course.query.all()
+        # フォームからデータを取得
+        lecture_name = form_data['lecture_name']
+        teacher_name = form_data['teacher_name']
+        course_format = form_data['course_format']
+        attendance = form_data['attendance']
+        test = form_data['test']     # 'test' を取得
+        report = form_data['report'] # 'report' を取得
+
+        # ベースクエリ (N+1問題を避けるため reviews をEager Loadingする)
+        query = Course.query.options(joinedload(Course.reviews))
         
-    return render_template('search.html', results=results, search_term=search_term)
+        # 絞り込み条件
+        filters = []
+        review_filters = []
+
+        if lecture_name:
+            # スペース区切りでAND検索（例: "講義A 演習" -> "講義A" AND "演習"）
+            for term in lecture_name.split():
+                filters.append(Course.name.like(f'%{term}%'))
+        
+        if teacher_name:
+            for term in teacher_name.split():
+                filters.append(Course.teacher.like(f'%{term}%'))
+        
+        # Review関連のフィルタ
+        if course_format and course_format != "--------":
+            review_filters.append(Review.course_format == course_format)
+            
+        # ▼▼▼【！！変更点！！】▼▼▼
+        # 'full_text' のロジックを削除
+        # ▲▲▲ 変更ここまで ▲▲▲
+
+        # Courseのフィルタを適用
+        if filters:
+            query = query.filter(db.and_(*filters))
+            
+        # Reviewのフィルタを適用 (JOINが必要)
+        if review_filters:
+            query = query.join(Review, Course.id == Review.course_id).filter(db.and_(*review_filters))
+
+        # この時点で重複する講義を除外
+        query = query.distinct()
+        
+        # ここまでの条件で講義リストを取得
+        try:
+            initial_results = query.all()
+        except Exception as e:
+            app.logger.error(f"Search query error (before mode filter): {e}")
+            initial_results = []
+            flash('検索中にエラーが発生しました。', 'danger')
+
+        # 'initial_results' を 'results' にコピーして、ここから絞り込みを開始
+        results = initial_results
+
+        # ▼▼▼【！！変更点！！】▼▼▼
+        # (attendance, test, report) の最頻値フィルタリングを順番に適用
+        
+        # 1. 出席(attendance)での絞り込み
+        if attendance and attendance != "--------":
+            filtered_results = []
+            for course in results: # 'results' (現在絞り込まれたリスト) をループ
+                if not course.reviews: continue
+                
+                item_list = [r.attendance for r in course.reviews if r.attendance in ['あり', 'なし']]
+                if not item_list: continue
+
+                try:
+                    counts = Counter(item_list)
+                    mode_item = counts.most_common(1)[0][0]
+                    if mode_item == attendance:
+                        filtered_results.append(course)
+                except IndexError:
+                    continue
+            results = filtered_results # 絞り込んだ結果を 'results' に上書き
+
+        # 2. テスト(test)での絞り込み
+        if test and test != "--------":
+            filtered_results = []
+            for course in results: # 'results' (出席で絞り込まれたリスト) をループ
+                if not course.reviews: continue
+                
+                item_list = [r.test for r in course.reviews if r.test in ['あり', 'なし']]
+                if not item_list: continue
+
+                try:
+                    counts = Counter(item_list)
+                    mode_item = counts.most_common(1)[0][0]
+                    if mode_item == test:
+                        filtered_results.append(course)
+                except IndexError:
+                    continue
+            results = filtered_results # 絞り込んだ結果を 'results' に上書き
+
+        # 3. レポート(report)での絞り込み
+        if report and report != "--------":
+            filtered_results = []
+            for course in results: # 'results' (出席・テストで絞り込まれたリスト) をループ
+                if not course.reviews: continue
+                
+                item_list = [r.report for r in course.reviews if r.report in ['あり', 'なし']]
+                if not item_list: continue
+
+                try:
+                    counts = Counter(item_list)
+                    mode_item = counts.most_common(1)[0][0]
+                    if mode_item == report:
+                        filtered_results.append(course)
+                except IndexError:
+                    continue
+            results = filtered_results # 最終的な結果を 'results' に上書き
+            
+        # ▲▲▲ 変更ここまで ▲▲▲
+            
+    else: 
+        # GETリクエストの場合 (例: /search に直接アクセス)
+        # すべての講義を表示（レビューも読み込む）
+        try:
+            results = Course.query.options(joinedload(Course.reviews)).order_by(db.desc(Course.id)).all()
+        except Exception as e:
+            app.logger.error(f"Search query error (GET request): {e}")
+            results = []
+            flash('講義一覧の取得中にエラーが発生しました。', 'danger')
+            
+    # search.html に検索結果とフォームの入力値を渡す
+    return render_template('search.html', results=results, search_term=search_term, form_data=form_data)
 # ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/course/<int:id>')
@@ -568,8 +700,10 @@ def add_review(id):
         app.logger.error(f"Add review error: {e}")
         flash('レビューの投稿中にエラーが発生しました。', 'danger')
         
-    return redirect(url_for('course_detail', id=id))
-# ▲▲▲ 修正ここまで ▲▲▲
+    # ▼▼▼【！！変更点！！】▼▼▼
+    # 投稿が成功したら、閲覧専用の 'detail2.html' (course_view_detail関数) に移動する
+    return redirect(url_for('course_view_detail', id=id))
+    # ▲▲▲ 変更ここまで ▲▲▲
 
 
 # 開発環境でのみ`flask run`で実行するための設定
@@ -578,7 +712,4 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
-    # ▼▼▼ 変更点 ▼▼▼
-    # ポート5000番がAirPlayなどで使われている場合があるため、5001番に変更
-    app.run(debug=True, port=5001)
-    # ▲▲▲ 変更ここまで ▲▲▲
+    app.run(debug=True, port=5002)

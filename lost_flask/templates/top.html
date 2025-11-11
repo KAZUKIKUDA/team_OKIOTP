@@ -34,10 +34,155 @@
         <!-- ▼▼▼ 講義検索フォーム（これがメイン機能） ▼▼▼ -->
         <section>
             <h2>講義検索</h2>
-            <form action="{{ url_for('search_course') }}" method="POST">
-                <input type="text" name="search" placeholder="講義名、または担当教員名で検索">
-                <button type="submit" class="btn">検索する</button>
-            </form>
+            <!-- 検索フォームのスタイル -->
+            <style>
+                .search-form-container {
+                    border: 2px solid #a0a0a0;
+                    border-radius: 8px;
+                    background-color: #f9f9f9;
+                    margin-bottom: 20px; /* 下のセクションとのマージン */
+                }
+                .search-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .search-table th, .search-table td {
+                    border: 1px solid #ccc;
+                    padding: 10px;
+                    vertical-align: middle;
+                }
+                .search-table th {
+                    background-color: #e9ecef; /* 少しモダンな色に変更 */
+                    font-weight: bold;
+                    text-align: left;
+                    width: 150px;
+                    font-size: 14px; /* ヘッダーのフォントサイズ調整 */
+                }
+                .search-table input[type="text"], .search-table select {
+                    width: 95%; /* 幅を調整 */
+                    padding: 8px;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    font-size: 16px;
+                    box-sizing: border-box; /* paddingを含めて幅を計算 */
+                }
+                .search-table p.description {
+                    font-size: 12px;
+                    color: #555;
+                    margin: 5px 0 0 0;
+                }
+                .search-buttons {
+                    text-align: center;
+                    padding: 20px;
+                }
+                /* 既存の .btn スタイルと共存させる */
+                .search-buttons .btn {
+                    padding: 10px 20px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    border-radius: 5px;
+                    border: none;
+                    text-decoration: none; /* aタグのスタイルリセット */
+                    display: inline-block; /* aタグやbuttonタグの調整 */
+                    margin: 0 10px; /* ボタン間のマージン */
+                }
+                .btn-search {
+                    background-color: #007bff; /* プライマリカラー */
+                    color: white;
+                }
+                .btn-search:hover {
+                    background-color: #0056b3;
+                }
+                .btn-clear {
+                    background-color: #6c757d; /* グレー */
+                    color: white;
+                }
+                .btn-clear:hover {
+                    background-color: #5a6268;
+                }
+            </style>
+
+            <div class="search-form-container">
+                <form action="{{ url_for('search_course') }}" method="POST">
+                    <table class="search-table">
+                        <tbody>
+                            <tr>
+                                <th>科目名検索</th>
+                                <td>
+                                    <!-- フォームの入力値を保持 (form_data) -->
+                                    <input type="text" name="lecture_name" placeholder="講義名（一部でも検索できます）" value="{{ form_data.lecture_name or '' }}">
+                                    <p class="description">複数の単語で検索する場合は、スペース（空白）をあけて入力してください。</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>教員名検索</th>
+                                <td>
+                                    <input type="text" name="teacher_name" placeholder="教員名（一部でも検索できます）" value="{{ form_data.teacher_name or '' }}">
+                                    <p class="description">漢字、フリガナ、ローマ字で検索できます。</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>授業の形態</th>
+                                <td>
+                                    <select name="course_format">
+                                        <option value="--------" {% if form_data.course_format == "--------" %}selected{% endif %}>--------</option>
+                                        <option value="オンライン" {% if form_data.course_format == "オンライン" %}selected{% endif %}>オンライン</option>
+                                        <option value="ハイブリッド" {% if form_data.course_format == "ハイブリッド" %}selected{% endif %}>ハイブリッド</option>
+                                        <option value="対面" {% if form_data.course_format == "対面" %}selected{% endif %}>対面</option>
+                                        <option value="遠隔" {% if form_data.course_format == "遠隔" %}selected{% endif %}>遠隔 (旧データ)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>出席の有無</th>
+                                <td>
+                                    <select name="attendance">
+                                        <option value="--------" {% if form_data.attendance == "--------" %}selected{% endif %}>--------</option>
+                                        <option value="あり" {% if form_data.attendance == "あり" %}selected{% endif %}>あり</option>
+                                        <option value="なし" {% if form_data.attendance == "なし" %}selected{% endif %}>なし</option>
+                                    </select>
+                                     <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
+                                </td>
+                            </tr>
+                            
+                            <!-- ▼▼▼【！！変更点！！】▼▼▼ -->
+                            <!-- 「テストの有無」を追加 -->
+                            <tr>
+                                <th>テストの有無</th>
+                                <td>
+                                    <select name="test">
+                                        <option value="--------" {% if form_data.test == "--------" %}selected{% endif %}>--------</option>
+                                        <option value="あり" {% if form_data.test == "あり" %}selected{% endif %}>あり</option>
+                                        <option value="なし" {% if form_data.test == "なし" %}selected{% endif %}>なし</option>
+                                    </select>
+                                    <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
+                                </td>
+                            </tr>
+                            
+                            <!-- 「レポートの有無」を追加 -->
+                            <tr>
+                                <th>レポートの有無</th>
+                                <td>
+                                    <select name="report">
+                                        <option value="--------" {% if form_data.report == "--------" %}selected{% endif %}>--------</option>
+                                        <option value="あり" {% if form_data.report == "あり" %}selected{% endif %}>あり</option>
+                                        <option value="なし" {% if form_data.report == "なし" %}selected{% endif %}>なし</option>
+                                    </select>
+                                    <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
+                                </td>
+                            </tr>
+
+                            <!-- 「全文検索」の行を削除 -->
+                            <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
+
+                        </tbody>
+                    </table>
+                    <div class="search-buttons">
+                        <button type="reset" class="btn btn-clear">条件クリア</button>
+                        <button type="submit" class="btn btn-search">検索</button>
+                    </div>
+                </form>
+            </div>
         </section>
         <!-- ▲▲▲ 講義検索フォーム ▲▲▲ -->
 
@@ -59,6 +204,7 @@
                     <tbody>
                         {% for course in recent_courses %}
                         <tr>
+                            <!-- 投稿・閲覧ページ (detail.html) に飛ぶ -->
                             <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
                             <td>{{ course.teacher }}</td>
                             <td>★ {{ course.star_rating }}</td>
@@ -75,4 +221,3 @@
     </div>
 </body>
 </html>
-
