@@ -242,25 +242,26 @@ def register():
             flash('指定された形式の学内メールアドレスを使用してください。 (例: e235701@cs.u-ryukyu.ac.jp)', 'danger')
             return redirect(url_for('register'))
             
-        if User.query.filter_by(username=username).first():
-            flash('そのユーザー名は既に使用されています。', 'danger')
-            return redirect(url_for('register'))
-        if User.query.filter_by(email=email).first():
-            flash('このメールアドレスは既に使用されています。', 'danger')
-            return redirect(url_for('register'))
+        # ▼▼▼【！！変更点！！】▼▼▼
+        # try...except の前に重複チェックを移動すると、未認証ユーザーへの対応が複雑になるため、
+        # ユーザーの元のロジック（try...except IntegrityError）を活かし、
+        # except IntegrityError ブロックを修正します。
+        #
+        # if User.query.filter_by(username=username).first(): ...
+        # if User.query.filter_by(email=email).first(): ...
+        # ↑↑↑ これらの事前チェックは削除し、DBの制約に任せます。
+        # ▲▲▲ 変更ここまで ▲▲▲
 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             
-            # ▼▼▼【！！修正点！！】▼▼▼
-            # is_verified=False を明示的に指定し、DBのdefault値に依存しないようにする
+            # is_verified=False を明示的に指定
             new_user = User(
                 username=username, 
                 email=email, 
                 password=hashed_password, 
-                is_verified=False # ←←← この行を追加
+                is_verified=False
             )
-            # ▲▲▲ 修正ここまで ▲▲▲
             
             db.session.add(new_user)
             
@@ -294,15 +295,32 @@ def register():
             flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
             return redirect(url_for('login'))
 
+        # ▼▼▼【！！変更点！！】▼▼▼
+        # データベースの一意性制約エラー（メールまたはユーザー名）の処理を修正
         except IntegrityError: 
-            db.session.rollback() # 念のためロールバック
-            if User.query.filter_by(username=username).first():
+            db.session.rollback() # ロールバック
+            
+            # エラーの原因を特定
+            existing_user_by_email = User.query.filter_by(email=email).first()
+            existing_user_by_name = User.query.filter_by(username=username).first()
+
+            if existing_user_by_name:
                 flash('そのユーザー名は既に使用されています。 (エラー: IE-U)', 'danger')
-            elif User.query.filter_by(email=email).first():
-                flash('このメールアドレスは既に使用されています。 (エラー: IE-E)', 'danger')
+                
+            elif existing_user_by_email:
+                if existing_user_by_email.is_verified:
+                    # 認証済みのユーザーが登録しようとした
+                    flash('このメールアドレスは既に使用されています。 (エラー: IE-E-VERIFIED)', 'danger')
+                    return redirect(url_for('login')) # ログインページへ
+                else:
+                    # 未認証のユーザーが再度登録しようとした
+                    flash('このメールアドレスは登録済みですが、未認証です。認証メールを再送しますか？', 'warning')
+                    return redirect(url_for('resend_activation')) # 再送ページへ
             else:
                 flash('データベースエラーが発生しました。もう一度お試しください。', 'danger')
+                
             return redirect(url_for('register'))
+        # ▲▲▲ 変更ここまで ▲▲▲
             
         except Exception as e:
             db.session.rollback() # <<< 【重要】db.session.add(new_user) をここで取り消す
@@ -316,9 +334,13 @@ def register():
 @app.route('/confirm_email/<token>')
 def confirm_email(token):
     try:
+        # 登録ルートの 'email-confirm-salt' と max_age=3600 を使用
         email = s.loads(token, salt='email-confirm-salt', max_age=3600)
-    except (SignatureExpired, BadTimeSignature):
-        flash('認証リンクが無効か、有効期限が切れています。', 'danger')
+    except SignatureExpired:
+        flash('認証リンクの有効期限が切れています。お手数ですが、再度認証リンクをリクエストしてください。', 'danger')
+        return redirect(url_for('resend_activation')) # 期限切れの場合は再送ページへ
+    except BadTimeSignature:
+        flash('認証リンクが無効です。', 'danger')
         return redirect(url_for('register'))
     
     user = User.query.filter_by(email=email).first()
@@ -334,6 +356,63 @@ def confirm_email(token):
         flash('メール認証が完了しました。ログインしてください。', 'success')
     return redirect(url_for('login'))
 
+# ▼▼▼【！！新設！！】▼▼▼
+@app.route('/resend_activation', methods=['GET', 'POST'])
+def resend_activation():
+    """ 認証メールの再送リクエストを処理する """
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+
+        # ユーザーが存在しなくても、セキュリティのため曖昧なメッセージを返す
+        if not user:
+            flash('そのメールアドレスのアカウントが未認証の場合、再送リンクを送信しました。', 'info')
+            return redirect(url_for('login'))
+
+        if user.is_verified:
+            flash('このアカウントは既に有効化されています。ログインしてください。', 'info')
+            return redirect(url_for('login'))
+
+        # ユーザーが存在し、かつ未認証の場合
+        try:
+            token = s.dumps(email, salt='email-confirm-salt')
+            confirm_url = url_for('confirm_email', token=token, _external=True)
+            
+            # registerルートから送信者情報を拝借
+            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
+            SENDER_NAME = '講義レビューサイト'
+            html_content = render_template('email/activate.html', confirm_url=confirm_url)
+            
+            message = SendGridMail(
+                from_email=(SENDER_EMAIL, SENDER_NAME),
+                to_emails=email,
+                subject='講義レビュー | メールアドレスの確認 (再送)',
+                html_content=html_content
+            )
+            
+            if not sg:
+                raise Exception("SendGrid API Client (sg) is not initialized.")
+
+            app.logger.info(f"Attempting to resend email via SendGrid to {email}...")
+            response = sg.send(message)
+            app.logger.info(f"SendGrid response status code: {response.status_code}")
+
+            if response.status_code < 200 or response.status_code >= 300:
+                app.logger.error(f"SendGrid API Error: {response.body}")
+                raise Exception(f"SendGrid API error (Status {response.status_code})")
+
+            flash('新しい認証リンクをメールアドレスに送信しました。メールを確認してください。', 'success')
+        
+        except Exception as e:
+            app.logger.error(f"Resend activation error (user {email}): {e}")
+            flash(f'メールの送信中にエラーが発生しました。管理者に連絡してください。', 'danger')
+
+        return redirect(url_for('login'))
+
+    # GETリクエスト (resend_activation.html を表示)
+    return render_template('resend_activation.html')
+# ▲▲▲ 新設ここまで ▲▲▲
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -348,9 +427,12 @@ def login():
             flash('メールアドレスまたはパスワードが正しくありません。', 'danger')
             return redirect(url_for('login'))
             
+        # ▼▼▼【！！変更点！！】▼▼▼
+        # 未認証の場合、再送ページへリダイレクト
         if not user.is_verified:
-            flash('アカウントがまだ認証されていません。送信されたメールを確認してください。', 'warning')
-            return redirect(url_for('login'))
+            flash('アカウントがまだ認証されていません。認証メールを再送しますか？', 'warning')
+            return redirect(url_for('resend_activation'))
+        # ▲▲▲ 変更ここまで ▲▲▲
             
         login_user(user)
         next_page = request.args.get('next')
@@ -408,16 +490,19 @@ def logout():
 @app.route('/add_course', methods=['POST'])
 @login_required
 def add_course_step1_scrape():
+    # ▼▼▼【！！変更点！！】▼▼▼
+    # 登録失敗時のリダイレクト先を /search から / (index) に変更
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーは講義を登録できません。学内メールで登録してください。', 'warning')
-        return redirect(url_for('search_course')) 
+        return redirect(url_for('index')) 
     
     syllabus_url = request.form.get('syllabus_url')
     
     url_pattern = "tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/"
     if not syllabus_url or url_pattern not in syllabus_url:
         flash('正しいシラバス詳細URL (DetailMain.aspx?lct_year=... を含む) を入力してください。', 'danger')
-        return redirect(url_for('search_course')) 
+        return redirect(url_for('index')) 
+    # ▲▲▲ 変更ここまで ▲▲▲
     
     app.logger.info("Waiting 3 seconds before scraping...")
     time.sleep(3)
@@ -427,7 +512,9 @@ def add_course_step1_scrape():
     
     if course_data is None:
         flash('シラバス情報の取得に失敗しました。URLが正しいか、サイトの仕様が変更されていないか確認してください。', 'danger')
-        return redirect(url_for('search_course')) 
+        # ▼▼▼【！！変更点！！】▼▼▼
+        return redirect(url_for('index')) 
+        # ▲▲▲ 変更ここまで ▲▲▲
     
     # ▼▼▼ 修正: 講義名と教員名の「2つ」で重複チェック ▼▼▼
     scraped_name = course_data.get('講義名')
@@ -519,7 +606,7 @@ def search_course():
         # フォームからデータを取得
         lecture_name = form_data['lecture_name']
         teacher_name = form_data['teacher_name']
-        course_format = form_data['course_format']
+        course_format_filter = form_data['course_format'] # 変数名を 'course_format' から変更
         attendance = form_data['attendance']
         test = form_data['test']     # 'test' を取得
         report = form_data['report'] # 'report' を取得
@@ -540,12 +627,10 @@ def search_course():
             for term in teacher_name.split():
                 filters.append(Course.teacher.like(f'%{term}%'))
         
-        # Review関連のフィルタ
-        if course_format and course_format != "--------":
-            review_filters.append(Review.course_format == course_format)
-            
         # ▼▼▼【！！変更点！！】▼▼▼
-        # 'full_text' のロジックを削除
+        # Courseモデル自体の 'format' (シラバスの授業形式) での絞り込み
+        if course_format_filter and course_format_filter != "--------":
+            filters.append(Course.format == course_format_filter)
         # ▲▲▲ 変更ここまで ▲▲▲
 
         # Courseのフィルタを適用
@@ -661,6 +746,13 @@ def course_view_detail(id):
 def add_review(id):
     course = Course.query.get_or_404(id)
     
+    # ▼▼▼【！！変更点！！】▼▼▼
+    # デモユーザーはレビュー投稿不可
+    if current_user.email.endswith('@demo.com'):
+        flash('ゲストユーザーはレビューを投稿できません。', 'warning')
+        return redirect(url_for('course_detail', id=id))
+    # ▲▲▲ 変更ここまで ▲▲▲
+
     if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
         flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')
         return redirect(url_for('course_detail', id=id))
@@ -683,10 +775,10 @@ def add_review(id):
         
     try:
         rating_float = float(rating)
-        if not (0 <= rating_float <= 5):
-             flash('評価は0から5の間で入力してください。', 'danger')
+        if not (0.5 <= rating_float <= 5.0): # 0.5刻みのため
+             flash('評価は0.5から5.0の間で入力してください。', 'danger')
              return redirect(url_for('course_detail', id=id))
-    except ValueError:
+    except (ValueError, TypeError):
         flash('評価の値が無効です。', 'danger')
         return redirect(url_for('course_detail', id=id))
         
@@ -698,7 +790,8 @@ def add_review(id):
             year=year, # 追加
             classroom=classroom, # 追加
             review=review_text,
-            course_id=course.id, author=current_user
+            course_id=course.id, 
+            user_id=current_user.id # author=current_user の代わりに user_id を明示
         )
         # ▲▲▲ 修正ここまで ▲▲▲
         
@@ -722,4 +815,8 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
+    # テーブル作成 (flask db init/migrate/upgrade を使わない場合)
+    with app.app_context():
+        db.create_all()
+
     app.run(debug=True, port=5002)
