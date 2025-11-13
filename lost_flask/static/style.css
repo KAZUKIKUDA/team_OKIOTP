@@ -194,15 +194,24 @@ textarea {
     margin-top: 20px;
     font-size: 0.9em;
 }
-.btn-guest {
+
+/* ▼▼▼【修正点】▼▼▼ */
+/* .btn-guest から削除されていた display: block などを復活 */
+/* 詳細度を上げるため .btn.btn-guest に変更 */
+.btn.btn-guest {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
     background-color: var(--guest-color);
-    border-color: var(--guest-color); /* ホバー時の境界線用 */
+    border-color: var(--guest-color);
 }
-.btn-guest:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: var(--guest-color); /* 文字色をゲスト色に反転 */
-    border-color: var(--guest-color); /* 境界線の色をゲスト色に設定 */
+.btn.btn-guest:hover {
+    background-color: #fff;
+    color: var(--guest-color);
+    border-color: var(--guest-color);
 }
+/* ▲▲▲ 修正ここまで ▲▲▲ */
+
 /* ▼▼▼ パスワード制約のスタイル ▼▼▼ */
 .password-constraint {
     font-size: 0.85em;
@@ -595,7 +604,6 @@ color: var(--warning-color);
 }
 
 
-/* --- ▼▼▼【修正点】▼▼▼ --- */
 /* --- Special Buttons (Success/Guest) --- */
 /* 詳細度を .btn.btn-xxx とすることで .btn:hover を確実に上書きします */
 
@@ -628,4 +636,3 @@ color: var(--warning-color);
     color: var(--success-color);
     border-color: var(--success-color);
 }
-/* --- ▲▲▲ 修正ここまで ▲▲▲ --- */
