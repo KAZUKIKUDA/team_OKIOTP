@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>講義レビュー</title>
-    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -18,10 +16,8 @@
 
     <div class="container">
         <header class="main-header">
-            <!-- ▼▼▼ タイトル変更 ▼▼▼ -->
             <h1 class="app-title">講義レビュー</h1>
-            <!-- ▲▲▲ タイトル変更 ▲▲▲ -->
-        </header>
+            </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -31,77 +27,9 @@
             {% endif %}
         {% endwith %}
 
-        <!-- ▼▼▼ 講義検索フォーム（これがメイン機能） ▼▼▼ -->
         <section>
             <h2>講義検索</h2>
-            <!-- 検索フォームのスタイル -->
-            <style>
-                .search-form-container {
-                    border: 2px solid #a0a0a0;
-                    border-radius: 8px;
-                    background-color: #f9f9f9;
-                    margin-bottom: 20px; /* 下のセクションとのマージン */
-                }
-                .search-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                .search-table th, .search-table td {
-                    border: 1px solid #ccc;
-                    padding: 10px;
-                    vertical-align: middle;
-                }
-                .search-table th {
-                    background-color: #e9ecef; /* 少しモダンな色に変更 */
-                    font-weight: bold;
-                    text-align: left;
-                    width: 150px;
-                    font-size: 14px; /* ヘッダーのフォントサイズ調整 */
-                }
-                .search-table input[type="text"], .search-table select {
-                    width: 95%; /* 幅を調整 */
-                    padding: 8px;
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                    font-size: 16px;
-                    box-sizing: border-box; /* paddingを含めて幅を計算 */
-                }
-                .search-table p.description {
-                    font-size: 12px;
-                    color: #555;
-                    margin: 5px 0 0 0;
-                }
-                .search-buttons {
-                    text-align: center;
-                    padding: 20px;
-                }
-                /* 既存の .btn スタイルと共存させる */
-                .search-buttons .btn {
-                    padding: 10px 20px;
-                    font-size: 16px;
-                    cursor: pointer;
-                    border-radius: 5px;
-                    border: none;
-                    text-decoration: none; /* aタグのスタイルリセット */
-                    display: inline-block; /* aタグやbuttonタグの調整 */
-                    margin: 0 10px; /* ボタン間のマージン */
-                }
-                .btn-search {
-                    background-color: #007bff; /* プライマリカラー */
-                    color: white;
-                }
-                .btn-search:hover {
-                    background-color: #0056b3;
-                }
-                .btn-clear {
-                    background-color: #6c757d; /* グレー */
-                    color: white;
-                }
-                .btn-clear:hover {
-                    background-color: #5a6268;
-                }
-            </style>
-
+            
             <div class="search-form-container">
                 <form action="{{ url_for('search_course') }}" method="POST">
                     <table class="search-table">
@@ -109,7 +37,6 @@
                             <tr>
                                 <th>科目名検索</th>
                                 <td>
-                                    <!-- フォームの入力値を保持 (form_data) -->
                                     <input type="text" name="lecture_name" placeholder="講義名（一部でも検索できます）" value="{{ form_data.lecture_name or '' }}">
                                     <p class="description">複数の単語で検索する場合は、スペース（空白）をあけて入力してください。</p>
                                 </td>
@@ -145,8 +72,6 @@
                                 </td>
                             </tr>
                             
-                            <!-- ▼▼▼【！！変更点！！】▼▼▼ -->
-                            <!-- 「テストの有無」を追加 -->
                             <tr>
                                 <th>テストの有無</th>
                                 <td>
@@ -159,7 +84,6 @@
                                 </td>
                             </tr>
                             
-                            <!-- 「レポートの有無」を追加 -->
                             <tr>
                                 <th>レポートの有無</th>
                                 <td>
@@ -172,10 +96,7 @@
                                 </td>
                             </tr>
 
-                            <!-- 「全文検索」の行を削除 -->
-                            <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
-
-                        </tbody>
+                            </tbody>
                     </table>
                     <div class="search-buttons">
                         <button type="reset" class="btn btn-clear">条件クリア</button>
@@ -184,15 +105,11 @@
                 </form>
             </div>
         </section>
-        <!-- ▲▲▲ 講義検索フォーム ▲▲▲ -->
-
         <hr>
 
-        <!-- ▼▼▼ 最近登録された講義 ▼▼▼ -->
         <section>
             <h2>最近登録された講義</h2>
             {% if recent_courses %}
-                <!-- search.htmlのスタイルを再利用 -->
                 <table class="search-results-table">
                     <thead>
                         <tr>
@@ -204,7 +121,6 @@
                     <tbody>
                         {% for course in recent_courses %}
                         <tr>
-                            <!-- 投稿・閲覧ページ (detail.html) に飛ぶ -->
                             <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
                             <td>{{ course.teacher }}</td>
                             <td>★ {{ course.star_rating }}</td>
@@ -216,8 +132,6 @@
                 <p>まだ講義が登録されていません。</p>
             {% endif %}
         </section>
-        <!-- ▲▲▲ 最近登録された講義 ▲▲▲ -->
-
-    </div>
+        </div>
 </body>
 </html>

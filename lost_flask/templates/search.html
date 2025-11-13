@@ -8,71 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     
-    <style>
-        /* search.html専用のスタイル */
-        .search-results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .search-results-table th,
-        .search-results-table td {
-            border: 1px solid var(--border-color);
-            padding: 12px;
-            text-align: left;
-        }
-
-        .search-results-table th {
-            background-color: var(--bg-color);
-            font-weight: bold;
-        }
-
-        /* 選択可能な行であることを示す (カーソルをポインターに) */
-        .selectable-row:hover {
-            background-color: #f5f5f5; /* ホバー時の色 */
-            cursor: pointer;
-        }
-
-        /* 選択中の行のハイライト色 */
-        .selected-row {
-            background-color: #e0e7ff; /* 選択時の色 (例: 青みがかった色) */
-        }
-        
-        /* ボタンコンテナ (最初は非表示) */
-        .action-buttons {
-            display: none; /* JavaScriptで表示するまで隠す */
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            text-align: center;
-        }
-        
-        .action-buttons h3 {
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-
-        /* ボタンのスタイル */
-        .action-btn {
-            display: inline-block;
-            padding: 10px 20px;
-            margin: 0 10px;
-            text-decoration: none;
-            color: white;
-            background-color: #007bff; /* プライマリボタンの色 */
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .action-btn.secondary {
-            background-color: #6c757d; /* セカンダリボタンの色 */
-        }
-    </style>
-    </head>
+</head>
 <body>
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
@@ -140,7 +76,7 @@
             <p style="text-align: center; margin-bottom: 20px;">
                 <a href="https://tiglon.jim.u-ryukyu.ac.jp/Portal/Public/Syllabus/SearchMain.aspx" 
                    target="_blank" rel="noopener noreferrer" 
-                   class="btn" style="background-color: var(--success-color); width: auto; padding: 10px 15px; margin-top: 0; font-size: 1em;">
+                   class="btn btn-syllabus">
                     シラバス検索ページを開く (別タブ)
                 </a>
             </p>

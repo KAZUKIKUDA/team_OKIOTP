@@ -7,35 +7,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .confirmation-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 25px;
-        }
-        .btn-cancel {
-            background-color: var(--light-text-color, #aaa);
-            color: white;
-            text-decoration: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 1em;
-            border: none;
-        }
-         .btn-cancel:hover {
-            background-color: var(--guest-hover-color, #888);
-            text-decoration: none;
-         }
-        
-         /* .btn の width: 100% を上書き */
-         .confirmation-actions .btn {
-            width: auto;
-            font-size: 1.1em;
-            margin-top: 0; /* 元の .btn の margin-top: 15px をリセット */
-         }
-    </style>
 </head>
 <body>
     <div class="user-header">

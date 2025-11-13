@@ -251,7 +251,17 @@ def register():
 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-            new_user = User(username=username, email=email, password=hashed_password)
+            
+            # ▼▼▼【！！修正点！！】▼▼▼
+            # is_verified=False を明示的に指定し、DBのdefault値に依存しないようにする
+            new_user = User(
+                username=username, 
+                email=email, 
+                password=hashed_password, 
+                is_verified=False # ←←← この行を追加
+            )
+            # ▲▲▲ 修正ここまで ▲▲▲
+            
             db.session.add(new_user)
             
             token = s.dumps(email, salt='email-confirm-salt')

@@ -1,4 +1,4 @@
-/* static/style.css (Final Corrected Version) */
+/* static/style.css (Complete and Consolidated Version) */
 
 /*
  * body, html にフォントを指定します。
@@ -116,18 +116,20 @@ textarea {
     padding: 12px;
     margin-top: 15px;
     color: #fff;
-    border: none;
+    border: 1px solid var(--primary-color); /* ホバー時の境界線用 */
     border-radius: 6px;
     cursor: pointer;
     font-size: 1.1em;
     font-weight: bold;
-    transition: background-color 0.2s;
     background-color: var(--primary-color);
     text-decoration: none !important;
     box-sizing: border-box;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
 }
 .btn:hover {
-    background-color: var(--primary-hover-color);
+    background-color: #fff; /* 背景色を白に反転 */
+    color: var(--primary-color); /* 文字色をプライマリカラーに反転 */
+    border-color: var(--primary-color); /* 境界線の色をプライマリカラーに設定 */
     text-decoration: none !important;
 }
 
@@ -136,9 +138,16 @@ textarea {
     padding: 5px 10px;
     background-color: var(--danger-color);
     color: #fff;
+    border: 1px solid var(--danger-color); /* ホバー時の境界線用 */
     border-radius: 4px;
     margin-left: 10px;
     font-size: 0.9em;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+}
+.btn-logout:hover {
+    background-color: #fff; /* 背景色を白に反転 */
+    color: var(--danger-color); /* 文字色を危険色に反転 */
+    border-color: var(--danger-color); /* 境界線の色を危険色に設定 */
 }
 
 /* --- Authentication Pages --- */
@@ -172,9 +181,12 @@ textarea {
 }
 .auth-container .btn-register {
     background-color: var(--success-color);
+    border-color: var(--success-color); /* ホバー時の境界線用 */
 }
 .auth-container .btn-register:hover {
-    background-color: var(--success-hover-color);
+    background-color: #fff; /* 背景色を白に反転 */
+    color: var(--success-color); /* 文字色を成功色に反転 */
+    border-color: var(--success-color); /* 境界線の色を成功色に設定 */
 }
 .auth-link {
     display: block;
@@ -183,13 +195,13 @@ textarea {
     font-size: 0.9em;
 }
 .btn-guest {
-    display: block;
-    text-align: center;
-    margin-top: 10px;
     background-color: var(--guest-color);
+    border-color: var(--guest-color); /* ホバー時の境界線用 */
 }
 .btn-guest:hover {
-    background-color: var(--guest-hover-color);
+    background-color: #fff; /* 背景色を白に反転 */
+    color: var(--guest-color); /* 文字色をゲスト色に反転 */
+    border-color: var(--guest-color); /* 境界線の色をゲスト色に設定 */
 }
 /* ▼▼▼ パスワード制約のスタイル ▼▼▼ */
 .password-constraint {
@@ -224,7 +236,7 @@ textarea {
     background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb;
 }
 
-/* --- Detail & Search Page --- */
+/* --- Detail & Search Page (Styles Merged & Updated) --- */
 .course-info {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 15px;
@@ -251,7 +263,8 @@ section h2, section h4 {
     padding-left: 10px;
     margin-bottom: 20px;
 }
-.review-table, .search-results-table {
+
+.review-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
@@ -259,19 +272,88 @@ section h2, section h4 {
 .review-table tr:not(:last-child) {
     border-bottom: 1px solid var(--border-color);
 }
-.review-table td, .search-results-table td {
+.review-table td {
     padding: 15px 5px;
     vertical-align: top;
 }
-.search-results-table th {
-    padding: 12px 5px;
+
+/* ▼▼▼ search.html から移動・統合したスタイル ▼▼▼ */
+.search-results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+.search-results-table th,
+.search-results-table td {
+    border: 1px solid var(--border-color);
+    padding: 12px;
     text-align: left;
+    vertical-align: top;
+}
+.search-results-table th {
     background-color: var(--bg-color);
+    font-weight: bold;
     border-bottom: 2px solid var(--primary-color);
 }
-.search-results-table tr:hover {
-    background-color: #f9f9f9;
+/* ▲▲▲ 元の style.css にあった tr:hover は .selectable-row:hover に任せる */
+
+.selectable-row:hover {
+    background-color: #f5f5f5; /* ホバー時の色 */
+    cursor: pointer;
 }
+.selected-row {
+    background-color: #e0e7ff; /* 選択時の色 */
+}
+
+.action-buttons {
+    display: none; /* JavaScriptで表示するまで隠す */
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.action-buttons h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.action-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 10px;
+    text-decoration: none;
+    color: white; /* デフォルトの文字色 */
+    background-color: #007bff; /* デフォルトの背景色 */
+    border: 1px solid #007bff; /* ホバー時の境界線用 */
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+}
+.action-btn.secondary {
+    background-color: #6c757d; /* セカンダリボタンの色 */
+    border-color: #6c757d; /* ホバー時の境界線用 */
+}
+/* ホバー時（メインボタン） */
+.action-btn:hover {
+    background-color: #fff; /* 背景色を白に反転 */
+    color: #007bff; /* 文字色をメインカラーに反転 */
+    border-color: #007bff; /* 境界線の色をメインカラーに設定 */
+    text-decoration: none; /* 下線を削除 */
+}
+/* ホバー時（セカンダリボタン） */
+.action-btn.secondary:hover {
+    background-color: #fff; /* 背景色を白に反転 */
+    color: #6c757d; /* 文字色をセカンダリカラーに反転 */
+    border-color: #6c757d; /* 境界線の色をセカンダリカラーに設定 */
+    text-decoration: none; /* 下線を削除 */
+}
+
+
 .review-meta {
     font-size: 0.9em;
     color: var(--light-text-color);
@@ -383,3 +465,167 @@ width: 1em;
 color: var(--warning-color); 
 }
 
+
+/* --- Page Navigation (from detail.html / detail2.html) --- */
+.page-navigation {
+    display: flex; 
+    justify-content: space-between;
+    align-items: center; 
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+.page-navigation .btn, .page-navigation .back-link {
+    width: auto;
+    flex-grow: 0;
+    margin-top: 0;
+}
+.page-navigation .links-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+/* --- Confirmation Actions (from confirm_course.html) --- */
+.confirmation-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+}
+.btn-cancel {
+    background-color: var(--light-text-color, #aaa);
+    color: white;
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 1em;
+    border: 1px solid var(--light-text-color, #aaa); /* ホバー時の境界線用 */
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+}
+ .btn-cancel:hover {
+    background-color: #fff; /* 背景色を白に反転 */
+    color: var(--light-text-color, #aaa); /* 文字色をグレーに反転 */
+    border-color: var(--light-text-color, #aaa); /* 境界線の色をグレーに設定 */
+    text-decoration: none;
+ }
+ 
+ /* .btn の width: 100% を上書き */
+ .confirmation-actions .btn {
+    width: auto;
+    font-size: 1.1em;
+    margin-top: 0; /* 元の .btn の margin-top: 15px をリセット */
+ }
+
+/* --- Top Page Search Form (from top.html) --- */
+.search-form-container {
+    border: 2px solid #a0a0a0;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    margin-bottom: 20px; /* 下のセクションとのマージン */
+}
+.search-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.search-table th, .search-table td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    vertical-align: middle;
+}
+.search-table th {
+    background-color: #e9ecef; /* 少しモダンな色に変更 */
+    font-weight: bold;
+    text-align: left;
+    width: 150px;
+    font-size: 14px; /* ヘッダーのフォントサイズ調整 */
+}
+.search-table input[type="text"], .search-table select {
+    width: 95%; /* 幅を調整 */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box; /* paddingを含めて幅を計算 */
+}
+.search-table p.description {
+    font-size: 12px;
+    color: #555;
+    margin: 5px 0 0 0;
+}
+.search-buttons {
+    text-align: center;
+    padding: 20px;
+}
+/* 既存の .btn スタイルと共存させる */
+.search-buttons .btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+    border: 1px solid; /* ホバー時の境界線用 */
+    text-decoration: none; /* aタグのスタイルリセット */
+    display: inline-block; /* aタグやbuttonタグの調整 */
+    margin: 0 10px; /* ボタン間のマージン */
+    width: auto; /* .btn の width: 100% を上書き */
+    margin-top: 0; /* .btn の margin-top: 15px を上書き */
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+}
+.btn-search {
+    background-color: #007bff; /* プライマリカラー */
+    color: white;
+    border-color: #007bff;
+}
+.btn-search:hover {
+    background-color: #fff; /* 背景色を白に反転 */
+    color: #007bff; /* 文字色をプライマリカラーに反転 */
+    border-color: #007bff; /* 境界線の色をプライマリカラーに設定 */
+}
+.btn-clear {
+    background-color: #6c757d; /* グレー */
+    color: white;
+    border-color: #6c757d;
+}
+.btn-clear:hover {
+    background-color: #fff; /* 背景色を白に反転 */
+    color: #6c757d; /* 文字色をグレーに反転 */
+    border-color: #6c757d; /* 境界線の色をグレーに設定 */
+}
+
+
+/* --- ▼▼▼【修正点】▼▼▼ --- */
+/* --- Special Buttons (Success/Guest) --- */
+/* 詳細度を .btn.btn-xxx とすることで .btn:hover を確実に上書きします */
+
+/* * detail.html の「レビュー閲覧専用ページへ」ボタン
+ * 詳細度を上げるため .btn.btn-view-only に変更
+ */
+.btn.btn-view-only {
+    background-color: var(--guest-color);
+    border-color: var(--guest-color);
+}
+.btn.btn-view-only:hover {
+    background-color: #fff;
+    color: var(--guest-color);
+    border-color: var(--guest-color);
+}
+
+/* * search.html の「シラバス検索ページを開く」ボタン
+ * 詳細度を上げるため .btn.btn-syllabus に変更
+ */
+.btn.btn-syllabus {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    width: auto;
+    padding: 10px 15px;
+    margin-top: 0;
+    font-size: 1em;
+}
+.btn.btn-syllabus:hover {
+    background-color: #fff;
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+/* --- ▲▲▲ 修正ここまで ▲▲▲ --- */

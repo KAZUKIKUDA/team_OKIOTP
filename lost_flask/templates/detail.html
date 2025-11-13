@@ -9,28 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     
-    <style>
-        .page-navigation {
-            display: flex; 
-            justify-content: space-between;
-            align-items: center; 
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-        }
-        .page-navigation .btn, .page-navigation .back-link {
-            width: auto;
-            flex-grow: 0;
-            margin-top: 0;
-        }
-        .page-navigation .links-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
-        }
-    </style>
-    </head>
+</head>
 <body>
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
@@ -197,7 +176,7 @@
                 <a href="{{ url_for('index') }}" class="back-link">« ホームに戻る</a>
             </div>
             
-            <a href="{{ url_for('course_view_detail', id=course.id) }}" class="btn" style="background-color: var(--guest-color);">
+            <a href="{{ url_for('course_view_detail', id=course.id) }}" class="btn btn-view-only">
                 レビュー閲覧専用ページへ
             </a>
         </div>
