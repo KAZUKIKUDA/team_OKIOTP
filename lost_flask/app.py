@@ -657,6 +657,20 @@ def search_course():
 
         # ▼▼▼【！！変更点！！】▼▼▼
         # (attendance, test, report) の最頻値フィルタリングを順番に適用
+        department = request.form.get("department")
+        
+        if department and department != "--------":
+            filtered_results = []
+            for course in results:
+                # course.department が None でないか確認
+                if not course.department:
+                    continue
+
+                # DB に保存されている学部名と一致しているか判定
+                if course.department == department:
+                    filtered_results.append(course)
+
+                    results = filtered_results
         
         # 1. 出席(attendance)での絞り込み
         if attendance and attendance != "--------":

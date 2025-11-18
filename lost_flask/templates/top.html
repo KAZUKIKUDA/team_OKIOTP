@@ -48,6 +48,7 @@
                                     <p class="description">漢字、フリガナ、ローマ字で検索できます。</p>
                                 </td>
                             </tr>
+                            
                             <tr>
                                 <th>授業の形態</th>
                                 <td>
@@ -71,17 +72,21 @@
                                      <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
                                 </td>
                             </tr>
-                            
                             <tr>
-                                <th>テストの有無</th>
-                                <td>
-                                    <select name="test">
-                                        <option value="--------" {% if form_data.test == "--------" %}selected{% endif %}>--------</option>
-                                        <option value="あり" {% if form_data.test == "あり" %}selected{% endif %}>あり</option>
-                                        <option value="なし" {% if form_data.test == "なし" %}selected{% endif %}>なし</option>
-                                    </select>
-                                    <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
-                                </td>
+                            <th>開講学部</th>
+                            <td>
+                                {% set dep = form_data.get('department', '--------') %}
+                                <select name="department">
+                                    <option value="--------" {% if dep == "--------" %}selected{% endif %}>--------</option>
+                                    <option value="工学部" {% if dep == "工学部" %}selected{% endif %}>工学部</option>
+                                    <option value="理学部" {% if dep == "理学部" %}selected{% endif %}>理学部</option>
+                                    <option value="医学部" {% if dep == "医学部" %}selected{% endif %}>医学部</option>
+                                    <option value="教育学部" {% if dep == "教育学部" %}selected{% endif %}>教育学部</option>
+                                    <option value="国際地域創造学部" {% if dep == "国際地域創造学部" %}selected{% endif %}>国際地域創造学部</option>
+                                    <option value="農学部" {% if dep == "農学部" %}selected{% endif %}>農学部</option>
+                                    <option value="人文社会学部" {% if dep == "人文社会学部" %}selected{% endif %}>人文社会学部</option>
+                                </select>
+                            </td>
                             </tr>
                             
                             <tr>
