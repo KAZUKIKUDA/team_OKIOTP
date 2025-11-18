@@ -24,14 +24,17 @@
         <section class="course-info" style="border-bottom: none; padding-bottom: 0;">
             <p><strong>講義名：</strong> {{ course_data['講義名'] }}</p>
             <p><strong>担当教員：</strong> {{ course_data['教員名'] }}</p>
+            
+            <p><strong>開講年度：</strong> {{ course_data['年度'] or '情報なし' }}</p>
             <p><strong>科目番号：</strong> {{ course_data['科目番号'] or '情報なし' }}</p>
             <p><strong>開講学部等：</strong> {{ course_data['開講学部等'] or '情報なし' }}</p>
             <p><strong>単位数：</strong> {{ course_data['単位数'] or '情報なし' }}</p>
             <p><strong>授業形式 (対面/遠隔)：</strong> {{ course_data['授業形式'] or '情報なし' }}</p>
             <p><strong>シラバス：</strong> <a href="{{ course_data['シラバスURL'] }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
         </section>
+        
         <form action="{{ url_for('add_course_step2_create') }}" method="post">
-            <input type="hidden" name="name" value="{{ course_data['講義名'] }}">
+        <input type="hidden" name="name" value="{{ course_data['講義名'] }}">
             <input type="hidden" name="teacher" value="{{ course_data['教員名'] }}">
             <input type="hidden" name="syllabus_url" value="{{ course_data['シラバスURL'] }}">
             <input type="hidden" name="subject_code" value="{{ course_data['科目番号'] or '' }}">
@@ -39,8 +42,9 @@
             <input type="hidden" name="credits" value="{{ course_data['単位数'] or '' }}">
             <input type="hidden" name="format" value="{{ course_data['授業形式'] or '' }}">
             
+            <input type="hidden" name="syllabus_year" value="{{ course_data['年度'] or '' }}">
             <div class="confirmation-actions">
-                <a href="{{ url_for('search_course') }}" class="btn-cancel">« キャンセルして一覧に戻る</a>
+                <a href="{{ url_for('index') }}" class="btn-cancel">« キャンセルして一覧に戻る</a>
                 <button type="submit" class="btn">この内容で登録する</button>
             </div>
         </form>

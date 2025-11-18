@@ -40,14 +40,17 @@
             <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
             
             {% if course.syllabus_url %}
-            <p><strong>シラバス：</strong> <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
+            <p><strong>シラバス：</strong> 
+                <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">
+                    リンクを開く {% if course.syllabus_year %}({{ course.syllabus_year }}){% endif %}
+                </a>
+            </p>
             {% endif %}
         </section>
         <section>
             <h2>レビューを追加</h2>
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
-
-                <h4>総合評価</h4>
+            <h4>総合評価</h4>
                 <div class="star-rating-input">
                 <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
                 <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>

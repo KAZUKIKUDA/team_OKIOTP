@@ -39,7 +39,11 @@
             <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
             
             {% if course.syllabus_url %}
-            <p><strong>シラバス：</strong> <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">リンクを開く</a></p>
+            <p><strong>シラバス：</strong> 
+                <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">
+                    リンクを開く {% if course.syllabus_year %}({{ course.syllabus_year }}){% endif %}
+                </a>
+            </p>
             {% endif %}
         </section>
         <section>
