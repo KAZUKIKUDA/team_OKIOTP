@@ -195,9 +195,6 @@ textarea {
     font-size: 0.9em;
 }
 
-/* ▼▼▼【修正点】▼▼▼ */
-/* .btn-guest から削除されていた display: block などを復活 */
-/* 詳細度を上げるため .btn.btn-guest に変更 */
 .btn.btn-guest {
     display: block;
     text-align: center;
@@ -210,7 +207,6 @@ textarea {
     color: var(--guest-color);
     border-color: var(--guest-color);
 }
-/* ▲▲▲ 修正ここまで ▲▲▲ */
 
 /* ▼▼▼ パスワード制約のスタイル ▼▼▼ */
 .password-constraint {
@@ -315,20 +311,34 @@ section h2, section h4 {
     background-color: #e0e7ff; /* 選択時の色 */
 }
 
-.action-buttons {
-    display: none; /* JavaScriptで表示するまで隠す */
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #f9f9f9;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    text-align: center;
+
+/* ▼▼▼【！！変更点！！】▼▼▼ */
+/* 以前 .action-buttons だったスタイルを、行内表示用に変更 */
+
+/* search.html の <tr id="action-row"> に対応 */
+.action-row-container td {
+    /* テーブルのセルのボーダーとパディングを上書き */
+    padding: 0 !important;
+    border: none;
+    /* 選択行のハイライトと重なるため、border-top/bottom は .action-buttons-content で行う */
 }
 
-.action-buttons h3 {
+/* <tr id="action-row"> の中の <div> に対応 */
+.action-buttons-content {
+    padding: 20px;
+    background-color: #f9f9f9;
+    text-align: center;
+    /* 選択行のすぐ下であることを示すため、上部に区切り線 */
+    border-top: 2px solid var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.action-buttons-content h3 {
     margin-top: 0;
     margin-bottom: 15px;
 }
+/* ▲▲▲ 変更ここまで ▲▲▲ */
+
 
 .action-btn {
     display: inline-block;

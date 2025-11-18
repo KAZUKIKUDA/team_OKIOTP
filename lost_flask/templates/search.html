@@ -51,16 +51,21 @@
                             <td>★ {{ course.star_rating }}</td>
                         </tr>
                         {% endfor %}
-                    </tbody>
+                        
+                        {% if results %}
+                        <tr id="action-row" class="action-row-container" style="display: none;">
+                            <td colspan="3">
+                                <div class="action-buttons-content"> 
+                                    <h3 id="selected-course-name"></h3>
+                                    <a id="view-review-btn" href="#" class="action-btn">レビューを閲覧する</a>
+                                    <a id="add-review-btn" href="#" class="action-btn secondary">レビューを投稿する</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        </tbody>
                 </table>
 
-                <div id="action-container" class="action-buttons">
-                    <h3 id="selected-course-name"></h3>
-                    
-                    <a id="view-review-btn" href="#" class="action-btn">レビューを閲覧する</a>
-                    
-                    <a id="add-review-btn" href="#" class="action-btn secondary">レビューを投稿する</a>
-                </div>
                 {% else %}
                 <p>該当する講義は見つかりませんでした。</p>
             {% endif %}
@@ -99,7 +104,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const rows = document.querySelectorAll('.selectable-row');
-            const actionContainer = document.getElementById('action-container');
+            
+            // 1. 取得する対象を 'action-container' (div) から 'action-row' (tr) に変更
+            const actionRow = document.getElementById('action-row'); 
+            
+            // 2. actionRow 内部の要素を先に取得しておく
             const selectedCourseName = document.getElementById('selected-course-name');
             const viewButton = document.getElementById('view-review-btn');
             const addButton = document.getElementById('add-review-btn');
@@ -108,25 +117,29 @@
 
             rows.forEach(row => {
                 row.addEventListener('click', function() {
-                    // 1. 選択された講義のIDと名前を取得
+                    // 3. 選択された講義の情報を取得
                     const courseId = row.getAttribute('data-course-id');
                     const courseName = row.getAttribute('data-course-name');
                     
-                    // 2. ボタンのリンク先URLを動的に生成
+                    // 4. ボタンのリンク先URLを動的に生成
                     const viewUrl = `/course_view/${courseId}`;
                     const addUrl = `/course/${courseId}`; 
                     
-                    // 3. 各ボタンにURLを設定
+                    // 5. 各ボタンにURLを設定
                     viewButton.href = viewUrl;   // ← 閲覧ボタン
                     addButton.href = addUrl;    // ← 投稿ボタン
                     
-                    // 4. 選択した講義名を表示
+                    // 6. 選択した講義名を表示
                     selectedCourseName.textContent = `「${courseName}」を選択中`;
                     
-                    // 5. ボタンコンテナを表示
-                    actionContainer.style.display = 'block';
+                    // 7. 【最重要】 actionRow を、クリックされた行 (row) の直下に移動させる
+                    // .after() メソッドは、DOMツリー内で要素を移動させます
+                    row.after(actionRow); 
                     
-                    // 6. 選択行のハイライト処理
+                    // 8. actionRow を表示 (display: 'block' ではなく 'table-row')
+                    actionRow.style.display = 'table-row'; 
+                    
+                    // 9. 選択行のハイライト処理
                     if (selectedRow) {
                         selectedRow.classList.remove('selected-row');
                     }
