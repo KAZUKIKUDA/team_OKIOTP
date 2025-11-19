@@ -126,20 +126,26 @@
         </section>
         <hr>
 
+        <!-- ▼▼▼【！！変更点！！】「最近登録された講義」から「星の数ランキング」に変更 ▼▼▼ -->
         <section>
-            <h2>最近登録された講義</h2>
-            {% if recent_courses %}
+            <h2>星の数ランキング TOP 10</h2>
+            {% if top_courses %}
                 <table class="search-results-table">
                     <thead>
                         <tr>
-                            <th>講義名</th>
-                            <th>担当教員</th>
-                            <th>総合評価</th>
+                            <!-- 順位カラムを追加 -->
+                            <th style="width: 10%; text-align: center;">順位</th>
+                            <th style="width: 50%;">講義名</th>
+                            <th style="width: 25%;">担当教員</th>
+                            <th style="width: 15%;">総合評価</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for course in recent_courses %}
+                        <!-- ループ変数を top_courses に変更 -->
+                        {% for course in top_courses %}
                         <tr>
+                            <!-- loop.index で順位を表示 -->
+                            <td style="text-align: center; font-weight: bold;">{{ loop.index }}</td>
                             <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
                             <td>{{ course.teacher }}</td>
                             <td>★ {{ course.star_rating }}</td>
@@ -148,9 +154,11 @@
                     </tbody>
                 </table>
             {% else %}
-                <p>まだ講義が登録されていません。</p>
+                <p>まだ評価の高い講義がありません。</p>
             {% endif %}
         </section>
+        <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
+        
         </div>
 </body>
 </html>

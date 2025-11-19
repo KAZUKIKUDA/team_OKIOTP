@@ -24,6 +24,10 @@ from collections import Counter
 from sqlalchemy.orm import joinedload
 # ▲▲▲ 追加ここまで ▲▲▲
 
+# ▼▼▼ URLから年度をパースするために追加 ▼▼▼
+from urllib.parse import urlparse, parse_qs
+# ▲▲▲ 変更ここまで ▲▲▲
+
 # --- Application Setup ---
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -83,6 +87,10 @@ class Course(db.Model):
     credits = db.Column(db.String(10), nullable=True) # 単位数
     format = db.Column(db.String(50), nullable=True) # 授業形式 (対面/遠隔)
     # ▲▲▲ 6項目ここまで ▲▲▲
+
+    # ▼▼▼ シラバス年度 ▼▼▼
+    syllabus_year = db.Column(db.String(20), nullable=True) # 例: "2024年度"
+    # ▲▲▲ 変更ここまで ▲▲▲
 
     reviews = db.relationship('Review', backref='course', lazy=True, cascade="all, delete-orphan")
 
@@ -146,13 +154,27 @@ def scrape_syllabus(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # ▼▼▼ 取得するデータを6 (+1) に限定 ▼▼▼
+        # ▼▼▼ '年度' を追加 ▼▼▼
         syllabus_data = {
             "科目番号": None, "開講学部等": None, "講義名": None,
             "単位数": None, "教員名": None, "授業形式": None,
+            "年度": None, # (例: 2024年度)
             "シラバスURL": url
         }
-        # ▲▲▲ 修正ここまで ▲▲▲
+
+        # URLから lct_year を抽出
+        try:
+            parsed_url = urlparse(url)
+            query_params = parse_qs(parsed_url.query)
+            # 'lct_year' はリストで返る (例: ['2024'])
+            year = query_params.get('lct_year', [None])[0]
+            if year and year.isdigit():
+                syllabus_data['年度'] = f"{year}年度"
+            else:
+                syllabus_data['年度'] = "年度不明"
+        except Exception:
+            syllabus_data['年度'] = "年度不明"
+        # ▲▲▲ 変更ここまで ▲▲▲
 
         main_content = soup.find('table', id='ctl00_phContents_Detail_Table2')
         if not main_content:
@@ -210,12 +232,38 @@ def index():
             'lecture_name': '', 'teacher_name': '', 'course_format': '',
             'attendance': '', 'test': '', 'report': ''
         }
-        recent_courses = Course.query.order_by(db.desc(Course.id)).limit(3).all()
-    except Exception as e:
-        app.logger.error(f"Error fetching recent courses: {e}")
-        recent_courses = []
         
-    return render_template('top.html', recent_courses=recent_courses, form_data=form_data)
+        # ▼▼▼ 星の数ランキングTOP10を取得 ▼▼▼
+        
+        # 1. N+1問題を避けるため、reviewsも一緒に全件取得
+        all_courses = Course.query.options(joinedload(Course.reviews)).all()
+        
+        # 2. Python側で評価を計算 (DBにavg_ratingカラムがないため)
+        courses_with_ratings = []
+        for course in all_courses:
+            rating_str = course.star_rating
+            # 評価のある講義のみを対象にする
+            if rating_str != "評価なし":
+                try:
+                    # 評価(float)と講義オブジェクトをタプルで保存
+                    courses_with_ratings.append((course, float(rating_str)))
+                except ValueError:
+                    continue # "評価なし" 以外の予期せぬ文字列をスキップ
+        
+        # 3. 評価(タプルの2番目の要素)で降順ソート
+        sorted_courses = sorted(courses_with_ratings, key=lambda x: x[1], reverse=True)
+        
+        # 4. 上位10件の講義オブジェクトのみを抽出
+        top_courses = [course for course, rating in sorted_courses[:10]]
+        
+        # ▲▲▲ 変更ここまで ▲▲▲
+
+    except Exception as e:
+        app.logger.error(f"Error fetching top courses: {e}")
+        top_courses = []
+    
+    # ▼▼▼ 変数名を top_courses に変更 ▼▼▼
+    return render_template('top.html', top_courses=top_courses, form_data=form_data)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -241,16 +289,6 @@ def register():
         if not re.match(email_pattern, email):
             flash('指定された形式の学内メールアドレスを使用してください。 (例: e235701@cs.u-ryukyu.ac.jp)', 'danger')
             return redirect(url_for('register'))
-            
-        # ▼▼▼【！！変更点！！】▼▼▼
-        # try...except の前に重複チェックを移動すると、未認証ユーザーへの対応が複雑になるため、
-        # ユーザーの元のロジック（try...except IntegrityError）を活かし、
-        # except IntegrityError ブロックを修正します。
-        #
-        # if User.query.filter_by(username=username).first(): ...
-        # if User.query.filter_by(email=email).first(): ...
-        # ↑↑↑ これらの事前チェックは削除し、DBの制約に任せます。
-        # ▲▲▲ 変更ここまで ▲▲▲
 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
@@ -295,8 +333,6 @@ def register():
             flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
             return redirect(url_for('login'))
 
-        # ▼▼▼【！！変更点！！】▼▼▼
-        # データベースの一意性制約エラー（メールまたはユーザー名）の処理を修正
         except IntegrityError: 
             db.session.rollback() # ロールバック
             
@@ -320,7 +356,6 @@ def register():
                 flash('データベースエラーが発生しました。もう一度お試しください。', 'danger')
                 
             return redirect(url_for('register'))
-        # ▲▲▲ 変更ここまで ▲▲▲
             
         except Exception as e:
             db.session.rollback() # <<< 【重要】db.session.add(new_user) をここで取り消す
@@ -356,7 +391,6 @@ def confirm_email(token):
         flash('メール認証が完了しました。ログインしてください。', 'success')
     return redirect(url_for('login'))
 
-# ▼▼▼【！！新設！！】▼▼▼
 @app.route('/resend_activation', methods=['GET', 'POST'])
 def resend_activation():
     """ 認証メールの再送リクエストを処理する """
@@ -411,7 +445,6 @@ def resend_activation():
 
     # GETリクエスト (resend_activation.html を表示)
     return render_template('resend_activation.html')
-# ▲▲▲ 新設ここまで ▲▲▲
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -427,12 +460,10 @@ def login():
             flash('メールアドレスまたはパスワードが正しくありません。', 'danger')
             return redirect(url_for('login'))
             
-        # ▼▼▼【！！変更点！！】▼▼▼
         # 未認証の場合、再送ページへリダイレクト
         if not user.is_verified:
             flash('アカウントがまだ認証されていません。認証メールを再送しますか？', 'warning')
             return redirect(url_for('resend_activation'))
-        # ▲▲▲ 変更ここまで ▲▲▲
             
         login_user(user)
         next_page = request.args.get('next')
@@ -490,8 +521,6 @@ def logout():
 @app.route('/add_course', methods=['POST'])
 @login_required
 def add_course_step1_scrape():
-    # ▼▼▼【！！変更点！！】▼▼▼
-    # 登録失敗時のリダイレクト先を /search から / (index) に変更
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーは講義を登録できません。学内メールで登録してください。', 'warning')
         return redirect(url_for('index')) 
@@ -502,7 +531,6 @@ def add_course_step1_scrape():
     if not syllabus_url or url_pattern not in syllabus_url:
         flash('正しいシラバス詳細URL (DetailMain.aspx?lct_year=... を含む) を入力してください。', 'danger')
         return redirect(url_for('index')) 
-    # ▲▲▲ 変更ここまで ▲▲▲
     
     app.logger.info("Waiting 3 seconds before scraping...")
     time.sleep(3)
@@ -512,9 +540,7 @@ def add_course_step1_scrape():
     
     if course_data is None:
         flash('シラバス情報の取得に失敗しました。URLが正しいか、サイトの仕様が変更されていないか確認してください。', 'danger')
-        # ▼▼▼【！！変更点！！】▼▼▼
         return redirect(url_for('index')) 
-        # ▲▲▲ 変更ここまで ▲▲▲
     
     # ▼▼▼ 修正: 講義名と教員名の「2つ」で重複チェック ▼▼▼
     scraped_name = course_data.get('講義名')
@@ -555,7 +581,7 @@ def add_course_step2_create():
             return redirect(url_for('index')) 
         # ▲▲▲ 修正ここまで ▲▲▲
             
-        # ▼▼▼ 修正: Course オブジェクトの作成 (6項目のみ) ▼▼▼
+        # ▼▼▼ syllabus_year をDBに保存 ▼▼▼
         new_course = Course(
             name=name,
             teacher=teacher,
@@ -563,9 +589,10 @@ def add_course_step2_create():
             subject_code=request.form.get('subject_code'),
             department=request.form.get('department'),
             credits=request.form.get('credits'),
-            format=request.form.get('format')
+            format=request.form.get('format'),
+            syllabus_year=request.form.get('syllabus_year') # フォームから 'syllabus_year' を受け取る
         )
-        # ▲▲▲ 修正ここまで ▲▲▲
+        # ▲▲▲ 変更ここまで ▲▲▲
         
         db.session.add(new_course)
         db.session.commit()
@@ -590,36 +617,36 @@ def search_course():
     search_term = None # 旧ロジックの名残だが、互換性のため残す
     results = []
     
-    # ▼▼▼【！！変更点！！】▼▼▼
     # フォームからの検索条件を保持するための辞書
     form_data = {
         'lecture_name': request.form.get('lecture_name', ''),
         'teacher_name': request.form.get('teacher_name', ''),
         'course_format': request.form.get('course_format', ''),
+        'department': request.form.get('department', ''), # department を form_data に追加
         'attendance': request.form.get('attendance', ''),
-        'test': request.form.get('test', ''),     # 'test' を追加
-        'report': request.form.get('report', '')  # 'report' を追加
-        # 'full_text' を削除
+        'test': request.form.get('test', ''),
+        'report': request.form.get('report', '')
     }
 
     if request.method == 'POST':
         # フォームからデータを取得
         lecture_name = form_data['lecture_name']
         teacher_name = form_data['teacher_name']
-        course_format_filter = form_data['course_format'] # 変数名を 'course_format' から変更
+        course_format_filter = form_data['course_format']
         attendance = form_data['attendance']
-        test = form_data['test']     # 'test' を取得
-        report = form_data['report'] # 'report' を取得
+        test = form_data['test']
+        report = form_data['report']
+        department = form_data['department'] # form_data から department を取得
 
         # ベースクエリ (N+1問題を避けるため reviews をEager Loadingする)
         query = Course.query.options(joinedload(Course.reviews))
         
         # 絞り込み条件
         filters = []
-        review_filters = []
+        review_filters = [] # (レビュー内容自体へのフィルタは現在未使用だが、将来的に)
 
         if lecture_name:
-            # スペース区切りでAND検索（例: "講義A 演習" -> "講義A" AND "演習"）
+            # スペース区切りでAND検索
             for term in lecture_name.split():
                 filters.append(Course.name.like(f'%{term}%'))
         
@@ -627,11 +654,15 @@ def search_course():
             for term in teacher_name.split():
                 filters.append(Course.teacher.like(f'%{term}%'))
         
-        # ▼▼▼【！！変更点！！】▼▼▼
         # Courseモデル自体の 'format' (シラバスの授業形式) での絞り込み
         if course_format_filter and course_format_filter != "--------":
             filters.append(Course.format == course_format_filter)
-        # ▲▲▲ 変更ここまで ▲▲▲
+            
+        # Courseモデル自体の 'department' での絞り込み
+        if department and department != "--------":
+            # ▼▼▼ 修正: 完全一致 (==) から部分一致 (like) に変更 ▼▼▼
+            filters.append(Course.department.like(f'%{department}%'))
+            # ▲▲▲ 修正 ▲▲▲
 
         # Courseのフィルタを適用
         if filters:
@@ -655,22 +686,7 @@ def search_course():
         # 'initial_results' を 'results' にコピーして、ここから絞り込みを開始
         results = initial_results
 
-        # ▼▼▼【！！変更点！！】▼▼▼
         # (attendance, test, report) の最頻値フィルタリングを順番に適用
-        department = request.form.get("department")
-        
-        if department and department != "--------":
-            filtered_results = []
-            for course in results:
-                # course.department が None でないか確認
-                if not course.department:
-                    continue
-
-                # DB に保存されている学部名と一致しているか判定
-                if course.department == department:
-                    filtered_results.append(course)
-
-                    results = filtered_results
         
         # 1. 出席(attendance)での絞り込み
         if attendance and attendance != "--------":
@@ -726,8 +742,6 @@ def search_course():
                     continue
             results = filtered_results # 最終的な結果を 'results' に上書き
             
-        # ▲▲▲ 変更ここまで ▲▲▲
-            
     else: 
         # GETリクエストの場合 (例: /search に直接アクセス)
         # すべての講義を表示（レビューも読み込む）
@@ -745,14 +759,87 @@ def search_course():
 @app.route('/course/<int:id>')
 @login_required
 def course_detail(id):
-    course = Course.query.get_or_404(id)
-    return render_template('detail.html', course=course)
+    # N+1問題を防ぐため、レビューも同時に読み込む
+    course = Course.query.options(joinedload(Course.reviews)).get_or_404(id)
+
+    # --- START: 評価分布の計算ロジック ---
+    rating_counts = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 }
+    total_reviews = 0
+
+    if course.reviews:
+        total_reviews = len(course.reviews)
+        for review in course.reviews:
+            r = review.rating
+            if r == 5.0:
+                rating_counts['5'] += 1
+            elif r >= 4.0: # 4.0, 4.5
+                rating_counts['4'] += 1
+            elif r >= 3.0: # 3.0, 3.5
+                rating_counts['3'] += 1
+            elif r >= 2.0: # 2.0, 2.5
+                rating_counts['2'] += 1
+            else: # 0.5, 1.0, 1.5
+                rating_counts['1'] += 1
+    
+    # パーセンテージを計算
+    rating_distribution = {}
+    if total_reviews > 0:
+        for star, count in rating_counts.items():
+            rating_distribution[star] = {
+                'count': count,
+                'percentage': (count / total_reviews) * 100
+            }
+    else:
+        # 0件レビューの場合
+        for star in rating_counts.keys():
+            rating_distribution[star] = { 'count': 0, 'percentage': 0 }
+    
+    # --- END: 評価分布の計算ロジック ---
+
+    # テンプレートに course と rating_distribution を渡す
+    return render_template('detail.html', course=course, rating_distribution=rating_distribution)
 
 @app.route('/course_view/<int:id>')
 @login_required
 def course_view_detail(id):
-    course = Course.query.get_or_404(id)
-    return render_template('detail2.html', course=course)
+    # course_detail と同様のロジックを追加
+    course = Course.query.options(joinedload(Course.reviews)).get_or_404(id)
+
+    # --- START: 評価分布の計算ロジック ---
+    rating_counts = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 }
+    total_reviews = 0
+
+    if course.reviews:
+        total_reviews = len(course.reviews)
+        for review in course.reviews:
+            r = review.rating
+            if r == 5.0:
+                rating_counts['5'] += 1
+            elif r >= 4.0: # 4.0, 4.5
+                rating_counts['4'] += 1
+            elif r >= 3.0: # 3.0, 3.5
+                rating_counts['3'] += 1
+            elif r >= 2.0: # 2.0, 2.5
+                rating_counts['2'] += 1
+            else: # 0.5, 1.0, 1.5
+                rating_counts['1'] += 1
+    
+    # パーセンテージを計算
+    rating_distribution = {}
+    if total_reviews > 0:
+        for star, count in rating_counts.items():
+            rating_distribution[star] = {
+                'count': count,
+                'percentage': (count / total_reviews) * 100
+            }
+    else:
+        # 0件レビューの場合
+        for star in rating_counts.keys():
+            rating_distribution[star] = { 'count': 0, 'percentage': 0 }
+    
+    # --- END: 評価分布の計算ロジック ---
+
+    return render_template('detail2.html', course=course, rating_distribution=rating_distribution)
 
 # ▼▼▼ 修正: add_review (year, classroom を任意で取得) ▼▼▼
 @app.route('/add_review/<int:id>', methods=['POST'])
@@ -760,12 +847,10 @@ def course_view_detail(id):
 def add_review(id):
     course = Course.query.get_or_404(id)
     
-    # ▼▼▼【！！変更点！！】▼▼▼
     # デモユーザーはレビュー投稿不可
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーはレビューを投稿できません。', 'warning')
         return redirect(url_for('course_detail', id=id))
-    # ▲▲▲ 変更ここまで ▲▲▲
 
     if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
         flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')

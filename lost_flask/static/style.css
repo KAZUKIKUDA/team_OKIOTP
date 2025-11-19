@@ -1,13 +1,11 @@
-/* static/style.css (Complete and Consolidated Version) */
+/* static/style.css (Complete Version) */
 
 /*
- * body, html にフォントを指定します。
- * 'Noto Sans JP' が Webフォントとして読み込まれるフォントです。
- * 'sans-serif' は、万が一フォントが読み込めなかった場合の予備（フォールバック）です。
+ * 1. Global & Basic Setup
  */
 body, html {
     font-family: "Noto Sans JP", sans-serif;
-    background-color: var(--bg-color, #f4f7f6); /* 変数が未定義でも動くようにフォールバックを追加 */
+    background-color: var(--bg-color, #f4f7f6);
     color: var(--text-color, #333);
     margin: 0;
     padding: 0;
@@ -15,7 +13,6 @@ body, html {
     line-height: 1.6;
 }
 
-/* --- CSS Variables & Basic Setup --- */
 :root {
     --primary-color: #3498db;
     --primary-hover-color: #2980b9;
@@ -33,9 +30,6 @@ body, html {
     --card-bg-color: #ffffff;
     --shadow-color: rgba(0, 0, 0, 0.08);
 }
-
-/* --- General Styles --- */
-/* bodyの重複指定を削除 */
 
 .container {
     max-width: 800px;
@@ -62,10 +56,12 @@ hr {
     margin: 30px 0;
 }
 
-/* --- Headers --- */
+/*
+ * 2. Headers
+ */
 .user-header {
     max-width: 800px;
-    margin: 20px auto 10px; /* bodyのpaddingを0にしたため、headerにmargin-topを追加 */
+    margin: 20px auto 10px;
     padding: 0 10px;
     text-align: right;
     font-size: 0.9em;
@@ -82,7 +78,9 @@ hr {
     font-weight: 600;
 }
 
-/* --- Forms & Buttons --- */
+/*
+ * 3. Forms & Buttons (Generic)
+ */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -111,12 +109,13 @@ textarea {
     min-height: 100px;
 }
 
+/* 基本ボタン (.btn) */
 .btn {
     width: 100%;
     padding: 12px;
     margin-top: 15px;
     color: #fff;
-    border: 1px solid var(--primary-color); /* ホバー時の境界線用 */
+    border: 1px solid var(--primary-color);
     border-radius: 6px;
     cursor: pointer;
     font-size: 1.1em;
@@ -124,13 +123,14 @@ textarea {
     background-color: var(--primary-color);
     text-decoration: none !important;
     box-sizing: border-box;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-block; /* アンカータグでもボタンとして振る舞うため */
+    text-align: center;
 }
 .btn:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: var(--primary-color); /* 文字色をプライマリカラーに反転 */
-    border-color: var(--primary-color); /* 境界線の色をプライマリカラーに設定 */
-    text-decoration: none !important;
+    background-color: #fff;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 .btn-logout {
@@ -138,28 +138,29 @@ textarea {
     padding: 5px 10px;
     background-color: var(--danger-color);
     color: #fff;
-    border: 1px solid var(--danger-color); /* ホバー時の境界線用 */
+    border: 1px solid var(--danger-color);
     border-radius: 4px;
     margin-left: 10px;
     font-size: 0.9em;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 .btn-logout:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: var(--danger-color); /* 文字色を危険色に反転 */
-    border-color: var(--danger-color); /* 境界線の色を危険色に設定 */
+    background-color: #fff;
+    color: var(--danger-color);
+    border-color: var(--danger-color);
 }
 
-/* --- Authentication Pages --- */
+/*
+ * 4. Authentication Pages
+ */
 .auth-container {
     background: var(--card-bg-color);
     padding: 30px 40px;
     border-radius: 12px;
     box-shadow: 0 6px 20px var(--shadow-color);
-    width: 380px; /* パスワード制約文のため少し拡大 */
+    width: 380px;
     margin: 50px auto;
 }
-/* ▼▼▼ アプリタイトルスタイル ▼▼▼ */
 .app-title {
     text-align: center;
     color: var(--primary-color);
@@ -168,7 +169,6 @@ textarea {
     margin-top: 0;
     margin-bottom: 10px;
 }
-/* ▲▲▲ アプリタイトルスタイル ▲▲▲ */
 .auth-container h2 {
     text-align: center;
     margin-top: 0;
@@ -181,12 +181,12 @@ textarea {
 }
 .auth-container .btn-register {
     background-color: var(--success-color);
-    border-color: var(--success-color); /* ホバー時の境界線用 */
+    border-color: var(--success-color);
 }
 .auth-container .btn-register:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: var(--success-color); /* 文字色を成功色に反転 */
-    border-color: var(--success-color); /* 境界線の色を成功色に設定 */
+    background-color: #fff;
+    color: var(--success-color);
+    border-color: var(--success-color);
 }
 .auth-link {
     display: block;
@@ -194,32 +194,18 @@ textarea {
     margin-top: 20px;
     font-size: 0.9em;
 }
-
-.btn.btn-guest {
-    display: block;
-    text-align: center;
-    margin-top: 10px;
-    background-color: var(--guest-color);
-    border-color: var(--guest-color);
-}
-.btn.btn-guest:hover {
-    background-color: #fff;
-    color: var(--guest-color);
-    border-color: var(--guest-color);
-}
-
-/* ▼▼▼ パスワード制約のスタイル ▼▼▼ */
 .password-constraint {
     font-size: 0.85em;
     color: var(--light-text-color);
     line-height: 1.4;
     text-align: left;
-    margin-top: -5px; /* 入力欄との隙間を詰める */
+    margin-top: -5px;
     margin-bottom: 10px;
 }
-/* ▲▲▲ パスワード制約のスタイル ▲▲▲ */
 
-/* --- Flash Messages --- */
+/*
+ * 5. Flash Messages
+ */
 .flash-message {
     padding: 15px;
     margin-bottom: 20px;
@@ -228,37 +214,95 @@ textarea {
     font-size: 0.95em;
     border: 1px solid transparent;
 }
-.flash-message.success {
-    background-color: #d4edda; color: #155724; border-color: #c3e6cb;
-}
-.flash-message.danger, .flash-message.error {
-    background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;
-}
-.flash-message.warning {
-    background-color: #fff3cd; color: #856404; border-color: #ffeeba;
-}
-.flash-message.info {
-    background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb;
-}
+.flash-message.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+.flash-message.danger, .flash-message.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+.flash-message.warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+.flash-message.info { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
 
-/* --- Detail & Search Page (Styles Merged & Updated) --- */
+/*
+ * 6. Detail & Search Page Layout
+ */
+/* 講義情報のコンテナ（左右分割用） */
 .course-info {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 15px;
     margin-bottom: 20px;
 }
-.course-info p {
+
+/* 左側: 講義詳細テキスト */
+.course-info-details {
+    flex-basis: 55%;
+    min-width: 300px;
+}
+.course-info-details p {
     margin: 8px 0;
     font-size: 1.1em;
 }
-.course-info a {
+.course-info-details a {
     font-weight: normal;
     text-decoration: underline;
 }
-.course-info a:hover {
+.course-info-details a:hover {
     color: var(--primary-hover-color);
 }
 
+/* 右側: 星評価分布グラフ */
+.rating-distribution-container {
+    flex-basis: 40%;
+    min-width: 280px;
+    box-sizing: border-box;
+    margin-top: 10px;
+    /* 背景色なし、左側に境界線 */
+    background-color: transparent;
+    padding-left: 25px;
+    border-left: 1px solid var(--border-color);
+}
+.rating-distribution-container h4 {
+    font-size: 1.1em;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    padding-left: 0;
+    border-left: none;
+    color: #333;
+    text-align: left;
+}
+.rating-bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+.rating-bar-label {
+    flex-basis: 50px;
+    flex-shrink: 0;
+    color: var(--light-text-color);
+}
+.rating-bar-wrapper {
+    flex-grow: 1;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-right: 10px;
+}
+.rating-bar-fill {
+    height: 100%;
+    background-color: var(--warning-color);
+    transition: width 0.5s ease-out;
+}
+.rating-bar-count {
+    flex-basis: 40px;
+    flex-shrink: 0;
+    text-align: right;
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+/* セクション共通 */
 section {
     margin-bottom: 40px;
 }
@@ -269,6 +313,7 @@ section h2, section h4 {
     margin-bottom: 20px;
 }
 
+/* レビューテーブル */
 .review-table {
     width: 100%;
     border-collapse: collapse;
@@ -281,98 +326,6 @@ section h2, section h4 {
     padding: 15px 5px;
     vertical-align: top;
 }
-
-/* ▼▼▼ search.html から移動・統合したスタイル ▼▼▼ */
-.search-results-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
-.search-results-table th,
-.search-results-table td {
-    border: 1px solid var(--border-color);
-    padding: 12px;
-    text-align: left;
-    vertical-align: top;
-}
-.search-results-table th {
-    background-color: var(--bg-color);
-    font-weight: bold;
-    border-bottom: 2px solid var(--primary-color);
-}
-/* ▲▲▲ 元の style.css にあった tr:hover は .selectable-row:hover に任せる */
-
-.selectable-row:hover {
-    background-color: #f5f5f5; /* ホバー時の色 */
-    cursor: pointer;
-}
-.selected-row {
-    background-color: #e0e7ff; /* 選択時の色 */
-}
-
-
-/* ▼▼▼【！！変更点！！】▼▼▼ */
-/* 以前 .action-buttons だったスタイルを、行内表示用に変更 */
-
-/* search.html の <tr id="action-row"> に対応 */
-.action-row-container td {
-    /* テーブルのセルのボーダーとパディングを上書き */
-    padding: 0 !important;
-    border: none;
-    /* 選択行のハイライトと重なるため、border-top/bottom は .action-buttons-content で行う */
-}
-
-/* <tr id="action-row"> の中の <div> に対応 */
-.action-buttons-content {
-    padding: 20px;
-    background-color: #f9f9f9;
-    text-align: center;
-    /* 選択行のすぐ下であることを示すため、上部に区切り線 */
-    border-top: 2px solid var(--primary-color);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.action-buttons-content h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-}
-/* ▲▲▲ 変更ここまで ▲▲▲ */
-
-
-.action-btn {
-    display: inline-block;
-    padding: 10px 20px;
-    margin: 0 10px;
-    text-decoration: none;
-    color: white; /* デフォルトの文字色 */
-    background-color: #007bff; /* デフォルトの背景色 */
-    border: 1px solid #007bff; /* ホバー時の境界線用 */
-    border-radius: 5px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
-}
-.action-btn.secondary {
-    background-color: #6c757d; /* セカンダリボタンの色 */
-    border-color: #6c757d; /* ホバー時の境界線用 */
-}
-/* ホバー時（メインボタン） */
-.action-btn:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: #007bff; /* 文字色をメインカラーに反転 */
-    border-color: #007bff; /* 境界線の色をメインカラーに設定 */
-    text-decoration: none; /* 下線を削除 */
-}
-/* ホバー時（セカンダリボタン） */
-.action-btn.secondary:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: #6c757d; /* 文字色をセカンダリカラーに反転 */
-    border-color: #6c757d; /* 境界線の色をセカンダリカラーに設定 */
-    text-decoration: none; /* 下線を削除 */
-}
-
-
 .review-meta {
     font-size: 0.9em;
     color: var(--light-text-color);
@@ -391,12 +344,84 @@ section h2, section h4 {
     color: #555;
     margin-top: 5px;
 }
-.back-link {
-    display: inline-block;
+
+/*
+ * 7. Search Results Table
+ */
+.search-results-table {
+    width: 100%;
+    border-collapse: collapse;
     margin-top: 20px;
+    margin-bottom: 20px;
+}
+.search-results-table th,
+.search-results-table td {
+    border: 1px solid var(--border-color);
+    padding: 12px;
+    text-align: left;
+    vertical-align: top;
+}
+.search-results-table th {
+    background-color: var(--bg-color);
+    font-weight: bold;
+    border-bottom: 2px solid var(--primary-color);
+}
+.selectable-row:hover {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+.selected-row {
+    background-color: #e0e7ff;
 }
 
-/* --- Improved Radio Buttons --- */
+/* 検索結果のアクションボタン (行内表示) */
+.action-row-container td {
+    padding: 0 !important;
+    border: none;
+}
+.action-buttons-content {
+    padding: 20px;
+    background-color: #f9f9f9;
+    text-align: center;
+    border-top: 2px solid var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.action-buttons-content h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.action-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 10px;
+    text-decoration: none;
+    color: white;
+    background-color: #007bff;
+    border: 1px solid #007bff;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+.action-btn:hover {
+    background-color: #fff;
+    color: #007bff;
+    text-decoration: none;
+}
+.action-btn.secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+.action-btn.secondary:hover {
+    background-color: #fff;
+    color: #6c757d;
+}
+
+/*
+ * 8. Form Components
+ */
+/* Radio Buttons */
 .radio-group {
     display: flex;
     flex-wrap: wrap;
@@ -407,14 +432,9 @@ section h2, section h4 {
     display: inline-flex;
     align-items: center;
     cursor: pointer;
-    margin-right: 0;
 }
-.radio-group input[type="radio"] {
-    display: none;
-}
-.radio-group span {
-    line-height: 1;
-}
+.radio-group input[type="radio"] { display: none; }
+.radio-group span { line-height: 1; }
 .radio-group input[type="radio"] + span::before {
     content: '';
     display: inline-block;
@@ -431,65 +451,40 @@ section h2, section h4 {
     background-color: var(--primary-color);
     box-shadow: inset 0 0 0 4px var(--card-bg-color);
 }
-.radio-group input[type="radio"]:focus + span::before {
-     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 0 0 4px var(--card-bg-color);
+
+/* Star Rating Input */
+.star-rating-input {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    font-size: 2.5em;
+    margin-bottom: 20px;
 }
-.radio-group input[type="radio"]:checked:focus + span::before {
-     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 0 0 4px var(--card-bg-color);
+.star-rating-input input { display: none; }
+.star-rating-input .star {
+    position: relative;
+    display: block;
+    width: 1em;
+    cursor: pointer;
+    color: #e0e0e0;
+    transition: color 0.2s;
 }
-
-
-/* --- Interactive Star Rating (Final Version) --- */ 
-.star-rating-input { 
-display: flex; 
-flex-direction: row-reverse; 
-justify-content: flex-end; 
-font-size: 2.5em; 
-margin-bottom: 20px; 
-} 
-
-.star-rating-input input { 
-display: none; 
-} 
-
-.star-rating-input .star { 
-position: relative; 
-display: block; 
-width: 1em; 
-cursor: pointer; 
-color: #e0e0e0; 
-transition: color 0.2s; 
-} 
-
-.star-rating-input .star.half { 
-width: 0.5em; 
-overflow: hidden; 
-} 
-
-.star-rating-input .star.half-right { 
-width: 0.5em; 
-overflow: hidden; 
-direction: rtl; 
-} 
-
-.star-rating-input .star.half::before { 
-content: '★'; 
-position: absolute; 
-width: 1em; 
-} 
-
-.star-rating-input label:hover, 
-.star-rating-input label:hover ~ label, 
-.star-rating-input input:checked ~ label { 
-color: var(--warning-color); 
+.star-rating-input .star.half { width: 0.5em; overflow: hidden; }
+.star-rating-input .star.half-right { width: 0.5em; overflow: hidden; direction: rtl; }
+.star-rating-input .star.half::before { content: '★'; position: absolute; width: 1em; }
+.star-rating-input label:hover,
+.star-rating-input label:hover ~ label,
+.star-rating-input input:checked ~ label {
+    color: var(--warning-color);
 }
 
-
-/* --- Page Navigation (from detail.html / detail2.html) --- */
+/*
+ * 9. Page Navigation (Detail Pages)
+ */
 .page-navigation {
-    display: flex; 
+    display: flex;
     justify-content: space-between;
-    align-items: center; 
+    align-items: center;
     margin-top: 25px;
     padding-top: 20px;
     border-top: 1px solid #eee;
@@ -505,14 +500,24 @@ color: var(--warning-color);
     align-items: flex-start;
     gap: 10px;
 }
+.back-link {
+    display: inline-block;
+    margin-top: 0; /* 上書き */
+}
 
-/* --- Confirmation Actions (from confirm_course.html) --- */
+/*
+ * 10. Confirmation Actions (confirm_course.html)
+ * ここが崩れていた可能性が高い箇所です
+ */
 .confirmation-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 25px;
+    width: 100%; /* 幅を確保 */
 }
+
+/* キャンセルボタン */
 .btn-cancel {
     background-color: var(--light-text-color, #aaa);
     color: white;
@@ -521,29 +526,33 @@ color: var(--warning-color);
     border-radius: 6px;
     font-weight: 500;
     font-size: 1em;
-    border: 1px solid var(--light-text-color, #aaa); /* ホバー時の境界線用 */
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+    border: 1px solid var(--light-text-color, #aaa);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-block;
 }
- .btn-cancel:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: var(--light-text-color, #aaa); /* 文字色をグレーに反転 */
-    border-color: var(--light-text-color, #aaa); /* 境界線の色をグレーに設定 */
+.btn-cancel:hover {
+    background-color: #fff;
+    color: var(--light-text-color, #aaa);
+    border-color: var(--light-text-color, #aaa);
     text-decoration: none;
- }
- 
- /* .btn の width: 100% を上書き */
- .confirmation-actions .btn {
+}
+
+/* 確認画面の登録ボタン（幅を自動調整して横並びにする） */
+.confirmation-actions .btn {
     width: auto;
     font-size: 1.1em;
-    margin-top: 0; /* 元の .btn の margin-top: 15px をリセット */
- }
+    margin-top: 0;
+    padding: 12px 30px; /* 少し広めに */
+}
 
-/* --- Top Page Search Form (from top.html) --- */
+/*
+ * 11. Top Page Search Form
+ */
 .search-form-container {
     border: 2px solid #a0a0a0;
     border-radius: 8px;
     background-color: #f9f9f9;
-    margin-bottom: 20px; /* 下のセクションとのマージン */
+    margin-bottom: 20px;
 }
 .search-table {
     width: 100%;
@@ -555,19 +564,19 @@ color: var(--warning-color);
     vertical-align: middle;
 }
 .search-table th {
-    background-color: #e9ecef; /* 少しモダンな色に変更 */
+    background-color: #e9ecef;
     font-weight: bold;
     text-align: left;
     width: 150px;
-    font-size: 14px; /* ヘッダーのフォントサイズ調整 */
+    font-size: 14px;
 }
 .search-table input[type="text"], .search-table select {
-    width: 95%; /* 幅を調整 */
+    width: 95%;
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 16px;
-    box-sizing: border-box; /* paddingを含めて幅を計算 */
+    box-sizing: border-box;
 }
 .search-table p.description {
     font-size: 12px;
@@ -578,48 +587,49 @@ color: var(--warning-color);
     text-align: center;
     padding: 20px;
 }
-/* 既存の .btn スタイルと共存させる */
 .search-buttons .btn {
     padding: 10px 20px;
     font-size: 16px;
     cursor: pointer;
     border-radius: 5px;
-    border: 1px solid; /* ホバー時の境界線用 */
-    text-decoration: none; /* aタグのスタイルリセット */
-    display: inline-block; /* aタグやbuttonタグの調整 */
-    margin: 0 10px; /* ボタン間のマージン */
-    width: auto; /* .btn の width: 100% を上書き */
-    margin-top: 0; /* .btn の margin-top: 15px を上書き */
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s; /* トランジション追加 */
+    border: 1px solid;
+    display: inline-block;
+    margin: 0 10px;
+    width: auto;
+    margin-top: 0;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 .btn-search {
-    background-color: #007bff; /* プライマリカラー */
-    color: white;
-    border-color: #007bff;
+    background-color: #007bff; color: white; border-color: #007bff;
 }
 .btn-search:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: #007bff; /* 文字色をプライマリカラーに反転 */
-    border-color: #007bff; /* 境界線の色をプライマリカラーに設定 */
+    background-color: #fff; color: #007bff;
 }
 .btn-clear {
-    background-color: #6c757d; /* グレー */
-    color: white;
-    border-color: #6c757d;
+    background-color: #6c757d; color: white; border-color: #6c757d;
 }
 .btn-clear:hover {
-    background-color: #fff; /* 背景色を白に反転 */
-    color: #6c757d; /* 文字色をグレーに反転 */
-    border-color: #6c757d; /* 境界線の色をグレーに設定 */
+    background-color: #fff; color: #6c757d;
 }
 
-
-/* --- Special Buttons (Success/Guest) --- */
-/* 詳細度を .btn.btn-xxx とすることで .btn:hover を確実に上書きします */
-
-/* * detail.html の「レビュー閲覧専用ページへ」ボタン
- * 詳細度を上げるため .btn.btn-view-only に変更
+/*
+ * 12. Special Buttons (Detailed Specificity)
  */
+/* ゲストログインボタン */
+.btn.btn-guest {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    background-color: var(--guest-color);
+    border-color: var(--guest-color);
+    color: white;
+}
+.btn.btn-guest:hover {
+    background-color: #fff;
+    color: var(--guest-color);
+}
+
+/* 閲覧専用ボタン */
 .btn.btn-view-only {
     background-color: var(--guest-color);
     border-color: var(--guest-color);
@@ -627,12 +637,9 @@ color: var(--warning-color);
 .btn.btn-view-only:hover {
     background-color: #fff;
     color: var(--guest-color);
-    border-color: var(--guest-color);
 }
 
-/* * search.html の「シラバス検索ページを開く」ボタン
- * 詳細度を上げるため .btn.btn-syllabus に変更
- */
+/* シラバスボタン */
 .btn.btn-syllabus {
     background-color: var(--success-color);
     border-color: var(--success-color);
@@ -644,5 +651,4 @@ color: var(--warning-color);
 .btn.btn-syllabus:hover {
     background-color: #fff;
     color: var(--success-color);
-    border-color: var(--success-color);
 }

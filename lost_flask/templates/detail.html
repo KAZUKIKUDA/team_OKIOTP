@@ -29,28 +29,87 @@
             {% endif %}
         {% endwith %}
 
+        <!-- ▼▼▼【！！変更点！！】 内部を左右分割 ▼▼▼ -->
         <section class="course-info">
-            <p><strong>講義名：</strong> {{ course.name }}</p>
-            <p><strong>担当教員：</strong> {{ course.teacher }}</p>
-            <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
             
-            <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
-            <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
-            <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
-            <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
-            
-            {% if course.syllabus_url %}
-            <p><strong>シラバス：</strong> 
-                <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">
-                    リンクを開く {% if course.syllabus_year %}({{ course.syllabus_year }}){% endif %}
-                </a>
-            </p>
-            {% endif %}
+            <!-- 左側: 講義情報 -->
+            <div class="course-info-details">
+                <p><strong>講義名：</strong> {{ course.name }}</p>
+                <p><strong>担当教員：</strong> {{ course.teacher }}</p>
+                <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
+                
+                <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
+                <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
+                <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
+                <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
+                
+                {% if course.syllabus_url %}
+                <p><strong>シラバス：</strong> 
+                    <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">
+                        リンクを開く {% if course.syllabus_year %}({{ course.syllabus_year }}){% endif %}
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- 右側: 評価グラフ -->
+            <div class="rating-distribution-container">
+                <h4>評価の分布</h4>
+                
+                <!-- 星5 -->
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">星5</span>
+                    <div class="rating-bar-wrapper">
+                        <div class="rating-bar-fill" style="width: {{ rating_distribution['5'].percentage }}%;"></div>
+                    </div>
+                    <span class="rating-bar-count">({{ rating_distribution['5'].count }})</span>
+                </div>
+                
+                <!-- 星4 -->
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">星4</span>
+                    <div class="rating-bar-wrapper">
+                        <div class="rating-bar-fill" style="width: {{ rating_distribution['4'].percentage }}%;"></div>
+                    </div>
+                    <span class="rating-bar-count">({{ rating_distribution['4'].count }})</span>
+                </div>
+
+                <!-- 星3 -->
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">星3</span>
+                    <div class="rating-bar-wrapper">
+                        <div class="rating-bar-fill" style="width: {{ rating_distribution['3'].percentage }}%;"></div>
+                    </div>
+                    <span class="rating-bar-count">({{ rating_distribution['3'].count }})</span>
+                </div>
+
+                <!-- 星2 -->
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">星2</span>
+                    <div class="rating-bar-wrapper">
+                        <div class="rating-bar-fill" style="width: {{ rating_distribution['2'].percentage }}%;"></div>
+                    </div>
+                    <span class="rating-bar-count">({{ rating_distribution['2'].count }})</span>
+                </div>
+
+                <!-- 星1 -->
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">星1</span>
+                    <div class="rating-bar-wrapper">
+                        <div class="rating-bar-fill" style="width: {{ rating_distribution['1'].percentage }}%;"></div>
+                    </div>
+                    <span class="rating-bar-count">({{ rating_distribution['1'].count }})</span>
+                </div>
+            </div>
         </section>
+        <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
+
+
         <section>
             <h2>レビューを追加</h2>
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
-            <h4>総合評価</h4>
+
+                <h4>総合評価</h4>
                 <div class="star-rating-input">
                 <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
                 <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
