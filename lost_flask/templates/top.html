@@ -61,35 +61,35 @@
                                     </select>
                                 </td>
                             </tr>
-                                                    <tr>
-                            <th>開講学部</th>
-                            <td>
-                                {% set dep = form_data.get('department', '--------') %}
-                                <select name="department">
-                                    <option value="--------" {% if dep == "--------" %}selected{% endif %}>--------</option>
+                            <tr>
+                                <th>開講学部</th>
+                                <td>
+                                    {% set dep = form_data.get('department', '--------') %}
+                                    <select name="department">
+                                        <option value="--------" {% if dep == "--------" %}selected{% endif %}>--------</option>
 
-                                    <option value="共通教育等科目" {% if dep == "共通教育等科目" %}selected{% endif %}>共通教育等科目</option>
-                                    <option value="国際地域創造学部" {% if dep == "国際地域創造学部" %}selected{% endif %}>国際地域創造学部</option>
-                                    <option value="人文社会学部" {% if dep == "人文社会学部" %}selected{% endif %}>人文社会学部</option>
-                                    <option value="教育学部" {% if dep == "教育学部" %}selected{% endif %}>教育学部</option>
-                                    <option value="教育学部（特別支援教育特別課程）" {% if dep == "教育学部（特別支援教育特別課程）" %}selected{% endif %}>教育学部（特別支援教育特別課程）</option>
-                                    <option value="法文学部" {% if dep == "法文学部" %}selected{% endif %}>法文学部</option>
-                                    <option value="理学部" {% if dep == "理学部" %}selected{% endif %}>理学部</option>
-                                    <option value="工学部" {% if dep == "工学部" %}selected{% endif %}>工学部</option>
-                                    <option value="農学部" {% if dep == "農学部" %}selected{% endif %}>農学部</option>
-                                    <option value="医学部" {% if dep == "医学部" %}selected{% endif %}>医学部</option>
+                                        <option value="共通教育等科目" {% if dep == "共通教育等科目" %}selected{% endif %}>共通教育等科目</option>
+                                        <option value="国際地域創造学部" {% if dep == "国際地域創造学部" %}selected{% endif %}>国際地域創造学部</option>
+                                        <option value="人文社会学部" {% if dep == "人文社会学部" %}selected{% endif %}>人文社会学部</option>
+                                        <option value="教育学部" {% if dep == "教育学部" %}selected{% endif %}>教育学部</option>
+                                        <option value="教育学部（特別支援教育特別課程）" {% if dep == "教育学部（特別支援教育特別課程）" %}selected{% endif %}>教育学部（特別支援教育特別課程）</option>
+                                        <option value="法文学部" {% if dep == "法文学部" %}selected{% endif %}>法文学部</option>
+                                        <option value="理学部" {% if dep == "理学部" %}selected{% endif %}>理学部</option>
+                                        <option value="工学部" {% if dep == "工学部" %}selected{% endif %}>工学部</option>
+                                        <option value="農学部" {% if dep == "農学部" %}selected{% endif %}>農学部</option>
+                                        <option value="医学部" {% if dep == "医学部" %}selected{% endif %}>医学部</option>
 
-                                    <option value="人文社会科学研究科" {% if dep == "人文社会科学研究科" %}selected{% endif %}>人文社会科学研究科</option>
-                                    <option value="教育学研究科" {% if dep == "教育学研究科" %}selected{% endif %}>教育学研究科</option>
-                                    <option value="医学研究科" {% if dep == "医学研究科" %}selected{% endif %}>医学研究科</option>
-                                    <option value="保健学研究科" {% if dep == "保健学研究科" %}selected{% endif %}>保健学研究科</option>
-                                    <option value="農学研究科" {% if dep == "農学研究科" %}selected{% endif %}>農学研究科</option>
-                                    <option value="理工学研究科" {% if dep == "理工学研究科" %}selected{% endif %}>理工学研究科</option>
-                                    <option value="法務研究科" {% if dep == "法務研究科" %}selected{% endif %}>法務研究科</option>
-                                    <option value="地域共創研究科" {% if dep == "地域共創研究科" %}selected{% endif %}>地域共創研究科</option>
-                                    <option value="国際教育センター" {% if dep == "国際教育センター" %}selected{% endif %}>国際教育センター</option>
-                                </select>
-                            </td>
+                                        <option value="人文社会科学研究科" {% if dep == "人文社会科学研究科" %}selected{% endif %}>人文社会科学研究科</option>
+                                        <option value="教育学研究科" {% if dep == "教育学研究科" %}selected{% endif %}>教育学研究科</option>
+                                        <option value="医学研究科" {% if dep == "医学研究科" %}selected{% endif %}>医学研究科</option>
+                                        <option value="保健学研究科" {% if dep == "保健学研究科" %}selected{% endif %}>保健学研究科</option>
+                                        <option value="農学研究科" {% if dep == "農学研究科" %}selected{% endif %}>農学研究科</option>
+                                        <option value="理工学研究科" {% if dep == "理工学研究科" %}selected{% endif %}>理工学研究科</option>
+                                        <option value="法務研究科" {% if dep == "法務研究科" %}selected{% endif %}>法務研究科</option>
+                                        <option value="地域共創研究科" {% if dep == "地域共創研究科" %}selected{% endif %}>地域共創研究科</option>
+                                        <option value="国際教育センター" {% if dep == "国際教育センター" %}selected{% endif %}>国際教育センター</option>
+                                    </select>
+                                </td>
                             </tr>
                             <tr>
                                 <th>出席の有無</th>
@@ -102,6 +102,20 @@
                                      <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
                                 </td>
                             </tr>    
+
+                            <!-- ▼▼▼ テストの有無（復活） ▼▼▼ -->
+                            <tr>
+                                <th>テストの有無</th>
+                                <td>
+                                    <select name="test">
+                                        <option value="--------" {% if form_data.test == "--------" %}selected{% endif %}>--------</option>
+                                        <option value="あり" {% if form_data.test == "あり" %}selected{% endif %}>あり</option>
+                                        <option value="なし" {% if form_data.test == "なし" %}selected{% endif %}>なし</option>
+                                    </select>
+                                    <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
+                                </td>
+                            </tr>
+                            <!-- ▲▲▲ テストの有無（復活） ▲▲▲ -->
 
                             <tr>
                                 <th>レポートの有無</th>
@@ -126,14 +140,12 @@
         </section>
         <hr>
 
-        <!-- ▼▼▼【！！変更点！！】「最近登録された講義」から「星の数ランキング」に変更 ▼▼▼ -->
         <section>
             <h2>星の数ランキング TOP 10</h2>
             {% if top_courses %}
                 <table class="search-results-table">
                     <thead>
                         <tr>
-                            <!-- 順位カラムを追加 -->
                             <th style="width: 10%; text-align: center;">順位</th>
                             <th style="width: 50%;">講義名</th>
                             <th style="width: 25%;">担当教員</th>
@@ -141,10 +153,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- ループ変数を top_courses に変更 -->
                         {% for course in top_courses %}
                         <tr>
-                            <!-- loop.index で順位を表示 -->
                             <td style="text-align: center; font-weight: bold;">{{ loop.index }}</td>
                             <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
                             <td>{{ course.teacher }}</td>
@@ -157,7 +167,6 @@
                 <p>まだ評価の高い講義がありません。</p>
             {% endif %}
         </section>
-        <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
         
         </div>
 </body>
