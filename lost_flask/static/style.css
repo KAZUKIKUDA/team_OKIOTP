@@ -1,8 +1,6 @@
-/* static/style.css (Complete Version) */
+/* static/style.css (Complete Version with Resized Logo) */
 
-/*
- * 1. Global & Basic Setup
- */
+/* 1. Global & Basic Setup */
 body, html {
     font-family: "Noto Sans JP", sans-serif;
     background-color: var(--bg-color, #f4f7f6);
@@ -12,6 +10,13 @@ body, html {
     font-size: 16px;
     line-height: 1.6;
 }
+
+/* ▼▼▼【変更点】Body Padding Adjustment ▼▼▼ */
+/* ロゴの高さに合わせて余白を調整 (100px -> 80px) */
+body {
+    padding-top: 80px; 
+}
+/* ▲▲▲ 変更ここまで ▲▲▲ */
 
 :root {
     --primary-color: #3498db;
@@ -30,6 +35,34 @@ body, html {
     --card-bg-color: #ffffff;
     --shadow-color: rgba(0, 0, 0, 0.08);
 }
+
+/* ▼▼▼【変更点】Logo Banner Styles ▼▼▼ */
+#logo-banner {
+    position: absolute; 
+    left: 20px;
+    top: 15px; /* 少し上に調整 */
+    
+    /* サイズの調整: 400px -> 150px に変更 */
+    width: 400px; 
+    height: auto; 
+    
+    z-index: 1000; 
+    background: transparent; 
+}
+
+/* スマホ対応 */
+@media (max-width: 550px) {
+    #logo-banner {
+        width: 100px; /* スマホではさらに小さく */
+        left: 10px;
+        top: 10px;
+    }
+    body {
+        padding-top: 60px;
+    }
+}
+/* ▲▲▲ 変更ここまで ▲▲▲ */
+
 
 .container {
     max-width: 800px;
@@ -56,9 +89,7 @@ hr {
     margin: 30px 0;
 }
 
-/*
- * 2. Headers
- */
+/* 2. Headers */
 .user-header {
     max-width: 800px;
     margin: 20px auto 10px;
@@ -78,14 +109,8 @@ hr {
     font-weight: 600;
 }
 
-/*
- * 3. Forms & Buttons (Generic)
- */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="url"],
-textarea {
+/* 3. Forms & Buttons */
+input[type="text"], input[type="email"], input[type="password"], input[type="url"], textarea {
     width: 100%;
     padding: 12px;
     margin-bottom: 15px;
@@ -95,11 +120,7 @@ textarea {
     font-size: 1em;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-input[type="url"]:focus,
-textarea:focus {
+input:focus, textarea:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
@@ -109,7 +130,6 @@ textarea {
     min-height: 100px;
 }
 
-/* 基本ボタン (.btn) */
 .btn {
     width: 100%;
     padding: 12px;
@@ -124,13 +144,12 @@ textarea {
     text-decoration: none !important;
     box-sizing: border-box;
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    display: inline-block; /* アンカータグでもボタンとして振る舞うため */
+    display: inline-block;
     text-align: center;
 }
 .btn:hover {
     background-color: #fff;
     color: var(--primary-color);
-    border-color: var(--primary-color);
 }
 
 .btn-logout {
@@ -147,12 +166,9 @@ textarea {
 .btn-logout:hover {
     background-color: #fff;
     color: var(--danger-color);
-    border-color: var(--danger-color);
 }
 
-/*
- * 4. Authentication Pages
- */
+/* 4. Authentication Pages */
 .auth-container {
     background: var(--card-bg-color);
     padding: 30px 40px;
@@ -176,9 +192,7 @@ textarea {
     color: var(--text-color);
     font-weight: 600;
 }
-.auth-container .btn {
-    margin-top: 10px;
-}
+.auth-container .btn { margin-top: 10px; }
 .auth-container .btn-register {
     background-color: var(--success-color);
     border-color: var(--success-color);
@@ -186,7 +200,6 @@ textarea {
 .auth-container .btn-register:hover {
     background-color: #fff;
     color: var(--success-color);
-    border-color: var(--success-color);
 }
 .auth-link {
     display: block;
@@ -203,9 +216,7 @@ textarea {
     margin-bottom: 10px;
 }
 
-/*
- * 5. Flash Messages
- */
+/* 5. Flash Messages */
 .flash-message {
     padding: 15px;
     margin-bottom: 20px;
@@ -219,10 +230,7 @@ textarea {
 .flash-message.warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
 .flash-message.info { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
 
-/*
- * 6. Detail & Search Page Layout
- */
-/* 講義情報のコンテナ（左右分割用） */
+/* 6. Detail Page Layout */
 .course-info {
     display: flex;
     flex-wrap: wrap;
@@ -232,31 +240,16 @@ textarea {
     padding-bottom: 15px;
     margin-bottom: 20px;
 }
+.course-info-details { flex-basis: 55%; min-width: 300px; }
+.course-info-details p { margin: 8px 0; font-size: 1.1em; }
+.course-info-details a { font-weight: normal; text-decoration: underline; }
+.course-info-details a:hover { color: var(--primary-hover-color); }
 
-/* 左側: 講義詳細テキスト */
-.course-info-details {
-    flex-basis: 55%;
-    min-width: 300px;
-}
-.course-info-details p {
-    margin: 8px 0;
-    font-size: 1.1em;
-}
-.course-info-details a {
-    font-weight: normal;
-    text-decoration: underline;
-}
-.course-info-details a:hover {
-    color: var(--primary-hover-color);
-}
-
-/* 右側: 星評価分布グラフ */
 .rating-distribution-container {
     flex-basis: 40%;
     min-width: 280px;
     box-sizing: border-box;
     margin-top: 10px;
-    /* 背景色なし、左側に境界線 */
     background-color: transparent;
     padding-left: 25px;
     border-left: 1px solid var(--border-color);
@@ -276,11 +269,7 @@ textarea {
     margin-bottom: 10px;
     font-size: 1em;
 }
-.rating-bar-label {
-    flex-basis: 50px;
-    flex-shrink: 0;
-    color: var(--light-text-color);
-}
+.rating-bar-label { flex-basis: 50px; flex-shrink: 0; color: var(--light-text-color); }
 .rating-bar-wrapper {
     flex-grow: 1;
     height: 20px;
@@ -302,10 +291,7 @@ textarea {
     font-weight: bold;
 }
 
-/* セクション共通 */
-section {
-    margin-bottom: 40px;
-}
+section { margin-bottom: 40px; }
 section h2, section h4 {
     margin-top: 0;
     border-left: 5px solid var(--primary-color);
@@ -313,19 +299,13 @@ section h2, section h4 {
     margin-bottom: 20px;
 }
 
-/* レビューテーブル */
 .review-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
 }
-.review-table tr:not(:last-child) {
-    border-bottom: 1px solid var(--border-color);
-}
-.review-table td {
-    padding: 15px 5px;
-    vertical-align: top;
-}
+.review-table tr:not(:last-child) { border-bottom: 1px solid var(--border-color); }
+.review-table td { padding: 15px 5px; vertical-align: top; }
 .review-meta {
     font-size: 0.9em;
     color: var(--light-text-color);
@@ -334,10 +314,7 @@ section h2, section h4 {
     flex-wrap: wrap;
     gap: 10px 15px;
 }
-.review-meta span {
-    white-space: nowrap;
-    line-height: 1.4;
-}
+.review-meta span { white-space: nowrap; line-height: 1.4; }
 .review-text {
     line-height: 1.7;
     white-space: pre-wrap;
@@ -345,17 +322,14 @@ section h2, section h4 {
     margin-top: 5px;
 }
 
-/*
- * 7. Search Results Table
- */
+/* 7. Search Results Table */
 .search-results-table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
     margin-bottom: 20px;
 }
-.search-results-table th,
-.search-results-table td {
+.search-results-table th, .search-results-table td {
     border: 1px solid var(--border-color);
     padding: 12px;
     text-align: left;
@@ -366,6 +340,22 @@ section h2, section h4 {
     font-weight: bold;
     border-bottom: 2px solid var(--primary-color);
 }
+
+.sortable-header {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s;
+    user-select: none;
+}
+.sortable-header:hover {
+    background-color: #e0e0e0;
+}
+.sort-icon {
+    font-size: 0.8em;
+    margin-left: 5px;
+    color: #666;
+}
+
 .selectable-row:hover {
     background-color: #f5f5f5;
     cursor: pointer;
@@ -374,11 +364,7 @@ section h2, section h4 {
     background-color: #e0e7ff;
 }
 
-/* 検索結果のアクションボタン (行内表示) */
-.action-row-container td {
-    padding: 0 !important;
-    border: none;
-}
+.action-row-container td { padding: 0 !important; border: none; }
 .action-buttons-content {
     padding: 20px;
     background-color: #f9f9f9;
@@ -386,10 +372,7 @@ section h2, section h4 {
     border-top: 2px solid var(--primary-color);
     border-bottom: 1px solid var(--border-color);
 }
-.action-buttons-content h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-}
+.action-buttons-content h3 { margin-top: 0; margin-bottom: 15px; }
 
 .action-btn {
     display: inline-block;
@@ -416,23 +399,17 @@ section h2, section h4 {
 .action-btn.secondary:hover {
     background-color: #fff;
     color: #6c757d;
+    text-decoration: none;
 }
 
-/*
- * 8. Form Components
- */
-/* Radio Buttons */
+/* 8. Form Components */
 .radio-group {
     display: flex;
     flex-wrap: wrap;
     gap: 10px 20px;
     margin-bottom: 25px;
 }
-.radio-group label {
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-}
+.radio-group label { display: inline-flex; align-items: center; cursor: pointer; }
 .radio-group input[type="radio"] { display: none; }
 .radio-group span { line-height: 1; }
 .radio-group input[type="radio"] + span::before {
@@ -452,7 +429,6 @@ section h2, section h4 {
     box-shadow: inset 0 0 0 4px var(--card-bg-color);
 }
 
-/* Star Rating Input */
 .star-rating-input {
     display: flex;
     flex-direction: row-reverse;
@@ -478,9 +454,7 @@ section h2, section h4 {
     color: var(--warning-color);
 }
 
-/*
- * 9. Page Navigation (Detail Pages)
- */
+/* 9. Page Navigation */
 .page-navigation {
     display: flex;
     justify-content: space-between;
@@ -502,22 +476,17 @@ section h2, section h4 {
 }
 .back-link {
     display: inline-block;
-    margin-top: 0; /* 上書き */
+    margin-top: 0;
 }
 
-/*
- * 10. Confirmation Actions (confirm_course.html)
- * ここが崩れていた可能性が高い箇所です
- */
+/* 10. Confirmation Actions */
 .confirmation-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 25px;
-    width: 100%; /* 幅を確保 */
+    width: 100%;
 }
-
-/* キャンセルボタン */
 .btn-cancel {
     background-color: var(--light-text-color, #aaa);
     color: white;
@@ -536,18 +505,14 @@ section h2, section h4 {
     border-color: var(--light-text-color, #aaa);
     text-decoration: none;
 }
-
-/* 確認画面の登録ボタン（幅を自動調整して横並びにする） */
 .confirmation-actions .btn {
     width: auto;
     font-size: 1.1em;
     margin-top: 0;
-    padding: 12px 30px; /* 少し広めに */
+    padding: 12px 30px;
 }
 
-/*
- * 11. Top Page Search Form
- */
+/* 11. Top Page Search Form */
 .search-form-container {
     border: 2px solid #a0a0a0;
     border-radius: 8px;
@@ -612,10 +577,7 @@ section h2, section h4 {
     background-color: #fff; color: #6c757d;
 }
 
-/*
- * 12. Special Buttons (Detailed Specificity)
- */
-/* ゲストログインボタン */
+/* 12. Special Buttons */
 .btn.btn-guest {
     display: block;
     text-align: center;
@@ -629,7 +591,6 @@ section h2, section h4 {
     color: var(--guest-color);
 }
 
-/* 閲覧専用ボタン */
 .btn.btn-view-only {
     background-color: var(--guest-color);
     border-color: var(--guest-color);
@@ -639,7 +600,6 @@ section h2, section h4 {
     color: var(--guest-color);
 }
 
-/* シラバスボタン */
 .btn.btn-syllabus {
     background-color: var(--success-color);
     border-color: var(--success-color);
@@ -651,4 +611,101 @@ section h2, section h4 {
 .btn.btn-syllabus:hover {
     background-color: #fff;
     color: var(--success-color);
+}
+
+/* 13. Amazon-like Rating Summary */
+.rating-summary-container {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+.rating-summary-container h2 {
+    border-left: 5px solid var(--primary-color);
+    padding-left: 10px;
+    margin-bottom: 20px;
+}
+.summary-grid {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.summary-average {
+    flex-basis: 150px;
+    text-align: center;
+    padding-right: 20px;
+    border-right: 1px solid var(--border-color);
+}
+.average-score {
+    font-size: 2.2em;
+    font-weight: 700;
+    color: var(--warning-color);
+    line-height: 1.2;
+}
+.total-reviews {
+    font-size: 0.9em;
+    color: var(--light-text-color);
+}
+.summary-bars {
+    flex-grow: 1;
+    flex-basis: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+}
+.bar-label {
+    flex-basis: 35px;
+    text-align: right;
+    color: var(--light-text-color);
+    white-space: nowrap;
+}
+.bar-wrapper {
+    flex-grow: 1;
+    height: 18px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.bar-graph {
+    height: 100%;
+    background-color: var(--warning-color);
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+}
+.bar-percent {
+    flex-basis: 35px;
+    text-align: right;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.bar-count {
+    flex-basis: 50px;
+    text-align: left;
+    color: var(--light-text-color);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+@media (max-width: 550px) {
+    .summary-grid {
+        flex-direction: column;
+        gap: 20px;
+        align-items: stretch;
+    }
+    .summary-average {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-right: 0;
+        padding-bottom: 15px;
+        flex-basis: auto;
+    }
+    .summary-bars {
+        flex-basis: auto;
+    }
 }

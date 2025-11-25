@@ -9,6 +9,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- ▼▼▼【！！追加！！】大学ロゴバナー ▼▼▼ -->
+    <a href="{{ url_for('index') }}">
+        <!-- staticフォルダにある Blueonly.png を読み込み -->
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
+
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
@@ -17,7 +24,7 @@
     <div class="container">
         <header class="main-header">
             <h1 class="app-title">講義レビュー</h1>
-            </header>
+        </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -27,6 +34,7 @@
             {% endif %}
         {% endwith %}
 
+        <!-- 講義検索フォーム -->
         <section>
             <h2>講義検索</h2>
             
@@ -67,7 +75,6 @@
                                     {% set dep = form_data.get('department', '--------') %}
                                     <select name="department">
                                         <option value="--------" {% if dep == "--------" %}selected{% endif %}>--------</option>
-
                                         <option value="共通教育等科目" {% if dep == "共通教育等科目" %}selected{% endif %}>共通教育等科目</option>
                                         <option value="国際地域創造学部" {% if dep == "国際地域創造学部" %}selected{% endif %}>国際地域創造学部</option>
                                         <option value="人文社会学部" {% if dep == "人文社会学部" %}selected{% endif %}>人文社会学部</option>
@@ -78,7 +85,6 @@
                                         <option value="工学部" {% if dep == "工学部" %}selected{% endif %}>工学部</option>
                                         <option value="農学部" {% if dep == "農学部" %}selected{% endif %}>農学部</option>
                                         <option value="医学部" {% if dep == "医学部" %}selected{% endif %}>医学部</option>
-
                                         <option value="人文社会科学研究科" {% if dep == "人文社会科学研究科" %}selected{% endif %}>人文社会科学研究科</option>
                                         <option value="教育学研究科" {% if dep == "教育学研究科" %}selected{% endif %}>教育学研究科</option>
                                         <option value="医学研究科" {% if dep == "医学研究科" %}selected{% endif %}>医学研究科</option>
@@ -103,7 +109,6 @@
                                 </td>
                             </tr>    
 
-                            <!-- ▼▼▼ テストの有無（復活） ▼▼▼ -->
                             <tr>
                                 <th>テストの有無</th>
                                 <td>
@@ -115,7 +120,6 @@
                                     <p class="description">レビューに基づき、最も多い回答（最頻値）で検索します。</p>
                                 </td>
                             </tr>
-                            <!-- ▲▲▲ テストの有無（復活） ▲▲▲ -->
 
                             <tr>
                                 <th>レポートの有無</th>

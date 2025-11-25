@@ -9,6 +9,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- ▼▼▼【！！追加！！】大学ロゴバナー ▼▼▼ -->
+    <a href="{{ url_for('index') }}">
+        <!-- staticフォルダにある Blueonly.png を読み込み -->
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>

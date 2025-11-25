@@ -7,9 +7,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    
 </head>
 <body>
+    <!-- ▼▼▼【！！追加！！】大学ロゴバナー ▼▼▼ -->
+    <a href="{{ url_for('index') }}">
+        <!-- staticフォルダにある Blueonly.png を読み込み -->
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
@@ -22,7 +27,7 @@
             {% else %}
                 <h1 class="app-title">全講義一覧</h1>
             {% endif %}
-            </header>
+        </header>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -40,21 +45,27 @@
                         <tr>
                             <th>講義名</th>
                             <th>担当教員</th>
-                            <th>総合評価</th>
+                            <!-- ▼▼▼ ソート機能付きヘッダー ▼▼▼ -->
+                            <th class="sortable-header" onclick="toggleSort()">
+                                総合評価 <span id="sort-icon" class="sort-icon">▼</span>
+                            </th>
+                            <!-- ▲▲▲ ソート機能付きヘッダー ▲▲▲ -->
+                            <th>レビュー件数</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="results-body">
                         {% for course in results %}
                         <tr class="selectable-row" data-course-id="{{ course.id }}" data-course-name="{{ course.name }}">
                             <td>{{ course.name }}</td>
                             <td>{{ course.teacher }}</td>
                             <td>★ {{ course.star_rating }}</td>
+                            <td>{{ course.reviews|length }} 件</td>
                         </tr>
                         {% endfor %}
                         
-                        {% if results %}
+                        <!-- アクション行 (詳細はJavaScriptで移動・表示) -->
                         <tr id="action-row" class="action-row-container" style="display: none;">
-                            <td colspan="3">
+                            <td colspan="4"> <!-- 列数に合わせてcolspanを4に変更 -->
                                 <div class="action-buttons-content"> 
                                     <h3 id="selected-course-name"></h3>
                                     <a id="view-review-btn" href="#" class="action-btn">レビューを閲覧する</a>
@@ -62,11 +73,10 @@
                                 </div>
                             </td>
                         </tr>
-                        {% endif %}
-                        </tbody>
+                    </tbody>
                 </table>
 
-                {% else %}
+            {% else %}
                 <p>該当する講義は見つかりませんでした。</p>
             {% endif %}
         </section>
@@ -89,7 +99,6 @@
             <p>シラバス検索ページで講義URLを探し、入力してください。</p>
             
             <form action="{{ url_for('add_course_step1_scrape') }}" method="POST">
-                
                 <input type="url" name="syllabus_url"
                        placeholder="シラバス詳細URL (https://tiglon...)"
                        pattern="^https?://tiglon\.jim\.u-ryukyu\.ac\.jp/portal/Public/Syllabus/.*"
@@ -99,16 +108,12 @@
             </form>
         </section>
         {% endif %}
-        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const rows = document.querySelectorAll('.selectable-row');
-            
-            // 1. 取得する対象を 'action-container' (div) から 'action-row' (tr) に変更
             const actionRow = document.getElementById('action-row'); 
-            
-            // 2. actionRow 内部の要素を先に取得しておく
             const selectedCourseName = document.getElementById('selected-course-name');
             const viewButton = document.getElementById('view-review-btn');
             const addButton = document.getElementById('add-review-btn');
@@ -117,29 +122,20 @@
 
             rows.forEach(row => {
                 row.addEventListener('click', function() {
-                    // 3. 選択された講義の情報を取得
                     const courseId = row.getAttribute('data-course-id');
                     const courseName = row.getAttribute('data-course-name');
                     
-                    // 4. ボタンのリンク先URLを動的に生成
                     const viewUrl = `/course_view/${courseId}`;
                     const addUrl = `/course/${courseId}`; 
                     
-                    // 5. 各ボタンにURLを設定
-                    viewButton.href = viewUrl;   // ← 閲覧ボタン
-                    addButton.href = addUrl;    // ← 投稿ボタン
+                    viewButton.href = viewUrl; 
+                    addButton.href = addUrl;
                     
-                    // 6. 選択した講義名を表示
                     selectedCourseName.textContent = `「${courseName}」を選択中`;
                     
-                    // 7. 【最重要】 actionRow を、クリックされた行 (row) の直下に移動させる
-                    // .after() メソッドは、DOMツリー内で要素を移動させます
                     row.after(actionRow); 
-                    
-                    // 8. actionRow を表示 (display: 'block' ではなく 'table-row')
                     actionRow.style.display = 'table-row'; 
                     
-                    // 9. 選択行のハイライト処理
                     if (selectedRow) {
                         selectedRow.classList.remove('selected-row');
                     }
@@ -148,6 +144,58 @@
                 });
             });
         });
+
+        // ▼▼▼ ソート機能 ▼▼▼
+        let isAscending = true; // 初期値をtrueにしておき、最初のクリックでfalse(降順)にする
+
+        function toggleSort() {
+            const tbody = document.getElementById('results-body');
+            const rows = Array.from(document.querySelectorAll('.selectable-row'));
+            const actionRow = document.getElementById('action-row');
+            const sortIcon = document.getElementById('sort-icon');
+
+            // アクション行を一時退避
+            if(actionRow) {
+                actionRow.style.display = 'none';
+                tbody.appendChild(actionRow);
+            }
+
+            // フラグを反転 (初回クリック: true -> false = 降順)
+            isAscending = !isAscending;
+
+            // ソート実行
+            rows.sort((a, b) => {
+                // 3列目(index 2)のテキスト "★ 3.50" を取得
+                const textA = a.cells[2].innerText.replace('★', '').trim();
+                const textB = b.cells[2].innerText.replace('★', '').trim();
+
+                let valA = parseFloat(textA);
+                let valB = parseFloat(textB);
+
+                // "評価なし" は -1 扱い
+                if (isNaN(valA)) valA = -1;
+                if (isNaN(valB)) valB = -1;
+
+                if (isAscending) {
+                    // 昇順 (低い順) 1 -> 5
+                    return valA - valB; 
+                } else {
+                    // 降順 (高い順) 5 -> 1
+                    return valB - valA;
+                }
+            });
+
+            // 再配置
+            rows.forEach(row => tbody.appendChild(row));
+            
+            // アクション行を戻す
+            if(actionRow) {
+                tbody.appendChild(actionRow);
+            }
+
+            // アイコン更新: ▲=昇順(低い順), ▼=降順(高い順)
+            sortIcon.textContent = isAscending ? '▲' : '▼'; 
+        }
     </script>
-    </body>
+</body>
 </html>
