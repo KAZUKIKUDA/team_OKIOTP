@@ -36,6 +36,37 @@ app.config.from_object(Config)
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
+# ▼▼▼【重要修正】キャッシュ制御の設定（ここを追加）▼▼▼
+@app.after_request
+def add_header(response):
+    """
+    レスポンスヘッダーを調整してキャッシュを制御する
+    - HTML (画面): キャッシュしない (個人情報の漏洩防止)
+    - CSS/画像/JS: キャッシュする (サーバー負荷の軽減)
+    """
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # Content-Typeが設定されていない場合の安全策
+    content_type = response.headers.get('Content-Type', '')
+
+    # 1. 静的ファイル（CSS, 画像, JS, フォント）はキャッシュを許可する
+    if 'text/css' in content_type or \
+       'image' in content_type or \
+       'javascript' in content_type or \
+       'font' in content_type:
+        # 1時間 (3600秒) キャッシュする
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        return response
+
+    # 2. HTMLファイル（動的なページ）はキャッシュを徹底的に禁止する
+    if 'text/html' in content_type:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+    return response
+# ▲▲▲ キャッシュ制御の設定ここまで ▲▲▲
+
 db = SQLAlchemy(app)
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 migrate = Migrate(app, db)
