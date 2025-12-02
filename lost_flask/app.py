@@ -32,6 +32,18 @@ from urllib.parse import urlparse, parse_qs
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# ▼▼▼【重要】キャッシュ無効化の設定を追加 ▼▼▼
+@app.after_request
+def add_header(response):
+    """
+    ブラウザやCDNに、ページをキャッシュしないように指示するヘッダーを追加。
+    これにより、ログアウト後や別人がアクセスした際に、古いページ（他人の情報）が表示されるのを防ぐ。
+    """
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
