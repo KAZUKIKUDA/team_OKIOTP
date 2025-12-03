@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,71 +9,46 @@ from config import Config
 from flask_migrate import Migrate
 from sqlalchemy.exc import IntegrityError
 import os
-import logging # ログ出力のため
-import time # ▼▼▼ スリープのために追加 ▼▼▼
-import requests # ▼▼▼ スクレイピングのために追加 ▼▼▼
-from bs4 import BeautifulSoup # ▼▼▼ スクレイピングのために追加 ▼▼▼
+import logging 
+import time 
+import requests 
+from bs4 import BeautifulSoup 
 
-# ▼▼▼ SendGrid のためのインポート ▼▼▼
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail as SendGridMail
-# ▲▲▲ SendGrid ▲▲▲
 
-# ▼▼▼ 検索ロジックのために追加 ▼▼▼
 from collections import Counter
 from sqlalchemy.orm import joinedload
-# ▲▲▲ 追加ここまで ▲▲▲
-
-# ▼▼▼ URLから年度をパースするために追加 ▼▼▼
 from urllib.parse import urlparse, parse_qs
-# ▲▲▲ 変更ここまで ▲▲▲
 
 # --- Application Setup ---
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# ログ設定
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
-# ▼▼▼【重要修正】キャッシュ制御の設定（ここを追加）▼▼▼
 @app.after_request
 def add_header(response):
-    """
-    レスポンスヘッダーを調整してキャッシュを制御する
-    - HTML (画面): キャッシュしない (個人情報の漏洩防止)
-    - CSS/画像/JS: キャッシュする (サーバー負荷の軽減)
-    """
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    
-    # Content-Typeが設定されていない場合の安全策
     content_type = response.headers.get('Content-Type', '')
-
-    # 1. 静的ファイル（CSS, 画像, JS, フォント）はキャッシュを許可する
     if 'text/css' in content_type or \
        'image' in content_type or \
        'javascript' in content_type or \
        'font' in content_type:
-        # 1時間 (3600秒) キャッシュする
         response.headers['Cache-Control'] = 'public, max-age=3600'
         return response
-
-    # 2. HTMLファイル（動的なページ）はキャッシュを徹底的に禁止する
     if 'text/html' in content_type:
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
-        
     return response
-# ▲▲▲ キャッシュ制御の設定ここまで ▲▲▲
 
 db = SQLAlchemy(app)
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 migrate = Migrate(app, db)
 
-# ▼▼▼ SendGrid APIクライアントのセットアップ ▼▼▼
 try:
-    # Renderの環境変数からAPIキーを読み込む
     SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
     if not SENDGRID_API_KEY:
         app.logger.warning("環境変数 'SENDGRID_API_KEY' が設定されていません。メール送信は失敗します。")
@@ -84,53 +59,47 @@ try:
 except Exception as e:
     app.logger.error(f"Failed to configure SendGrid API client: {e}")
     sg = None
-# ▲▲▲ SendGrid ▲▲▲
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-# ▼▼▼ 不自然なflashメッセージを無効化 ▼▼▼
 login_manager.login_message = None 
-# ▲▲▲ flashメッセージ無効化 ▲▲▲
 login_manager.login_message_category = "danger"
 
-# --- Database Models (Passwordの長さを256に修正) ---
+# --- Database Models ---
+
+class ReviewReaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    review_id = db.Column(db.Integer, db.ForeignKey('review.id'), nullable=False)
+    reaction_type = db.Column(db.String(20), nullable=False) 
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'review_id', 'reaction_type', name='_user_review_reaction_uc'),
+    )
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), nullable=False, unique=True)
     email = db.Column(db.String(150), nullable=False, unique=True)
-    # ▼▼▼ パスワードの長さを256に変更 ▼▼▼
     password = db.Column(db.String(256), nullable=False) 
-    # ▲▲▲ パスワードの長さ変更 ▲▲▲
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
+    is_tutorial_seen = db.Column(db.Boolean, default=False)
 
-# ▼▼▼ 修正: Courseモデルを簡略化 ▼▼▼
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) # 講義名
-    teacher = db.Column(db.String(100), nullable=False) # 教員名
-    syllabus_url = db.Column(db.String(300), nullable=True) # シラバスURL
-    
-    # ▼▼▼ 登録時に取得する6項目 ▼▼▼
-    subject_code = db.Column(db.String(50), nullable=True) # 科目番号
-    department = db.Column(db.String(100), nullable=True) # 開講学部等
-    credits = db.Column(db.String(10), nullable=True) # 単位数
-    format = db.Column(db.String(50), nullable=True) # 授業形式 (対面/遠隔)
-    # ▲▲▲ 6項目ここまで ▲▲▲
-
-    # ▼▼▼ シラバス年度 ▼▼▼
-    syllabus_year = db.Column(db.String(20), nullable=True) # 例: "2024年度"
-    # ▲▲▲ 変更ここまで ▲▲▲
-
+    name = db.Column(db.String(100), nullable=False) 
+    teacher = db.Column(db.String(100), nullable=False) 
+    syllabus_url = db.Column(db.String(300), nullable=True) 
+    subject_code = db.Column(db.String(50), nullable=True) 
+    department = db.Column(db.String(100), nullable=True) 
+    credits = db.Column(db.String(10), nullable=True) 
+    format = db.Column(db.String(50), nullable=True) 
+    syllabus_year = db.Column(db.String(20), nullable=True) 
     reviews = db.relationship('Review', backref='course', lazy=True, cascade="all, delete-orphan")
-
-    # ▼▼▼ 修正: ユニーク制約を 'name' と 'teacher' の2つに戻す ▼▼▼
     __table_args__ = (
         db.UniqueConstraint('name', 'teacher', name='_name_teacher_uc'),
     )
-    # ▲▲▲ 修正ここまで ▲▲▲
-
     @property
     def star_rating(self):
         if not self.reviews: return "評価なし"
@@ -141,27 +110,34 @@ class Course(db.Model):
             return f"{avg:.2f}"
         except ZeroDivisionError:
             return "評価なし"
-# ▲▲▲ Courseモデル修正ここまで ▲▲▲
 
-# ▼▼▼ 修正: Reviewモデルに 'year' と 'classroom' を追加 ▼▼▼
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     review = db.Column(db.Text, nullable=True)
     rating = db.Column(db.Float, nullable=False) 
-    attendance = db.Column(db.String(10), nullable=False) # "あり", "なし", "時々" など
+    attendance = db.Column(db.String(10), nullable=False)
     test = db.Column(db.String(10), nullable=False)
     report = db.Column(db.String(10), nullable=False)
-    course_format = db.Column(db.String(20), nullable=True) # "オンライン", "ハイブリッド", "対面" など
-    
-    # ▼▼▼ レビュー投稿時に任意で入力する項目 ▼▼▼
-    year = db.Column(db.String(20), nullable=True) # 開講年度 (任意)
-    classroom = db.Column(db.String(100), nullable=True) # 開講教室 (任意)
-    # ▲▲▲ 追加ここまで ▲▲▲
-    
+    course_format = db.Column(db.String(20), nullable=True)
+    year = db.Column(db.String(20), nullable=True)
+    classroom = db.Column(db.String(100), nullable=True)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-# ▲▲▲ Reviewモデル修正ここまで ▲▲▲
+    reactions = db.relationship('ReviewReaction', backref='review', lazy='dynamic', cascade="all, delete-orphan")
 
+    def get_reaction_counts(self):
+        return {
+            'empathy': self.reactions.filter_by(reaction_type='empathy').count(),
+            'insightful': self.reactions.filter_by(reaction_type='insightful').count(),
+            'hmm': self.reactions.filter_by(reaction_type='hmm').count()
+        }
+
+    def get_user_reactions(self, user_id):
+        return [r.reaction_type for r in self.reactions.filter_by(user_id=user_id).all()]
+
+# テーブル自動作成
+with app.app_context():
+    db.create_all()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -171,33 +147,22 @@ def load_user(user_id):
         app.logger.error(f"Error loading user {user_id}: {e}")
         return None
 
-# ▼▼▼ 修正: スクレイピング関数 (6項目のみ取得) ▼▼▼
 def scrape_syllabus(url):
-    """
-    指定されたシラバスURLから情報を抽出する
-    """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # ▼▼▼ '年度' を追加 ▼▼▼
         syllabus_data = {
             "科目番号": None, "開講学部等": None, "講義名": None,
             "単位数": None, "教員名": None, "授業形式": None,
-            "年度": None, # (例: 2024年度)
-            "シラバスURL": url
+            "年度": None, "シラバスURL": url
         }
-
-        # URLから lct_year を抽出
         try:
             parsed_url = urlparse(url)
             query_params = parse_qs(parsed_url.query)
-            # 'lct_year' はリストで返る (例: ['2024'])
             year = query_params.get('lct_year', [None])[0]
             if year and year.isdigit():
                 syllabus_data['年度'] = f"{year}年度"
@@ -205,19 +170,15 @@ def scrape_syllabus(url):
                 syllabus_data['年度'] = "年度不明"
         except Exception:
             syllabus_data['年度'] = "年度不明"
-        # ▲▲▲ 変更ここまで ▲▲▲
 
         main_content = soup.find('table', id='ctl00_phContents_Detail_Table2')
         if not main_content:
             app.logger.error(f"Scrape Error: メインコンテナが見つかりません (URL: {url})")
             return None 
-
         all_tds = main_content.find_all('td')
-
         for i, td in enumerate(all_tds):
             text = td.get_text(strip=True)
             try:
-                # ▼▼▼ 取得する6項目 ▼▼▼
                 if text == '科目番号':
                     syllabus_data['科目番号'] = all_tds[i + 5].get_text(strip=True)
                 elif text == '対面/遠隔':
@@ -230,77 +191,53 @@ def scrape_syllabus(url):
                     syllabus_data['単位数'] = all_tds[i + 3].get_text(strip=True)
                 elif text == '担当教員[ローマ字表記]':
                     syllabus_data['教員名'] = all_tds[i + 1].get_text(strip=True)
-                # ▲▲▲ 修正ここまで ▲▲▲
-                    
             except IndexError:
-                app.logger.warning(f"Scrape Warning: '{text}' のデータ取得中にIndexError (URL: {url})")
                 pass
-        
-        # 必須項目チェック
         if not syllabus_data.get('講義名') or not syllabus_data.get('教員名'):
-            app.logger.error(f"Scrape Error: 必須項目（講義名または教員名）が取得できませんでした (URL: {url})")
             return None
-
         return syllabus_data
-
     except requests.exceptions.RequestException as e:
         app.logger.error(f"HTTPリクエストエラー (URL: {url}): {e}")
         return None
     except Exception as e:
         app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
         return None
-# ▲▲▲ スクレイピング関数修正ここまで ▲▲▲
-
 
 # --- Routes ---
 
 @app.route('/')
 @login_required 
 def index():
+    # ▼▼▼【変更点】チュートリアル未読チェック ▼▼▼
+    if not current_user.is_tutorial_seen:
+        return redirect(url_for('help_page'))
+    # ▲▲▲ 変更ここまで ▲▲▲
+
     try:
-        # フォームの入力値を保持するための空の辞書を渡す
         form_data = {
             'lecture_name': '', 'teacher_name': '', 'course_format': '',
             'attendance': '', 'test': '', 'report': ''
         }
-        
-        # ▼▼▼ 星の数ランキングTOP10を取得 ▼▼▼
-        
-        # 1. N+1問題を避けるため、reviewsも一緒に全件取得
         all_courses = Course.query.options(joinedload(Course.reviews)).all()
-        
-        # 2. Python側で評価を計算 (DBにavg_ratingカラムがないため)
         courses_with_ratings = []
         for course in all_courses:
             rating_str = course.star_rating
-            # 評価のある講義のみを対象にする
             if rating_str != "評価なし":
                 try:
-                    # 評価(float)と講義オブジェクトをタプルで保存
                     courses_with_ratings.append((course, float(rating_str)))
                 except ValueError:
-                    continue # "評価なし" 以外の予期せぬ文字列をスキップ
-        
-        # 3. 評価(タプルの2番目の要素)で降順ソート
+                    continue 
         sorted_courses = sorted(courses_with_ratings, key=lambda x: x[1], reverse=True)
-        
-        # 4. 上位10件の講義オブジェクトのみを抽出
         top_courses = [course for course, rating in sorted_courses[:10]]
-        
-        # ▲▲▲ 変更ここまで ▲▲▲
-
     except Exception as e:
         app.logger.error(f"Error fetching top courses: {e}")
         top_courses = []
-    
-    # ▼▼▼ 変数名を top_courses に変更 ▼▼▼
     return render_template('top.html', top_courses=top_courses, form_data=form_data)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-        
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -308,7 +245,7 @@ def register():
         password_confirm = request.form.get('password_confirm')
         
         if password != password_confirm:
-            flash('パスワードが一致しません。もう一度お試しください。', 'danger')
+            flash('パスワードが一致しません。', 'danger')
             return redirect(url_for('register'))
 
         password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
@@ -316,230 +253,146 @@ def register():
             flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
             return redirect(url_for('register'))
         
-        email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$'
+        email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$' 
         if not re.match(email_pattern, email):
-            flash('指定された形式の学内メールアドレスを使用してください。 (例: e235701@cs.u-ryukyu.ac.jp)', 'danger')
+            flash('現在、登録はCSコースのアドレス (eXXXXXX@cs.u-ryukyu.ac.jp) に限定されています。', 'danger')
             return redirect(url_for('register'))
 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-            
-            # is_verified=False を明示的に指定
-            new_user = User(
-                username=username, 
-                email=email, 
-                password=hashed_password, 
-                is_verified=False
-            )
-            
+            new_user = User(username=username, email=email, password=hashed_password, is_verified=False)
             db.session.add(new_user)
-            
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
-            
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
-            SENDER_NAME = '講義レビューサイト' # 送信者名
-
+            SENDER_NAME = '講義レビューサイト' 
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
-            
             message = SendGridMail(
                 from_email=(SENDER_EMAIL, SENDER_NAME),
                 to_emails=email,
                 subject='講義レビュー | メールアドレスの確認',
                 html_content=html_content)
-            
             if not sg:
-                raise Exception("SendGrid API Client (sg) is not initialized. Check SENDGRID_API_KEY.")
-            
-            app.logger.info(f"Attempting to send email via SendGrid to {email}...")
-            response = sg.send(message) # <<< メール送信を試行
-            app.logger.info(f"SendGrid response status code: {response.status_code}")
-            
+                raise Exception("SendGrid API Client (sg) is not initialized.")
+            response = sg.send(message) 
             if response.status_code < 200 or response.status_code >= 300:
-                app.logger.error(f"SendGrid API Error: {response.body}")
                 raise Exception(f"SendGrid API error (Status {response.status_code})")
-
-            db.session.commit() # <<< 成功した場合のみDBを確定
-            
-            flash('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。', 'success')
+            db.session.commit() 
+            flash('確認メールを送信しました。', 'success')
             return redirect(url_for('login'))
-
         except IntegrityError: 
-            db.session.rollback() # ロールバック
-            
-            # エラーの原因を特定
+            db.session.rollback() 
             existing_user_by_email = User.query.filter_by(email=email).first()
-            existing_user_by_name = User.query.filter_by(username=username).first()
-
-            if existing_user_by_name:
-                flash('そのユーザー名は既に使用されています。 (エラー: IE-U)', 'danger')
-                
-            elif existing_user_by_email:
+            if existing_user_by_email:
                 if existing_user_by_email.is_verified:
-                    # 認証済みのユーザーが登録しようとした
-                    flash('このメールアドレスは既に使用されています。 (エラー: IE-E-VERIFIED)', 'danger')
-                    return redirect(url_for('login')) # ログインページへ
+                    flash('このメールアドレスは既に使用されています。', 'danger')
+                    return redirect(url_for('login'))
                 else:
-                    # 未認証のユーザーが再度登録しようとした
-                    flash('このメールアドレスは登録済みですが、未認証です。認証メールを再送しますか？', 'warning')
-                    return redirect(url_for('resend_activation')) # 再送ページへ
-            else:
-                flash('データベースエラーが発生しました。もう一度お試しください。', 'danger')
-                
+                    flash('このメールアドレスは登録済みですが、未認証です。', 'warning')
+                    return redirect(url_for('resend_activation'))
+            flash('エラーが発生しました。', 'danger')
             return redirect(url_for('register'))
-            
         except Exception as e:
-            db.session.rollback() # <<< 【重要】db.session.add(new_user) をここで取り消す
-            
-            app.logger.error(f"Registration error (user {email}): {e}")
-            flash(f'不明なエラー（{type(e).__name__}）が発生しました。管理者に連絡してください。', 'danger')
+            db.session.rollback()
+            app.logger.error(f"Registration error: {e}")
+            flash(f'不明なエラーが発生しました。', 'danger')
             return redirect(url_for('register'))
-
     return render_template('register.html')
 
 @app.route('/confirm_email/<token>')
 def confirm_email(token):
     try:
-        # 登録ルートの 'email-confirm-salt' と max_age=3600 を使用
         email = s.loads(token, salt='email-confirm-salt', max_age=3600)
     except SignatureExpired:
-        flash('認証リンクの有効期限が切れています。お手数ですが、再度認証リンクをリクエストしてください。', 'danger')
-        return redirect(url_for('resend_activation')) # 期限切れの場合は再送ページへ
+        flash('認証リンクの有効期限が切れています。', 'danger')
+        return redirect(url_for('resend_activation')) 
     except BadTimeSignature:
         flash('認証リンクが無効です。', 'danger')
         return redirect(url_for('register'))
-    
     user = User.query.filter_by(email=email).first()
     if not user:
         flash('ユーザーが見つかりません。', 'danger')
         return redirect(url_for('register'))
-
     if user.is_verified:
         flash('このアカウントは既に認証済みです。', 'info')
     else:
         user.is_verified = True
         db.session.commit()
-        flash('メール認証が完了しました。ログインしてください。', 'success')
+        flash('メール認証が完了しました。', 'success')
     return redirect(url_for('login'))
 
 @app.route('/resend_activation', methods=['GET', 'POST'])
 def resend_activation():
-    """ 認証メールの再送リクエストを処理する """
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
-
-        # ユーザーが存在しなくても、セキュリティのため曖昧なメッセージを返す
         if not user:
             flash('そのメールアドレスのアカウントが未認証の場合、再送リンクを送信しました。', 'info')
             return redirect(url_for('login'))
-
         if user.is_verified:
-            flash('このアカウントは既に有効化されています。ログインしてください。', 'info')
+            flash('このアカウントは既に有効化されています。', 'info')
             return redirect(url_for('login'))
-
-        # ユーザーが存在し、かつ未認証の場合
         try:
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
-            
-            # registerルートから送信者情報を拝借
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
             SENDER_NAME = '講義レビューサイト'
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
-            
-            message = SendGridMail(
-                from_email=(SENDER_EMAIL, SENDER_NAME),
-                to_emails=email,
-                subject='講義レビュー | メールアドレスの確認 (再送)',
-                html_content=html_content
-            )
-            
-            if not sg:
-                raise Exception("SendGrid API Client (sg) is not initialized.")
-
-            app.logger.info(f"Attempting to resend email via SendGrid to {email}...")
+            message = SendGridMail(from_email=(SENDER_EMAIL, SENDER_NAME), to_emails=email, subject='講義レビュー | メールアドレスの確認 (再送)', html_content=html_content)
+            if not sg: raise Exception("SendGrid API Client not initialized.")
             response = sg.send(message)
-            app.logger.info(f"SendGrid response status code: {response.status_code}")
-
-            if response.status_code < 200 or response.status_code >= 300:
-                app.logger.error(f"SendGrid API Error: {response.body}")
-                raise Exception(f"SendGrid API error (Status {response.status_code})")
-
-            flash('新しい認証リンクをメールアドレスに送信しました。メールを確認してください。', 'success')
-        
+            if response.status_code < 200 or response.status_code >= 300: raise Exception(f"SendGrid API error")
+            flash('新しい認証リンクをメールアドレスに送信しました。', 'success')
         except Exception as e:
-            app.logger.error(f"Resend activation error (user {email}): {e}")
-            flash(f'メールの送信中にエラーが発生しました。管理者に連絡してください。', 'danger')
-
+            app.logger.error(f"Resend activation error: {e}")
+            flash(f'メールの送信中にエラーが発生しました。', 'danger')
         return redirect(url_for('login'))
-
-    # GETリクエスト (resend_activation.html を表示)
     return render_template('resend_activation.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-        
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
-        
         if not user or not check_password_hash(user.password, password):
             flash('メールアドレスまたはパスワードが正しくありません。', 'danger')
             return redirect(url_for('login'))
-            
-        # 未認証の場合、再送ページへリダイレクト
         if not user.is_verified:
-            flash('アカウントがまだ認証されていません。認証メールを再送しますか？', 'warning')
+            flash('アカウントがまだ認証されていません。', 'warning')
             return redirect(url_for('resend_activation'))
-            
         login_user(user)
         next_page = request.args.get('next')
         return redirect(next_page or url_for('index'))
-        
     return render_template('login.html')
 
 @app.route('/guest_login', methods=['GET', 'POST'])
 def guest_login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-
     if request.method == 'POST':
         username = request.form.get('username')
         if not username:
             flash('お名前を入力してください。', 'danger')
             return redirect(url_for('guest_login'))
-            
         if User.query.filter_by(username=username).first():
-            flash('その名前は登録済みのユーザーが使用しています。別の名前を入力してください。', 'danger')
+            flash('その名前は登録済みのユーザーが使用しています。', 'danger')
             return redirect(url_for('guest_login'))
-
         try:
             guest_email = f"guest_{uuid.uuid4().hex}@demo.com"
             hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}", method='pbkdf2:sha256')
             new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
-            
             db.session.add(new_guest_user)
             db.session.commit() 
-
             login_user(new_guest_user)
             flash(f'{username}さんとしてゲストログインしました。', 'success')
             return redirect(url_for('index'))
-
-        except IntegrityError: 
-            db.session.rollback() 
-            flash('その名前は直前に使用されました。別の名前を入力してください。', 'danger')
-            return redirect(url_for('guest_login'))
-            
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Guest login error: {e}") 
-            flash('不明なエラーが発生しました。もう一度お試しください。', 'danger')
+            flash('エラーが発生しました。', 'danger')
             return redirect(url_for('guest_login'))
-
     return render_template('guest_login.html')
 
 @app.route('/logout')
@@ -548,405 +401,226 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# ▼▼▼ 講義登録ルート (Step 1: スクレイピングと確認) ▼▼▼
 @app.route('/add_course', methods=['POST'])
 @login_required
 def add_course_step1_scrape():
     if current_user.email.endswith('@demo.com'):
-        flash('ゲストユーザーは講義を登録できません。学内メールで登録してください。', 'warning')
+        flash('ゲストユーザーは講義を登録できません。', 'warning')
         return redirect(url_for('index')) 
-    
     syllabus_url = request.form.get('syllabus_url')
-    
     url_pattern = "tiglon.jim.u-ryukyu.ac.jp/portal/Public/Syllabus/"
     if not syllabus_url or url_pattern not in syllabus_url:
-        flash('正しいシラバス詳細URL (DetailMain.aspx?lct_year=... を含む) を入力してください。', 'danger')
+        flash('正しいシラバス詳細URLを入力してください。', 'danger')
         return redirect(url_for('index')) 
-    
     app.logger.info("Waiting 3 seconds before scraping...")
     time.sleep(3)
-        
-    app.logger.info(f"Attempting to scrape URL: {syllabus_url}")
     course_data = scrape_syllabus(syllabus_url)
-    
     if course_data is None:
-        flash('シラバス情報の取得に失敗しました。URLが正しいか、サイトの仕様が変更されていないか確認してください。', 'danger')
+        flash('シラバス情報の取得に失敗しました。', 'danger')
         return redirect(url_for('index')) 
-    
-    # ▼▼▼ 修正: 講義名と教員名の「2つ」で重複チェック ▼▼▼
     scraped_name = course_data.get('講義名')
     scraped_teacher = course_data.get('教員名')
-
-    existing_course = Course.query.filter_by(
-        name=scraped_name,
-        teacher=scraped_teacher
-    ).first()
-    
+    existing_course = Course.query.filter_by(name=scraped_name, teacher=scraped_teacher).first()
     if existing_course:
-        flash(f"講義「{scraped_name} (担当: {scraped_teacher})」は既に登録されています。", 'info')
+        flash(f"講義「{scraped_name}」は既に登録されています。", 'info')
         return redirect(url_for('course_detail', id=existing_course.id))
-    # ▲▲▲ 修正ここまで ▲▲▲
-
     return render_template('confirm_course.html', course_data=course_data)
 
-# ▼▼▼ 講義登録ルート (Step 2: DBへ登録) ▼▼▼
 @app.route('/create_course', methods=['POST'])
 @login_required
 def add_course_step2_create():
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーは講義を登録できません。', 'warning')
         return redirect(url_for('index'))
-    
     try:
-        name = request.form.get('name')
-        teacher = request.form.get('teacher')
-        syllabus_url = request.form.get('syllabus_url')
-        
-        if not name or not teacher or not syllabus_url:
-            flash('登録データが不足しています。もう一度最初からやり直してください。', 'danger')
-            return redirect(url_for('index')) 
-
-        # ▼▼▼ 修正: 講義名と教員名の「2つ」で重複チェック ▼▼▼
-        if Course.query.filter_by(name=name, teacher=teacher).first():
-            flash(f'講義「{name} (担当: {teacher})」は既に登録されています。 (エラー: C-RACE)', 'info')
-            return redirect(url_for('index')) 
-        # ▲▲▲ 修正ここまで ▲▲▲
-            
-        # ▼▼▼ syllabus_year をDBに保存 ▼▼▼
         new_course = Course(
-            name=name,
-            teacher=teacher,
-            syllabus_url=syllabus_url,
+            name=request.form.get('name'),
+            teacher=request.form.get('teacher'),
+            syllabus_url=request.form.get('syllabus_url'),
             subject_code=request.form.get('subject_code'),
             department=request.form.get('department'),
             credits=request.form.get('credits'),
             format=request.form.get('format'),
-            syllabus_year=request.form.get('syllabus_year') # フォームから 'syllabus_year' を受け取る
+            syllabus_year=request.form.get('syllabus_year')
         )
-        # ▲▲▲ 変更ここまで ▲▲▲
-        
         db.session.add(new_course)
         db.session.commit()
-        
-        flash('講義を登録しました。続けてレビューを追加できます。', 'success')
+        flash('講義を登録しました。', 'success')
         return redirect(url_for('course_detail', id=new_course.id))
-
     except IntegrityError:
         db.session.rollback()
-        flash('この講義名と教員の組み合わせは既に登録されています。 (エラー: IE-C)', 'danger')
+        flash('既に登録されています。', 'danger')
         return redirect(url_for('index')) 
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Add course (create) error: {e}")
-        flash('講義の登録中にエラーが発生しました。', 'danger')
+        flash('エラーが発生しました。', 'danger')
         return redirect(url_for('index'))
 
-# ▼▼▼ 修正: /search ルート (GETメソッド許可 & 詳細検索ロジック) ▼▼▼
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
-    search_term = None # 旧ロジックの名残だが、互換性のため残す
+    search_term = None 
     results = []
-    
-    # フォームからの検索条件を保持するための辞書
     form_data = {
         'lecture_name': request.form.get('lecture_name', ''),
         'teacher_name': request.form.get('teacher_name', ''),
         'course_format': request.form.get('course_format', ''),
-        'department': request.form.get('department', ''), # department を form_data に追加
+        'department': request.form.get('department', ''),
         'attendance': request.form.get('attendance', ''),
         'test': request.form.get('test', ''),
         'report': request.form.get('report', '')
     }
-
     if request.method == 'POST':
-        # フォームからデータを取得
-        lecture_name = form_data['lecture_name']
-        teacher_name = form_data['teacher_name']
-        course_format_filter = form_data['course_format']
-        attendance = form_data['attendance']
-        test = form_data['test']
-        report = form_data['report']
-        department = form_data['department'] # form_data から department を取得
-
-        # ベースクエリ (N+1問題を避けるため reviews をEager Loadingする)
         query = Course.query.options(joinedload(Course.reviews))
-        
-        # 絞り込み条件
         filters = []
-        review_filters = [] # (レビュー内容自体へのフィルタは現在未使用だが、将来的に)
+        if form_data['lecture_name']:
+            for term in form_data['lecture_name'].split(): filters.append(Course.name.like(f'%{term}%'))
+        if form_data['teacher_name']:
+            for term in form_data['teacher_name'].split(): filters.append(Course.teacher.like(f'%{term}%'))
+        if form_data['course_format'] and form_data['course_format'] != "--------":
+            filters.append(Course.format == form_data['course_format'])
+        if form_data['department'] and form_data['department'] != "--------":
+            filters.append(Course.department.like(f'%{form_data["department"]}%'))
+        if filters: query = query.filter(db.and_(*filters))
+        results = query.distinct().all()
 
-        if lecture_name:
-            # スペース区切りでAND検索
-            for term in lecture_name.split():
-                filters.append(Course.name.like(f'%{term}%'))
-        
-        if teacher_name:
-            for term in teacher_name.split():
-                filters.append(Course.teacher.like(f'%{term}%'))
-        
-        # Courseモデル自体の 'format' (シラバスの授業形式) での絞り込み
-        if course_format_filter and course_format_filter != "--------":
-            filters.append(Course.format == course_format_filter)
-            
-        # Courseモデル自体の 'department' での絞り込み
-        if department and department != "--------":
-            # ▼▼▼ 修正: 完全一致 (==) から部分一致 (like) に変更 ▼▼▼
-            filters.append(Course.department.like(f'%{department}%'))
-            # ▲▲▲ 修正 ▲▲▲
-
-        # Courseのフィルタを適用
-        if filters:
-            query = query.filter(db.and_(*filters))
-            
-        # Reviewのフィルタを適用 (JOINが必要)
-        if review_filters:
-            query = query.join(Review, Course.id == Review.course_id).filter(db.and_(*review_filters))
-
-        # この時点で重複する講義を除外
-        query = query.distinct()
-        
-        # ここまでの条件で講義リストを取得
-        try:
-            initial_results = query.all()
-        except Exception as e:
-            app.logger.error(f"Search query error (before mode filter): {e}")
-            initial_results = []
-            flash('検索中にエラーが発生しました。', 'danger')
-
-        # 'initial_results' を 'results' にコピーして、ここから絞り込みを開始
-        results = initial_results
-
-        # (attendance, test, report) の最頻値フィルタリングを順番に適用
-        
-        # 1. 出席(attendance)での絞り込み
-        if attendance and attendance != "--------":
-            filtered_results = []
-            for course in results: # 'results' (現在絞り込まれたリスト) をループ
-                if not course.reviews: continue
-                
-                item_list = [r.attendance for r in course.reviews if r.attendance in ['あり', 'なし']]
-                if not item_list: continue
-
-                try:
-                    counts = Counter(item_list)
-                    mode_item = counts.most_common(1)[0][0]
-                    if mode_item == attendance:
-                        filtered_results.append(course)
-                except IndexError:
-                    continue
-            results = filtered_results # 絞り込んだ結果を 'results' に上書き
-
-        # 2. テスト(test)での絞り込み
-        if test and test != "--------":
-            filtered_results = []
-            for course in results: # 'results' (出席で絞り込まれたリスト) をループ
-                if not course.reviews: continue
-                
-                item_list = [r.test for r in course.reviews if r.test in ['あり', 'なし']]
-                if not item_list: continue
-
-                try:
-                    counts = Counter(item_list)
-                    mode_item = counts.most_common(1)[0][0]
-                    if mode_item == test:
-                        filtered_results.append(course)
-                except IndexError:
-                    continue
-            results = filtered_results # 絞り込んだ結果を 'results' に上書き
-
-        # 3. レポート(report)での絞り込み
-        if report and report != "--------":
-            filtered_results = []
-            for course in results: # 'results' (出席・テストで絞り込まれたリスト) をループ
-                if not course.reviews: continue
-                
-                item_list = [r.report for r in course.reviews if r.report in ['あり', 'なし']]
-                if not item_list: continue
-
-                try:
-                    counts = Counter(item_list)
-                    mode_item = counts.most_common(1)[0][0]
-                    if mode_item == report:
-                        filtered_results.append(course)
-                except IndexError:
-                    continue
-            results = filtered_results # 最終的な結果を 'results' に上書き
-            
+        for filter_key in ['attendance', 'test', 'report']:
+            val = form_data[filter_key]
+            if val and val != "--------":
+                filtered_results = []
+                for c in results:
+                    if not c.reviews: continue
+                    vals = [getattr(r, filter_key) for r in c.reviews if getattr(r, filter_key) in ['あり', 'なし']]
+                    if not vals: continue
+                    try:
+                        if Counter(vals).most_common(1)[0][0] == val: filtered_results.append(c)
+                    except: pass
+                results = filtered_results
     else: 
-        # GETリクエストの場合 (例: /search に直接アクセス)
-        # すべての講義を表示（レビューも読み込む）
-        try:
-            results = Course.query.options(joinedload(Course.reviews)).order_by(db.desc(Course.id)).all()
-        except Exception as e:
-            app.logger.error(f"Search query error (GET request): {e}")
-            results = []
-            flash('講義一覧の取得中にエラーが発生しました。', 'danger')
-            
-    # search.html に検索結果とフォームの入力値を渡す
+        results = Course.query.options(joinedload(Course.reviews)).order_by(db.desc(Course.id)).all()
     return render_template('search.html', results=results, search_term=search_term, form_data=form_data)
-# ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/course/<int:id>')
 @login_required
 def course_detail(id):
-    # N+1問題を防ぐため、レビューも同時に読み込む
     course = Course.query.options(joinedload(Course.reviews)).get_or_404(id)
-
-    # --- START: 評価分布の計算ロジック ---
     rating_counts = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 }
-    total_reviews = 0
-
-    if course.reviews:
-        total_reviews = len(course.reviews)
-        for review in course.reviews:
-            r = review.rating
-            if r == 5.0:
-                rating_counts['5'] += 1
-            elif r >= 4.0: # 4.0, 4.5
-                rating_counts['4'] += 1
-            elif r >= 3.0: # 3.0, 3.5
-                rating_counts['3'] += 1
-            elif r >= 2.0: # 2.0, 2.5
-                rating_counts['2'] += 1
-            else: # 0.5, 1.0, 1.5
-                rating_counts['1'] += 1
-    
-    # パーセンテージを計算
+    total_reviews = len(course.reviews)
+    for review in course.reviews:
+        r = review.rating
+        if r == 5.0: rating_counts['5'] += 1
+        elif r >= 4.0: rating_counts['4'] += 1
+        elif r >= 3.0: rating_counts['3'] += 1
+        elif r >= 2.0: rating_counts['2'] += 1
+        else: rating_counts['1'] += 1
     rating_distribution = {}
     if total_reviews > 0:
         for star, count in rating_counts.items():
-            rating_distribution[star] = {
-                'count': count,
-                'percentage': (count / total_reviews) * 100
-            }
+            rating_distribution[star] = {'count': count, 'percentage': (count / total_reviews) * 100}
     else:
-        # 0件レビューの場合
         for star in rating_counts.keys():
             rating_distribution[star] = { 'count': 0, 'percentage': 0 }
-    
-    # --- END: 評価分布の計算ロジック ---
-
-    # テンプレートに course と rating_distribution を渡す
     return render_template('detail.html', course=course, rating_distribution=rating_distribution)
 
 @app.route('/course_view/<int:id>')
 @login_required
 def course_view_detail(id):
-    # course_detail と同様のロジックを追加
     course = Course.query.options(joinedload(Course.reviews)).get_or_404(id)
-
-    # --- START: 評価分布の計算ロジック ---
     rating_counts = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 }
-    total_reviews = 0
-
-    if course.reviews:
-        total_reviews = len(course.reviews)
-        for review in course.reviews:
-            r = review.rating
-            if r == 5.0:
-                rating_counts['5'] += 1
-            elif r >= 4.0: # 4.0, 4.5
-                rating_counts['4'] += 1
-            elif r >= 3.0: # 3.0, 3.5
-                rating_counts['3'] += 1
-            elif r >= 2.0: # 2.0, 2.5
-                rating_counts['2'] += 1
-            else: # 0.5, 1.0, 1.5
-                rating_counts['1'] += 1
-    
-    # パーセンテージを計算
+    total_reviews = len(course.reviews)
+    for review in course.reviews:
+        r = review.rating
+        if r == 5.0: rating_counts['5'] += 1
+        elif r >= 4.0: rating_counts['4'] += 1
+        elif r >= 3.0: rating_counts['3'] += 1
+        elif r >= 2.0: rating_counts['2'] += 1
+        else: rating_counts['1'] += 1
     rating_distribution = {}
     if total_reviews > 0:
         for star, count in rating_counts.items():
-            rating_distribution[star] = {
-                'count': count,
-                'percentage': (count / total_reviews) * 100
-            }
+            rating_distribution[star] = {'count': count, 'percentage': (count / total_reviews) * 100}
     else:
-        # 0件レビューの場合
         for star in rating_counts.keys():
             rating_distribution[star] = { 'count': 0, 'percentage': 0 }
-    
-    # --- END: 評価分布の計算ロジック ---
-
     return render_template('detail2.html', course=course, rating_distribution=rating_distribution)
 
-# ▼▼▼ 修正: add_review (year, classroom を任意で取得) ▼▼▼
 @app.route('/add_review/<int:id>', methods=['POST'])
 @login_required
 def add_review(id):
     course = Course.query.get_or_404(id)
-    
-    # デモユーザーはレビュー投稿不可
     if current_user.email.endswith('@demo.com'):
         flash('ゲストユーザーはレビューを投稿できません。', 'warning')
         return redirect(url_for('course_detail', id=id))
-
     if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
-        flash('あなたはこの講義に既にレビューを投稿しています。', 'warning')
+        flash('既にレビューを投稿しています。', 'warning')
         return redirect(url_for('course_detail', id=id))
-
-    rating = request.form.get('rating')
-    attendance = request.form.get('attendance')
-    test = request.form.get('test')
-    report = request.form.get('report')
-    course_format = request.form.get('course_format') # 任意
-    review_text = request.form.get('review')
-    
-    # ▼▼▼ 任意項目 (year, classroom) を取得 ▼▼▼
-    year = request.form.get('year')
-    classroom = request.form.get('classroom')
-    # ▲▲▲ 修正ここまで ▲▲▲
-
-    if not all([rating, attendance, test, report]):
-        flash('評価、出欠、テスト、レポートの項目は必須です。', 'danger')
-        return redirect(url_for('course_detail', id=id))
-        
     try:
-        rating_float = float(rating)
-        if not (0.5 <= rating_float <= 5.0): # 0.5刻みのため
-             flash('評価は0.5から5.0の間で入力してください。', 'danger')
-             return redirect(url_for('course_detail', id=id))
-    except (ValueError, TypeError):
-        flash('評価の値が無効です。', 'danger')
-        return redirect(url_for('course_detail', id=id))
-        
-    try:
-        # ▼▼▼ new_review に year と classroom を追加 ▼▼▼
         new_review = Review(
-            rating=rating_float, attendance=attendance, test=test, report=report,
-            course_format=course_format, 
-            year=year, # 追加
-            classroom=classroom, # 追加
-            review=review_text,
+            rating=float(request.form.get('rating')),
+            attendance=request.form.get('attendance'),
+            test=request.form.get('test'),
+            report=request.form.get('report'),
+            course_format=request.form.get('course_format'),
+            year=request.form.get('year'),
+            classroom=request.form.get('classroom'),
+            review=request.form.get('review'),
             course_id=course.id, 
-            user_id=current_user.id # author=current_user の代わりに user_id を明示
+            user_id=current_user.id
         )
-        # ▲▲▲ 修正ここまで ▲▲▲
-        
         db.session.add(new_review)
         db.session.commit()
         flash('レビューを投稿しました。', 'success')
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Add review error: {e}")
-        flash('レビューの投稿中にエラーが発生しました。', 'danger')
-        
-    # ▼▼▼【！！変更点！！】▼▼▼
-    # 投稿が成功したら、閲覧専用の 'detail2.html' (course_view_detail関数) に移動する
+        flash('エラーが発生しました。', 'danger')
     return redirect(url_for('course_view_detail', id=id))
-    # ▲▲▲ 変更ここまで ▲▲▲
 
+@app.route('/api/react', methods=['POST'])
+@login_required
+def api_react():
+    data = request.get_json()
+    review_id = data.get('review_id')
+    reaction_type = data.get('reaction_type')
+    if not review_id or not reaction_type: return jsonify({'error': 'Missing data'}), 400
+    review = Review.query.get(review_id)
+    if not review: return jsonify({'error': 'Review not found'}), 404
+    existing_reaction = ReviewReaction.query.filter_by(user_id=current_user.id, review_id=review_id).first()
+    current_user_reaction = None
+    try:
+        if existing_reaction:
+            if existing_reaction.reaction_type == reaction_type:
+                db.session.delete(existing_reaction)
+                current_user_reaction = None
+            else:
+                existing_reaction.reaction_type = reaction_type
+                current_user_reaction = reaction_type
+        else:
+            new_reaction = ReviewReaction(user_id=current_user.id, review_id=review_id, reaction_type=reaction_type)
+            db.session.add(new_reaction)
+            current_user_reaction = reaction_type
+        db.session.commit()
+        return jsonify({'success': True, 'counts': review.get_reaction_counts(), 'user_reaction': current_user_reaction})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Reaction error: {e}")
+        return jsonify({'error': 'Database error'}), 500
+    
+@app.route('/help')
+@login_required
+def help_page():
+    return render_template('help.html')
 
-# 開発環境でのみ`flask run`で実行するための設定
+@app.route('/complete_tutorial')
+@login_required
+def complete_tutorial():
+    if not current_user.is_tutorial_seen:
+        current_user.is_tutorial_seen = True
+        db.session.commit()
+    return redirect(url_for('index'))
+
 if __name__ == '__main__':
-    # 開発時に "instance" フォルダが存在することを確認
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
-    
-    # テーブル作成 (flask db init/migrate/upgrade を使わない場合)
-    with app.app_context():
-        db.create_all()
-
+    with app.app_context(): db.create_all()
     app.run(debug=True, port=5005)

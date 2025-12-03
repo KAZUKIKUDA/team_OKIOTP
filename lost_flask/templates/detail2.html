@@ -6,16 +6,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
     
 </head>
 <body>
-    <!-- ▼▼▼【！！追加！！】大学ロゴバナー ▼▼▼ -->
     <a href="{{ url_for('index') }}">
-        <!-- staticフォルダにある Blueonly.png を読み込み -->
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
-    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
@@ -24,7 +21,7 @@
     <div class="container">
         <header class="main-header">
             <h1 class="app-title" style="font-size: 1.8em;">講義詳細（閲覧）</h1>
-            </header>
+        </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -34,10 +31,7 @@
             {% endif %}
         {% endwith %}
 
-        <!-- ▼▼▼【！！変更点！！】 内部を左右分割 ▼▼▼ -->
         <section class="course-info">
-            
-            <!-- 左側: 講義情報 -->
             <div class="course-info-details">
                 <p><strong>講義名：</strong> {{ course.name }}</p>
                 <p><strong>担当教員：</strong> {{ course.teacher }}</p>
@@ -46,7 +40,7 @@
                 <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
                 <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
                 <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
-                <p><strong>授業形式 (対面/遠隔)：</strong> {{ course.format or '未登録' }}</p>
+                <p><strong>授業形式：</strong> {{ course.format or '未登録' }}</p>
                 
                 {% if course.syllabus_url %}
                 <p><strong>シラバス：</strong> 
@@ -57,58 +51,19 @@
                 {% endif %}
             </div>
 
-            <!-- 右側: 評価グラフ -->
             <div class="rating-distribution-container">
                 <h4>評価の分布</h4>
-                
-                <!-- 星5 -->
+                {% for star in ['5', '4', '3', '2', '1'] %}
                 <div class="rating-bar-row">
-                    <span class="rating-bar-label">星5</span>
+                    <span class="rating-bar-label">星{{ star }}</span>
                     <div class="rating-bar-wrapper">
-                        <div class="rating-bar-fill" style="width: {{ rating_distribution['5'].percentage }}%;"></div>
+                        <div class="rating-bar-fill" style="width: {{ rating_distribution[star].percentage }}%;"></div>
                     </div>
-                    <span class="rating-bar-count">({{ rating_distribution['5'].count }})</span>
+                    <span class="rating-bar-count">({{ rating_distribution[star].count }})</span>
                 </div>
-                
-                <!-- 星4 -->
-                <div class="rating-bar-row">
-                    <span class="rating-bar-label">星4</span>
-                    <div class="rating-bar-wrapper">
-                        <div class="rating-bar-fill" style="width: {{ rating_distribution['4'].percentage }}%;"></div>
-                    </div>
-                    <span class="rating-bar-count">({{ rating_distribution['4'].count }})</span>
-                </div>
-
-                <!-- 星3 -->
-                <div class="rating-bar-row">
-                    <span class="rating-bar-label">星3</span>
-                    <div class="rating-bar-wrapper">
-                        <div class="rating-bar-fill" style="width: {{ rating_distribution['3'].percentage }}%;"></div>
-                    </div>
-                    <span class="rating-bar-count">({{ rating_distribution['3'].count }})</span>
-                </div>
-
-                <!-- 星2 -->
-                <div class="rating-bar-row">
-                    <span class="rating-bar-label">星2</span>
-                    <div class="rating-bar-wrapper">
-                        <div class="rating-bar-fill" style="width: {{ rating_distribution['2'].percentage }}%;"></div>
-                    </div>
-                    <span class="rating-bar-count">({{ rating_distribution['2'].count }})</span>
-                </div>
-
-                <!-- 星1 -->
-                <div class="rating-bar-row">
-                    <span class="rating-bar-label">星1</span>
-                    <div class="rating-bar-wrapper">
-                        <div class="rating-bar-fill" style="width: {{ rating_distribution['1'].percentage }}%;"></div>
-                    </div>
-                    <span class="rating-bar-count">({{ rating_distribution['1'].count }})</span>
-                </div>
+                {% endfor %}
             </div>
         </section>
-        <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
-
 
         <section>
             <h2>レビュー一覧 ({{ course.reviews|length }}件)</h2>
@@ -130,7 +85,53 @@
                         {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>
                         {% endif %}
-                    </td>
+                        
+                        <div class="reaction-container">
+                            {% set counts = review.get_reaction_counts() %}
+                            {% set my_reactions = review.get_user_reactions(current_user.id) %}
+
+                            <button class="btn-reaction btn-empathy {% if 'empathy' in my_reactions %}active{% endif %}" 
+                                    onclick="toggleReaction({{ review.id }}, 'empathy', this)">
+                                <div class="reaction-icon-wrapper">
+                                    <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="reaction-label">共感した</div>
+                                    <div class="reaction-count">{{ counts['empathy'] }}</div>
+                                </div>
+                            </button>
+
+                            <button class="btn-reaction btn-insightful {% if 'insightful' in my_reactions %}active{% endif %}" 
+                                    onclick="toggleReaction({{ review.id }}, 'insightful', this)">
+                                <div class="reaction-icon-wrapper">
+                                    <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="reaction-label">なるほど</div>
+                                    <div class="reaction-count">{{ counts['insightful'] }}</div>
+                                </div>
+                            </button>
+
+                            <button class="btn-reaction btn-hmm {% if 'hmm' in my_reactions %}active{% endif %}" 
+                                    onclick="toggleReaction({{ review.id }}, 'hmm', this)">
+                                <div class="reaction-icon-wrapper">
+                                    <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="reaction-label">うーん</div>
+                                    <div class="reaction-count">{{ counts['hmm'] }}</div>
+                                </div>
+                            </button>
+                        </div>
+                        </td>
                 </tr>
                 {% endfor %}
             </table>
@@ -149,6 +150,38 @@
                 この講義のレビューを投稿する
             </a>
         </div>
-        </div>
+    </div>
+
+    <script>
+    function toggleReaction(reviewId, reactionType, btnElement) {
+        fetch('/api/react', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                review_id: reviewId,
+                reaction_type: reactionType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const container = btnElement.closest('.reaction-container');
+                container.querySelectorAll('.btn-reaction').forEach(btn => btn.classList.remove('active'));
+                
+                if (data.user_reaction === reactionType) {
+                    btnElement.classList.add('active');
+                }
+                
+                const buttons = container.querySelectorAll('.btn-reaction');
+                buttons[0].querySelector('.reaction-count').textContent = data.counts.empathy;
+                buttons[1].querySelector('.reaction-count').textContent = data.counts.insightful;
+                buttons[2].querySelector('.reaction-count').textContent = data.counts.hmm;
+            } else {
+                console.error('Error:', data.error);
+            }
+        })
+        .catch((error) => console.error('Error:', error));
+    }
+    </script>
 </body>
 </html>

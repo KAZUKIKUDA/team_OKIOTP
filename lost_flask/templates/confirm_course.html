@@ -51,12 +51,14 @@
             <input type="hidden" name="department" value="{{ course_data['開講学部等'] or '' }}">
             <input type="hidden" name="credits" value="{{ course_data['単位数'] or '' }}">
             <input type="hidden" name="format" value="{{ course_data['授業形式'] or '' }}">
-            
             <input type="hidden" name="syllabus_year" value="{{ course_data['年度'] or '' }}">
+            
+            <!-- ▼▼▼ ボタン配置の変更（縦並び・登録ボタンを上に） ▼▼▼ -->
             <div class="confirmation-actions">
-                <a href="{{ url_for('index') }}" class="btn-cancel">« キャンセルして一覧に戻る</a>
                 <button type="submit" class="btn">この内容で登録する</button>
+                <a href="{{ url_for('index') }}" class="btn-cancel">« キャンセルして一覧に戻る</a>
             </div>
+            <!-- ▲▲▲ 変更ここまで ▲▲▲ -->
         </form>
 
     </div>

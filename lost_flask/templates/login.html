@@ -10,12 +10,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-          <!-- staticフォルダにある Blueonly.png を読み込み -->
-          <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    <!-- staticフォルダにある Blueonly.png を読み込み -->
+    <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
 
     <div class="auth-container">
         
         <h1 class="app-title">講義レビュー</h1>
+        
+        <!-- ▼▼▼ 修正: アプリ説明と制限事項 (全学生向けに変更) ▼▼▼ -->
+        <div class="login-description">
+            <p>琉球大学の学生限定で利用可能な<br>講義レビュー共有プラットフォームです。</p>
+            <p class="restriction-note">
+                <span class="restriction-icon">⚠️</span>
+                新規登録には<br>
+                <span class="email-highlight">学内メールアドレス</span><br>
+                が必要です。
+            </p>
+        </div>
+        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+
         <h2>ログイン</h2>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -25,17 +38,19 @@
             {% endfor %}
           {% endif %}
         {% endwith %} 
+        
         <form method="post">
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
             <input type="password" name="password" placeholder="パスワード" required>
             <button type="submit" class="btn">ログイン</button>
         </form>
+        
         <a href="{{ url_for('guest_login') }}" class="btn btn-guest">ゲストとしてログイン</a>
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
         
         <a href="{{ url_for('resend_activation') }}" class="auth-link" style="margin-top: 10px; font-size: 0.85em;">
             認証メールが届かない場合
         </a>
-        </div>
+    </div>
 </body>
 </html>

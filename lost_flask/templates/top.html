@@ -18,12 +18,15 @@
 
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
+        <!-- ▼▼▼ 使い方ボタン（修正済み） ▼▼▼ -->
+        <a href="{{ url_for('help_page') }}" class="btn-help">使い方</a>
+        <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
     </div>
 
     <div class="container">
         <header class="main-header">
-            <h1 class="app-title">講義レビュー</h1>
+            <h1 class="app-title">講義レビューへようこそ！</h1>
         </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -158,7 +161,7 @@
                     </thead>
                     <tbody>
                         {% for course in top_courses %}
-                        <tr>
+                        <tr class="selectable-row" onclick="window.location.href='{{ url_for('course_detail', id=course.id) }}'">
                             <td style="text-align: center; font-weight: bold;">{{ loop.index }}</td>
                             <td><a href="{{ url_for('course_detail', id=course.id) }}">{{ course.name }}</a></td>
                             <td>{{ course.teacher }}</td>
