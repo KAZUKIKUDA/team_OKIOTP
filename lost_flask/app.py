@@ -20,6 +20,7 @@ from sendgrid.helpers.mail import Mail as SendGridMail
 from collections import Counter
 from sqlalchemy.orm import joinedload
 from urllib.parse import urlparse, parse_qs
+from sqlalchemy import text # SQL直接実行用
 
 # --- Application Setup ---
 app = Flask(__name__)
@@ -208,10 +209,8 @@ def scrape_syllabus(url):
 @app.route('/')
 @login_required 
 def index():
-    # ▼▼▼【変更点】チュートリアル未読チェック ▼▼▼
     if not current_user.is_tutorial_seen:
         return redirect(url_for('help_page'))
-    # ▲▲▲ 変更ここまで ▲▲▲
 
     try:
         form_data = {
@@ -618,6 +617,28 @@ def complete_tutorial():
         current_user.is_tutorial_seen = True
         db.session.commit()
     return redirect(url_for('index'))
+
+# ▼▼▼【緊急対応】ブラウザからDBを修正するためのルート ▼▼▼
+# Renderの無料枠でシェルが使えない場合の対応策です。
+# デプロイ後、ブラウザで「https://あなたのアプリURL/fix_db」にアクセスしてください。
+@app.route('/fix_db')
+def fix_db_route():
+    try:
+        # PostgreSQL向け ("user"は予約語なのでダブルクォートで囲む)
+        # IF NOT EXISTS はPostgreSQL 9.6+でサポート。
+        # 古いバージョンの可能性も考慮し、単純なADD COLUMNでエラーキャッチが無難だが、
+        # Renderは比較的新しいので IF NOT EXISTS を使いたいところだが、
+        # SQLAlchemyのtextで直接実行する場合、汎用性を考慮して例外キャッチで対応する方が安全。
+        
+        # 今回は fix_render_db.py のロジックをそのまま移植
+        sql = text('ALTER TABLE "user" ADD COLUMN is_tutorial_seen BOOLEAN DEFAULT FALSE')
+        db.session.execute(sql)
+        db.session.commit()
+        return "<h1>✅ 成功！</h1><p>データベースに 'is_tutorial_seen' カラムを追加しました。<br>トップページに戻って確認してください。</p><a href='/'>トップへ戻る</a>"
+    except Exception as e:
+        db.session.rollback()
+        return f"<h1>⚠️ 結果</h1><p>エラーが発生したか、既にカラムが存在します。<br>詳細: {e}</p><a href='/'>トップへ戻る</a>"
+# ▲▲▲ 追加ここまで ▲▲▲
 
 if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
