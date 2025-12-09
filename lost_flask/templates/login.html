@@ -45,7 +45,10 @@
             <button type="submit" class="btn">ログイン</button>
         </form>
         
-        <a href="{{ url_for('guest_login') }}" class="btn btn-guest">ゲストとしてログイン</a>
+        <!-- ▼▼▼ 修正: margin-topを追加してボタンの間隔を広げる ▼▼▼ -->
+        <a href="{{ url_for('guest_login') }}" class="btn btn-guest" style="margin-top: 24px;">ゲストとしてログイン</a>
+        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
         
         <a href="{{ url_for('resend_activation') }}" class="auth-link" style="margin-top: 10px; font-size: 0.85em;">
