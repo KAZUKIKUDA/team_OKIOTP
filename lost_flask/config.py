@@ -17,13 +17,20 @@ class Config:
         print("       本番環境では必ず 'SECRET_KEY' を設定してください。")
         print("="*50)
 
-    # --- データベース設定 (Render対応) ---
+    # --- データベース設定 (Render/Supabase対応) ---
+    # 環境変数からDB URLを取得
+    database_url = os.environ.get('DATABASE_URL')
+
+    # SQLAlchemy 1.4以降 (2.0含む) では 'postgres://' はエラーになるため
+    # 'postgresql://' に置換する処理を追加
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+
     # Renderの 'DATABASE_URL' があればそれを使い、なければローカルのSQLiteを使う
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+    SQLALCHEMY_DATABASE_URI = database_url or \
         'sqlite:///' + os.path.join(basedir, 'instance', 'lectures.db')
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- メール設定 ---
     # SendGrid API (app.pyで直接os.environ.get) を使うため、Flask-Mailの設定はすべて不要
-
