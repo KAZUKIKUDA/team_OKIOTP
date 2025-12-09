@@ -211,6 +211,35 @@
 
     <script>
     function toggleReaction(reviewId, reactionType, btnElement) {
+        // ▼▼▼【修正】クリックした瞬間に見た目を更新する（Optimistic UI） ▼▼▼
+        const container = btnElement.closest('.reaction-container');
+        const currentActive = container.querySelector('.btn-reaction.active');
+        const allButtons = container.querySelectorAll('.btn-reaction');
+        
+        // 1. まず見た目を即座に変更（サーバーの返事を待たない）
+        // 一旦すべてのボタンからactiveを外す
+        allButtons.forEach(btn => btn.classList.remove('active'));
+    
+        if (currentActive === btnElement) {
+            // A. 同じボタンを再度押した（取り消し）
+            // このボタンのカウントを減らす
+            const countEl = btnElement.querySelector('.reaction-count');
+            countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+            // activeは付け直さない
+        } else {
+            // B. 違うボタンを押した、または新規
+            if (currentActive) {
+                // 元々押されていたボタンのカウントを減らす
+                const oldCount = currentActive.querySelector('.reaction-count');
+                oldCount.textContent = Math.max(0, parseInt(oldCount.textContent) - 1);
+            }
+            // 新しく押したボタンのカウントを増やす
+            btnElement.classList.add('active');
+            const newCount = btnElement.querySelector('.reaction-count');
+            newCount.textContent = parseInt(newCount.textContent) + 1;
+        }
+    
+        // 2. 裏側でサーバーに通信（結果が返ってきたら正解データで上書き補正）
         fetch('/api/react', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -222,17 +251,23 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const container = btnElement.closest('.reaction-container');
-                container.querySelectorAll('.btn-reaction').forEach(btn => btn.classList.remove('active'));
-                
-                if (data.user_reaction === reactionType) {
-                    btnElement.classList.add('active');
-                }
-                
+                // サーバーから「正しい最新のカウント」が返ってくるので、念のため上書き同期する
+                // (もし連打などでズレていてもここで直る)
                 const buttons = container.querySelectorAll('.btn-reaction');
+                
+                // Active状態の再確認と同期
+                allButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // サーバーの正解データでカウントを更新
                 buttons[0].querySelector('.reaction-count').textContent = data.counts.empathy;
                 buttons[1].querySelector('.reaction-count').textContent = data.counts.insightful;
                 buttons[2].querySelector('.reaction-count').textContent = data.counts.hmm;
+                
+                // Activeクラスをサーバーの状態に合わせる
+                if (data.user_reaction === 'empathy') buttons[0].classList.add('active');
+                if (data.user_reaction === 'insightful') buttons[1].classList.add('active');
+                if (data.user_reaction === 'hmm') buttons[2].classList.add('active');
+    
             } else {
                 console.error('Error:', data.error);
             }
