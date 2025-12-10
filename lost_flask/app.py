@@ -231,7 +231,18 @@ def index():
     except Exception as e:
         app.logger.error(f"Error fetching top courses: {e}")
         top_courses = []
-    return render_template('top.html', top_courses=top_courses, form_data=form_data)
+
+    # ▼▼▼【修正】PCで top_compact、スマホで top を表示するようロジックを反転 ▼▼▼
+    ua = request.user_agent.string.lower()
+    is_mobile = 'iphone' in ua or ('android' in ua and 'mobile' in ua)
+
+    if is_mobile:
+        # スマホの場合: 従来のデザイン (top.html)
+        return render_template('top.html', top_courses=top_courses, form_data=form_data)
+    else:
+        # PCの場合: 新しいコンパクトデザイン (top_compact.html)
+        return render_template('top_compact.html', top_courses=top_courses, form_data=form_data)
+    # ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
