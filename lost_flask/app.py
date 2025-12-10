@@ -209,8 +209,15 @@ def scrape_syllabus(url):
 @app.route('/')
 @login_required 
 def index():
-    if not current_user.is_tutorial_seen:
-        return redirect(url_for('help_page'))
+    # ▼▼▼【修正】DB接続エラー時に500エラーにならないよう、try-exceptで囲む ▼▼▼
+    try:
+        if not current_user.is_tutorial_seen:
+            return redirect(url_for('help_page'))
+    except Exception as e:
+        app.logger.error(f"Database error during tutorial check: {e}")
+        # DBエラー時はチュートリアル確認をスキップしてトップを表示する
+        pass
+    # ▲▲▲ 修正ここまで ▲▲▲
 
     try:
         form_data = {
@@ -232,9 +239,15 @@ def index():
         app.logger.error(f"Error fetching top courses: {e}")
         top_courses = []
 
-    # ▼▼▼【修正】PCで top_compact、スマホで top を表示するようロジックを反転 ▼▼▼
-    ua = request.user_agent.string.lower()
-    is_mobile = 'iphone' in ua or ('android' in ua and 'mobile' in ua)
+    # ▼▼▼【修正】スマホ判定ロジックを安全にする (None対策) ▼▼▼
+    # request.user_agent が特殊な場合にエラーにならないよう str() で変換
+    try:
+        ua = str(request.user_agent).lower()
+        is_mobile = 'iphone' in ua or ('android' in ua and 'mobile' in ua)
+    except Exception:
+        # 万が一取得できない場合はPC版を表示（安全策）
+        is_mobile = False
+    # ▲▲▲ 修正ここまで ▲▲▲
 
     if is_mobile:
         # スマホの場合: 従来のデザイン (top.html)
@@ -242,7 +255,6 @@ def index():
     else:
         # PCの場合: 新しいコンパクトデザイン (top_compact.html)
         return render_template('top_compact.html', top_courses=top_courses, form_data=form_data)
-    # ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
