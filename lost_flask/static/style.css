@@ -901,67 +901,48 @@ section h2::after {
     box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
 
-/* Compact Filters (Toggle Style) */
-.filters-row {
-    display: flex;
-    gap: 20px;
-    background: #f8fafc;
-    padding: 10px 15px;
-    border-radius: 8px;
-    border: 1px dashed #e2e8f0;
-}
-/* ▼▼▼ 追加: 縦並び用のフィルタコンテナ ▼▼▼ */
-.filters-col {
-    display: flex;
-    flex-direction: column; /* 縦並びにする */
-    gap: 15px; /* 要素間の隙間 */
-    background: #f8fafc;
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px dashed #e2e8f0;
-    max-width: 435px; /* ここで幅を制限します */
-    margin-top: 20px; /* 上との間隔を広げる */
-}
-/* ▲▲▲ 追加ここまで ▲▲▲ */
-
-.filter-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.filter-label {
-    font-size: 0.85em;
-    font-weight: 600;
-    color: var(--text-sub);
-    min-width: 60px; /* ラベルの幅を揃える */
-}
+/* ▼▼▼ Toggle Buttons (New Style) ▼▼▼ 
+   修正: 色合いをテーマカラー(水色)に合わせ、背景を白+枠線に変更
+*/
 .toggle-group {
     display: flex;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 2px;
-    flex-grow: 1; /* 横いっぱいに広げる */
+    background: #ffffff;       /* 背景をグレーから白に変更 */
+    border: 1px solid #e2e8f0; /* 薄い枠線を追加 */
+    border-radius: 8px;
+    padding: 4px;
+    gap: 0;
 }
-.toggle-group input { display: none; }
+
+.toggle-group input {
+    display: none;
+}
+
 .toggle-group label {
-    padding: 4px 10px;
-    font-size: 0.8em;
-    cursor: pointer;
-    border-radius: 4px;
-    margin: 0;
-    color: var(--text-sub);
-    transition: all 0.2s;
-    box-shadow: none;
-    border: none;
-    background: transparent;
-    flex: 1; /* ボタンを均等幅にする */
+    flex: 1;
     text-align: center;
+    padding: 8px 10px;
+    border-radius: 6px; 
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9em;
+    color: var(--text-sub);    /* 文字色を少し薄く */
+    font-weight: 600;
+    margin: 0;
+    border: none;
+    box-shadow: none;
 }
+
+/* 選択された状態 (Checked): 背景を水色、文字を白に */
 .toggle-group input:checked + label {
-    background: var(--primary-color);
-    color: #fff;
-    font-weight: bold;
+    background: var(--primary-color); /* ★ここを水色(#0ea5e9)に変更 */
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(14, 165, 233, 0.3); /* 影も水色系に */
+}
+
+/* 未選択ボタンのホバー時 */
+.toggle-group label:hover {
+    background-color: #f1f5f9; /* ホバー時は薄いグレーに */
+    color: var(--primary-color);
 }
 
 /* Search Button Compact */
@@ -1056,4 +1037,164 @@ section h2::after {
     .filter-item {
         justify-content: space-between;
     }
+}
+
+/* =========================================
+   ▼▼▼ Tinder-like Swipe UI (New) ▼▼▼
+========================================= */
+
+/* 画面全体を覆うコンテナ（中央寄せ） */
+.swipe-mode-container {
+    max-width: 500px; /* スマホで見やすい幅 */
+    margin: 40px auto;
+    text-align: center;
+    padding: 20px;
+}
+
+/* カードのデザイン */
+.swipe-card {
+    background: var(--card-bg);
+    border-radius: 24px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--card-border);
+    padding: 40px 30px;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 30px;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+/* 講義名 */
+.swipe-card h3 {
+    font-size: 1.8em;
+    color: var(--primary-color);
+    margin: 0 0 15px 0;
+    line-height: 1.4;
+}
+
+/* 教員名など */
+.swipe-card p {
+    font-size: 1.1em;
+    color: var(--text-sub);
+    margin: 0;
+    font-weight: 600;
+}
+
+/* 操作ボタンエリア */
+.swipe-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 20px;
+}
+
+/* 共通ボタン設定 */
+.btn-swipe {
+    flex: 1;
+    padding: 15px 0;
+    border-radius: 50px;
+    font-size: 1.1em;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.btn-swipe:active {
+    transform: scale(0.95);
+}
+
+/* スキップボタン（左） */
+.btn-skip {
+    background-color: #f1f5f9;
+    color: #64748b;
+    border: 2px solid #cbd5e1;
+}
+
+/* 受講したボタン（右） */
+.btn-taken {
+    background-color: var(--primary-color);
+    color: white;
+    border: 2px solid var(--primary-color);
+}
+
+/* 即時評価用の星ボタンエリア */
+.quick-rating-area {
+    margin-top: 25px;
+    animation: fadeIn 0.3s ease;
+}
+
+.quick-star-btn {
+    background: none;
+    border: 2px solid #e2e8f0;
+    font-size: 1.5em;
+    margin: 0 5px;
+    padding: 10px 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #cbd5e1; /* グレー */
+}
+.quick-star-btn:hover {
+    border-color: var(--warning-color);
+    background-color: #fffbeb;
+    color: var(--warning-color);
+    transform: translateY(-3px);
+}
+.quick-star-btn span {
+    display: block;
+    font-size: 0.6em;
+    font-weight: bold;
+    color: var(--text-sub);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   ▼▼▼ 2-Column Search Layout (FIXED) ▼▼▼
+   ここが「配置」を決めている部分です
+========================================= */
+
+/* 左右に分割する設定 */
+.search-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 1対1の比率で分割 */
+    gap: 40px;                      /* 真ん中の隙間 */
+    align-items: start;
+    margin-bottom: 30px;
+}
+
+/* スマホ用の設定（画面が狭いときは縦並びに戻す） */
+@media (max-width: 768px) {
+    .search-grid {
+        grid-template-columns: 1fr; /* 1列にする */
+        gap: 30px;
+    }
+}
+
+/* 右側のボックス（グレーの枠線など）の設定 */
+.search-criteria-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 30px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* その他の調整用 */
+.search-left {
+    display: flex;
+    flex-direction: column;
 }

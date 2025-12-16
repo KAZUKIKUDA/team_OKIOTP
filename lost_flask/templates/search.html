@@ -7,6 +7,59 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* ページネーション用CSS（簡易追加） */
+        .per-page-form {
+            text-align: right;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .per-page-form select {
+            width: auto;
+            padding: 5px 25px 5px 10px;
+            margin-left: 5px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background-color: #fff;
+            display: inline-block;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .pagination a, .pagination span {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: var(--primary-color);
+            transition: all 0.2s;
+            min-width: 40px;
+            text-align: center;
+        }
+        .pagination a:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .pagination .active {
+            background-color: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+            font-weight: bold;
+        }
+        .pagination .ellipsis {
+            border: none;
+            background: none;
+            color: var(--text-sub);
+        }
+    </style>
 </head>
 <body>
     <!-- ▼▼▼【！！追加！！】大学ロゴバナー ▼▼▼ -->
@@ -38,8 +91,32 @@
         {% endwith %}
 
         <section>
-            {% if results %}
-                <p>{{ results|length }}件の講義が見つかりました。講義を選択してください。</p>
+            {% if pagination.items %}
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+                    <p style="margin: 0;">全 {{ pagination.total }} 件中 {{ (pagination.page - 1) * pagination.per_page + 1 }} - {{ [(pagination.page * pagination.per_page), pagination.total] | min }} 件を表示</p>
+                    
+                    <!-- ▼▼▼ 件数選択フォーム ▼▼▼ -->
+                    <form method="get" action="{{ url_for('search_course') }}" class="per-page-form" style="margin: 0;">
+                        <!-- 現在のフィルター条件をhiddenで保持 -->
+                        {% for key, value in form_data.items() %}
+                            {% if key != 'per_page' %}
+                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <label>表示件数:</label>
+                        <select name="per_page" onchange="this.form.submit()">
+                            <option value="10" {% if form_data.per_page == '10' %}selected{% endif %}>10件</option>
+                            <option value="20" {% if form_data.per_page == '20' %}selected{% endif %}>20件</option>
+                            <option value="30" {% if form_data.per_page == '30' %}selected{% endif %}>30件</option>
+                            <option value="50" {% if form_data.per_page == '50' %}selected{% endif %}>50件</option>
+                            <option value="100" {% if form_data.per_page == '100' %}selected{% endif %}>100件</option>
+                            <option value="all" {% if form_data.per_page == 'all' %}selected{% endif %}>全件</option>
+                        </select>
+                    </form>
+                    <!-- ▲▲▲ 件数選択フォーム ▲▲▲ -->
+                </div>
+
                 <table class="search-results-table">
                     <thead>
                         <tr>
@@ -54,7 +131,7 @@
                         </tr>
                     </thead>
                     <tbody id="results-body">
-                        {% for course in results %}
+                        {% for course in pagination.items %}
                         <tr class="selectable-row" data-course-id="{{ course.id }}" data-course-name="{{ course.name }}">
                             <td>{{ course.name }}</td>
                             <td>{{ course.teacher }}</td>
@@ -75,6 +152,30 @@
                         </tr>
                     </tbody>
                 </table>
+
+                <!-- ▼▼▼ ページネーションリンク ▼▼▼ -->
+                <div class="pagination">
+                    {% if pagination.has_prev %}
+                        <a href="{{ url_for('search_course', page=pagination.prev_num, **form_data) }}">&laquo; 前へ</a>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                                <span class="active">{{ page_num }}</span>
+                            {% else %}
+                                <a href="{{ url_for('search_course', page=page_num, **form_data) }}">{{ page_num }}</a>
+                            {% endif %}
+                        {% else %}
+                            <span class="ellipsis">…</span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                        <a href="{{ url_for('search_course', page=pagination.next_num, **form_data) }}">次へ &raquo;</a>
+                    {% endif %}
+                </div>
+                <!-- ▲▲▲ ページネーションリンク ▲▲▲ -->
 
             {% else %}
                 <p>該当する講義は見つかりませんでした。</p>

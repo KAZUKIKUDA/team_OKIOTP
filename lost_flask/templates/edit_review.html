@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>レビュー編集</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+</head>
+<body>
+    <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+
+    <div class="user-header">
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1 class="app-title" style="font-size: 1.8em;">レビューの編集</h1>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="course-info">
+            <div class="course-info-details" style="background: #fff; border: none; padding: 0;">
+                <p><strong>講義名：</strong> {{ course.name }}</p>
+                <p><strong>担当教員：</strong> {{ course.teacher }}</p>
+            </div>
+        </section>
+
+        <section>
+            <form action="{{ url_for('edit_review', review_id=review.id) }}" method="post">
+
+                <h4>総合評価</h4>
+                <div class="star-rating-input">
+                    <!-- check if rating matches to add 'checked' attribute -->
+                    <input type="radio" id="rating-5" name="rating" value="5.0" {% if review.rating == 5.0 %}checked{% endif %} required><label class="star half-right" for="rating-5">★</label>
+                    <input type="radio" id="rating-4.5" name="rating" value="4.5" {% if review.rating == 4.5 %}checked{% endif %}><label class="star half" for="rating-4.5">★</label>
+                    <input type="radio" id="rating-4" name="rating" value="4.0" {% if review.rating == 4.0 %}checked{% endif %}><label class="star half-right" for="rating-4">★</label>
+                    <input type="radio" id="rating-3.5" name="rating" value="3.5" {% if review.rating == 3.5 %}checked{% endif %}><label class="star half" for="rating-3.5">★</label>
+                    <input type="radio" id="rating-3" name="rating" value="3.0" {% if review.rating == 3.0 %}checked{% endif %}><label class="star half-right" for="rating-3">★</label>
+                    <input type="radio" id="rating-2.5" name="rating" value="2.5" {% if review.rating == 2.5 %}checked{% endif %}><label class="star half" for="rating-2.5">★</label>
+                    <input type="radio" id="rating-2" name="rating" value="2.0" {% if review.rating == 2.0 %}checked{% endif %}><label class="star half-right" for="rating-2">★</label>
+                    <input type="radio" id="rating-1.5" name="rating" value="1.5" {% if review.rating == 1.5 %}checked{% endif %}><label class="star half" for="rating-1.5">★</label>
+                    <input type="radio" id="rating-1" name="rating" value="1.0" {% if review.rating == 1.0 %}checked{% endif %}><label class="star half-right" for="rating-1">★</label>
+                    <input type="radio" id="rating-0.5" name="rating" value="0.5" {% if review.rating == 0.5 %}checked{% endif %}><label class="star half" for="rating-0.5">★</label>
+                </div>
+                
+                <h4>出席</h4>
+                <div class="radio-group">
+                    <label><input type="radio" name="attendance" value="あり" {% if review.attendance == 'あり' %}checked{% endif %} required><span>あり</span></label>
+                    <label><input type="radio" name="attendance" value="なし" {% if review.attendance == 'なし' %}checked{% endif %}><span>なし</span></label>
+                    <label><input type="radio" name="attendance" value="その他" {% if review.attendance == 'その他' %}checked{% endif %}><span>その他</span></label>
+                </div>
+
+                <h4>テスト</h4>
+                <div class="radio-group">
+                     <label><input type="radio" name="test" value="あり" {% if review.test == 'あり' %}checked{% endif %} required><span>あり</span></label>
+                    <label><input type="radio" name="test" value="なし" {% if review.test == 'なし' %}checked{% endif %}><span>なし</span></label>
+                    <label><input type="radio" name="test" value="その他" {% if review.test == 'その他' %}checked{% endif %}><span>その他</span></label>
+                </div>
+
+                <h4>レポート</h4>
+                <div class="radio-group">
+                     <label><input type="radio" name="report" value="あり" {% if review.report == 'あり' %}checked{% endif %} required><span>あり</span></label>
+                    <label><input type="radio" name="report" value="なし" {% if review.report == 'なし' %}checked{% endif %}><span>なし</span></label>
+                    <label><input type="radio" name="report" value="その他" {% if review.report == 'その他' %}checked{% endif %}><span>その他</span></label>
+                </div>
+
+                <h4>授業形式 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
+                <div class="radio-group">
+                    <label><input type="radio" name="course_format" value="対面" {% if review.course_format == '対面' %}checked{% endif %}><span>対面</span></label>
+                    <label><input type="radio" name="course_format" value="オンライン" {% if review.course_format == 'オンライン' %}checked{% endif %}><span>オンライン</span></label>
+                     <label><input type="radio" name="course_format" value="オンデマンド" {% if review.course_format == 'オンデマンド' %}checked{% endif %}><span>オンデマンド</span></label>
+                    <label><input type="radio" name="course_format" value="その他" {% if review.course_format == 'その他' %}checked{% endif %}><span>その他</span></label>
+                </div>
+                
+                <h4>開講年度 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
+                <input type="text" name="year" placeholder="例： 2024年度" value="{{ review.year or '' }}">
+
+                <h4>開講教室 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
+                <input type="text" name="classroom" placeholder="例： 共通教育棟1-101" value="{{ review.classroom or '' }}">
+                <h4>備考欄 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
+                <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など">{{ review.review or '' }}</textarea>
+
+                <div style="margin-top: 30px; display: flex; gap: 15px;">
+                    <button type="submit" class="btn">更新する</button>
+                    <a href="{{ url_for('course_view_detail', id=course.id) }}" class="btn-cancel">キャンセル</a>
+                </div>
+            </form>
+        </section>
+    </div>
+</body>
+</html>

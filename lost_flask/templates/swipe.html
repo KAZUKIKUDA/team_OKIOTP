@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>高速レビューモード</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* スワイプ中のカード操作用スタイル */
+        .swipe-card {
+            cursor: grab;
+            user-select: none; /* テキスト選択防止 */
+            touch-action: none; /* ブラウザのスクロール等を防止 */
+        }
+        .swipe-card:active {
+            cursor: grabbing;
+        }
+        /* アニメーション用クラス */
+        .card-animate {
+            transition: transform 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 20px;">
+        <a href="{{ url_for('index') }}" class="back-link">&laquo; トップへ戻る</a>
+    </div>
+
+    <div class="swipe-mode-container">
+        <h2 style="color: var(--text-main); margin-bottom: 10px;">⚡ 高速レビュー</h2>
+        <p style="color: var(--text-sub); font-size: 0.9em; margin-bottom: 30px;">
+            あなたの学科の講義がランダムに表示されます。<br>
+            受講した講義なら「右」へ、知らないなら「左」へスワイプ！
+        </p>
+
+        <!-- カードエリアにIDを追加し、スワイプ対象とする -->
+        <div id="card-area" class="swipe-card">
+            <div id="loading-msg">講義を探しています...</div>
+            
+            <div id="card-content" style="display:none; width: 100%; pointer-events: none;"> <!-- 中身のクリックイベントが邪魔しないように -->
+                <span class="tag" id="course-format" style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:6px; font-size:0.8em;">形式</span>
+                <h3 id="course-name">講義名</h3>
+                <p id="course-teacher">教員名</p>
+
+                <div id="quick-rating-form" class="quick-rating-area" style="display: none; pointer-events: auto;"> <!-- ボタンはクリック可能に -->
+                    <p style="font-weight:bold; color:var(--text-main);">評価を選択</p>
+                    <div style="display:flex; justify-content:center;">
+                        <button class="quick-star-btn" onclick="submitReview(5)">★5<span>最高!</span></button>
+                        <button class="quick-star-btn" onclick="submitReview(3)">★3<span>普通</span></button>
+                        <button class="quick-star-btn" onclick="submitReview(1)">★1<span>微妙</span></button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="finish-msg" style="display:none;">
+                <h3>🎉 完了！</h3>
+                <p>現在表示できる講義はもうありません。</p>
+                <a href="{{ url_for('index') }}" class="btn">トップへ戻る</a>
+            </div>
+        </div>
+
+        <div id="action-buttons" class="swipe-actions">
+            <button onclick="handleSkip()" class="btn-swipe btn-skip">
+                👈 知らない
+            </button>
+            <button onclick="handleTaken()" class="btn-swipe btn-taken">
+                受講した！ 👉
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let cards = [];
+        let currentCard = null;
+        let isRatingMode = false; // 評価モード中はスワイプ無効にするため
+
+        // スワイプ関連変数
+        const cardElement = document.getElementById('card-area');
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        const threshold = 100; // スワイプ判定の閾値(px)
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/fetch_cards');
+                cards = await res.json();
+                renderCard();
+                initSwipeEvents();
+            } catch (e) {
+                document.getElementById('loading-msg').innerText = "読み込みエラーが発生しました";
+            }
+        });
+
+        function renderCard() {
+            // ローディング消去
+            document.getElementById('loading-msg').style.display = 'none';
+            // 位置と回転をリセット
+            resetCardPosition(false); 
+            isRatingMode = false;
+
+            if (cards.length === 0) {
+                document.getElementById('card-content').style.display = 'none';
+                document.getElementById('finish-msg').style.display = 'block';
+                document.getElementById('action-buttons').style.display = 'none';
+                return;
+            }
+
+            // カード情報をセット
+            currentCard = cards.pop();
+            document.getElementById('card-content').style.display = 'block';
+            document.getElementById('course-name').innerText = currentCard.name;
+            document.getElementById('course-teacher').innerText = currentCard.teacher;
+            document.getElementById('course-format').innerText = currentCard.format || '形式不明';
+
+            // 状態リセット
+            document.getElementById('quick-rating-form').style.display = 'none';
+            document.getElementById('action-buttons').style.display = 'flex';
+        }
+
+        // --- 操作系関数 (ボタンクリック用) ---
+
+        function handleSkip() {
+            if (isRatingMode) return;
+            // 左へアニメーションして次へ
+            animateCardOut('left', nextCard);
+        }
+
+        function handleTaken() {
+            if (isRatingMode) return;
+            showRating();
+        }
+
+        function showRating() {
+            isRatingMode = true;
+            document.getElementById('action-buttons').style.display = 'none';
+            document.getElementById('quick-rating-form').style.display = 'block';
+        }
+
+        async function submitReview(rating) {
+            if (!currentCard) return;
+
+            const formData = new FormData();
+            formData.append('rating', rating);
+            formData.append('attendance', '不明');
+            formData.append('test', '不明');
+            formData.append('report', '不明');
+
+            try {
+                const response = await fetch(`/add_review/${currentCard.id}`, {
+                    method: 'POST',
+                    body: formData,
+                    redirect: 'manual' 
+                });
+                if (response.ok || response.type === 'opaqueredirect' || response.status === 302) {
+                     console.log("Review submitted successfully");
+                }
+            } catch (e) {
+                console.error("Error:", e);
+            }
+            // 右上へ飛んでいくような演出でも良いが、シンプルに次へ
+            renderCard();
+        }
+
+        function nextCard() {
+            renderCard();
+        }
+
+        // --- スワイプ実装 ---
+
+        function initSwipeEvents() {
+            // タッチイベント
+            cardElement.addEventListener('touchstart', onDragStart);
+            cardElement.addEventListener('touchmove', onDragMove);
+            cardElement.addEventListener('touchend', onDragEnd);
+            
+            // マウスイベント
+            cardElement.addEventListener('mousedown', onDragStart);
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('mouseup', onDragEnd);
+        }
+
+        function onDragStart(e) {
+            if (isRatingMode || !currentCard) return; // 評価中やカードがない時は無効
+            // 完了画面が出ている場合も無効
+            if (document.getElementById('finish-msg').style.display === 'block') return;
+
+            isDragging = true;
+            startX = getClientX(e);
+            
+            // トランジションを一旦切る（追従させるため）
+            cardElement.style.transition = 'none';
+        }
+
+        function onDragMove(e) {
+            if (!isDragging) return;
+            
+            currentX = getClientX(e);
+            const diffX = currentX - startX;
+            
+            // 回転角度計算 (移動距離に応じて傾ける)
+            const rotateDeg = diffX * 0.1; 
+            
+            cardElement.style.transform = `translateX(${diffX}px) rotate(${rotateDeg}deg)`;
+        }
+
+        function onDragEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const diffX = currentX - startX;
+
+            // 閾値を超えたか判定
+            if (diffX > threshold) {
+                // 右スワイプ -> 受講した
+                // カードは中央に戻してから評価モードへ
+                resetCardPosition(true);
+                setTimeout(showRating, 300); // アニメーション後に表示
+            } else if (diffX < -threshold) {
+                // 左スワイプ -> スキップ
+                // 画面外へ飛ばす
+                animateCardOut('left', nextCard);
+            } else {
+                // 元に戻す
+                resetCardPosition(true);
+            }
+        }
+
+        function getClientX(e) {
+            return e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+        }
+
+        function resetCardPosition(animate = true) {
+            if (animate) {
+                cardElement.style.transition = 'transform 0.3s ease-out';
+            } else {
+                cardElement.style.transition = 'none';
+            }
+            cardElement.style.transform = 'translateX(0) rotate(0)';
+        }
+
+        function animateCardOut(direction, callback) {
+            cardElement.style.transition = 'transform 0.4s ease-in';
+            const moveX = direction === 'left' ? -window.innerWidth : window.innerWidth;
+            cardElement.style.transform = `translateX(${moveX}px) rotate(${direction === 'left' ? -20 : 20}deg)`;
+            
+            // アニメーション完了後にコールバック実行
+            setTimeout(() => {
+                if(callback) callback();
+            }, 300);
+        }
+
+    </script>
+</body>
+</html>

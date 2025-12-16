@@ -13,6 +13,7 @@ import logging
 import time 
 import requests 
 from bs4 import BeautifulSoup 
+from sqlalchemy.sql.expression import func
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail as SendGridMail
@@ -86,7 +87,11 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
     is_tutorial_seen = db.Column(db.Boolean, default=False)
-
+    # ▼▼▼ 追加 Kousuke ▼▼▼　
+    faculty = db.Column(db.String(50))      # 学部 (例: 工学部)
+    department = db.Column(db.String(50))   # 学科 (例: 知能情報コース)
+    grade = db.Column(db.String(10))        # 学年 (例: 2024年度入学)
+    # ▲▲▲ 追加ここまで ▲▲▲
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) 
@@ -204,6 +209,37 @@ def scrape_syllabus(url):
         app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
         return None
 
+# --- Pagination Helper ---
+class SimplePagination:
+    def __init__(self, items, page, per_page):
+        self.total = len(items)
+        self.page = page
+        self.per_page = per_page
+        if per_page > 0:
+            self.pages = (self.total + per_page - 1) // per_page
+        else:
+            self.pages = 1
+        
+        start = (page - 1) * per_page
+        end = start + per_page
+        self.items = items[start:end]
+        
+        self.has_prev = page > 1
+        self.has_next = page < self.pages
+        self.prev_num = page - 1
+        self.next_num = page + 1
+
+    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+        last = 0
+        for num in range(1, self.pages + 1):
+            if num <= left_edge or \
+               (num > self.page - left_current - 1 and num < self.page + right_current) or \
+               num > self.pages - right_edge:
+                if last + 1 != num:
+                    yield None
+                yield num
+                last = num
+
 # --- Routes ---
 
 @app.route('/')
@@ -215,7 +251,6 @@ def index():
             return redirect(url_for('help_page'))
     except Exception as e:
         app.logger.error(f"Database error during tutorial check: {e}")
-        # DBエラー時はチュートリアル確認をスキップしてトップを表示する
         pass
     # ▲▲▲ 修正ここまで ▲▲▲
 
@@ -239,21 +274,15 @@ def index():
         app.logger.error(f"Error fetching top courses: {e}")
         top_courses = []
 
-    # ▼▼▼【修正】スマホ判定ロジックを安全にする (None対策) ▼▼▼
-    # request.user_agent が特殊な場合にエラーにならないよう str() で変換
     try:
         ua = str(request.user_agent).lower()
         is_mobile = 'iphone' in ua or ('android' in ua and 'mobile' in ua)
     except Exception:
-        # 万が一取得できない場合はPC版を表示（安全策）
         is_mobile = False
-    # ▲▲▲ 修正ここまで ▲▲▲
 
     if is_mobile:
-        # スマホの場合: 従来のデザイン (top.html)
         return render_template('top.html', top_courses=top_courses, form_data=form_data)
     else:
-        # PCの場合: 新しいコンパクトデザイン (top_compact.html)
         return render_template('top_compact.html', top_courses=top_courses, form_data=form_data)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -483,44 +512,88 @@ def add_course_step2_create():
 def search_course():
     search_term = None 
     results = []
-    form_data = {
-        'lecture_name': request.form.get('lecture_name', ''),
-        'teacher_name': request.form.get('teacher_name', ''),
-        'course_format': request.form.get('course_format', ''),
-        'department': request.form.get('department', ''),
-        'attendance': request.form.get('attendance', ''),
-        'test': request.form.get('test', ''),
-        'report': request.form.get('report', '')
-    }
-    if request.method == 'POST':
-        query = Course.query.options(joinedload(Course.reviews))
-        filters = []
-        if form_data['lecture_name']:
-            for term in form_data['lecture_name'].split(): filters.append(Course.name.like(f'%{term}%'))
-        if form_data['teacher_name']:
-            for term in form_data['teacher_name'].split(): filters.append(Course.teacher.like(f'%{term}%'))
-        if form_data['course_format'] and form_data['course_format'] != "--------":
-            filters.append(Course.format == form_data['course_format'])
-        if form_data['department'] and form_data['department'] != "--------":
-            filters.append(Course.department.like(f'%{form_data["department"]}%'))
-        if filters: query = query.filter(db.and_(*filters))
-        results = query.distinct().all()
+    
+    # ページネーション設定の取得 (GET or POST)
+    page = request.args.get('page', 1, type=int)
+    per_page_str = request.args.get('per_page') or request.form.get('per_page') or '10'
 
-        for filter_key in ['attendance', 'test', 'report']:
-            val = form_data[filter_key]
-            if val and val != "--------":
-                filtered_results = []
-                for c in results:
-                    if not c.reviews: continue
+    # 検索条件の取得 (GET or POST, Pagination時はGET優先)
+    def get_param(key):
+        return request.args.get(key) or request.form.get(key) or ''
+
+    form_data = {
+        'lecture_name': get_param('lecture_name'),
+        'teacher_name': get_param('teacher_name'),
+        'course_format': get_param('course_format'),
+        'department': get_param('department'),
+        'attendance': get_param('attendance'),
+        'test': get_param('test'),
+        'report': get_param('report'),
+        'per_page': per_page_str # 状態維持のため保存
+    }
+    
+    # クエリ構築
+    query = Course.query.options(joinedload(Course.reviews))
+    filters = []
+    if form_data['lecture_name']:
+        for term in form_data['lecture_name'].split(): filters.append(Course.name.like(f'%{term}%'))
+    if form_data['teacher_name']:
+        for term in form_data['teacher_name'].split(): filters.append(Course.teacher.like(f'%{term}%'))
+    if form_data['course_format'] and form_data['course_format'] != "--------":
+        filters.append(Course.format == form_data['course_format'])
+    if form_data['department'] and form_data['department'] != "--------":
+        filters.append(Course.department.like(f'%{form_data["department"]}%'))
+    if filters: query = query.filter(db.and_(*filters))
+    
+    # データベースからの基本結果取得 (ID降順)
+    base_results = query.order_by(db.desc(Course.id)).all()
+
+    # Python側でのレビュー内容による絞り込み (Attendance, Test, Report)
+    filtered_results = []
+    has_python_filter = any(form_data[k] and form_data[k] != "--------" for k in ['attendance', 'test', 'report'])
+
+    if has_python_filter:
+        for c in base_results:
+            match = True
+            for filter_key in ['attendance', 'test', 'report']:
+                val = form_data[filter_key]
+                if val and val != "--------":
+                    if not c.reviews:
+                        match = False
+                        break
                     vals = [getattr(r, filter_key) for r in c.reviews if getattr(r, filter_key) in ['あり', 'なし']]
-                    if not vals: continue
+                    if not vals:
+                        match = False
+                        break
                     try:
-                        if Counter(vals).most_common(1)[0][0] == val: filtered_results.append(c)
-                    except: pass
-                results = filtered_results
-    else: 
-        results = Course.query.options(joinedload(Course.reviews)).order_by(db.desc(Course.id)).all()
-    return render_template('search.html', results=results, search_term=search_term, form_data=form_data)
+                        if Counter(vals).most_common(1)[0][0] != val:
+                            match = False
+                            break
+                    except:
+                        match = False
+                        break
+            if match:
+                filtered_results.append(c)
+    else:
+        filtered_results = base_results
+
+    # ページネーション処理
+    if per_page_str == 'all':
+        per_page = len(filtered_results) if filtered_results else 1
+        if per_page == 0: per_page = 1
+    else:
+        try:
+            per_page = int(per_page_str)
+            if per_page <= 0: per_page = 10
+        except:
+            per_page = 10
+
+    pagination = SimplePagination(filtered_results, page, per_page)
+    
+    return render_template('search.html', 
+                           pagination=pagination, 
+                           search_term=search_term, 
+                           form_data=form_data)
 
 @app.route('/course/<int:id>')
 @login_required
@@ -640,6 +713,74 @@ def complete_tutorial():
         current_user.is_tutorial_seen = True
         db.session.commit()
     return redirect(url_for('index'))
+
+# ▼▼▼ ここに追加してください Kousuke▼▼▼
+
+@app.route('/swipe')
+@login_required
+def swipe_page():
+    return render_template('swipe.html')
+
+@app.route('/api/fetch_cards')
+@login_required
+def fetch_cards():
+    # 1. 自分が既にレビューした講義IDを取得
+    reviewed_ids = [r.course_id for r in current_user.reviews]
+
+    # クエリのベースを作成（まだレビューしていない講義を除外）
+    query = Course.query.filter(~Course.id.in_(reviewed_ids))
+
+    # 2. 学部フィルタリング（ユーザーに学部が設定されている場合のみ適用）
+    # ※ 登録フローでfacultyが保存されていないケースに対応するため条件分岐を追加
+    if current_user.faculty:
+        query = query.filter(Course.department.like(f'%{current_user.faculty}%'))
+    
+    # 3. ランダムに10件取得
+    cards = query.order_by(func.random()).limit(10).all()
+
+    # JSONで返す
+    data = [{
+        'id': c.id,
+        'name': c.name,
+        'teacher': c.teacher,
+        'format': c.format
+    } for c in cards]
+    
+    return jsonify(data)
+
+# ▲▲▲ ここまで ▲▲▲
+
+# ▼▼▼ 追加: レビュー編集機能 ▼▼▼
+@app.route('/edit_review/<int:review_id>', methods=['GET', 'POST'])
+@login_required
+def edit_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    # 権限チェック (本人以外は編集不可)
+    if review.user_id != current_user.id:
+        flash('他のユーザーのレビューは編集できません。', 'danger')
+        return redirect(url_for('course_detail', id=review.course_id))
+    
+    if request.method == 'POST':
+        try:
+            review.rating = float(request.form.get('rating'))
+            review.attendance = request.form.get('attendance')
+            review.test = request.form.get('test')
+            review.report = request.form.get('report')
+            review.course_format = request.form.get('course_format')
+            review.year = request.form.get('year')
+            review.classroom = request.form.get('classroom')
+            review.review = request.form.get('review')
+            
+            db.session.commit()
+            flash('レビューを更新しました。', 'success')
+            return redirect(url_for('course_view_detail', id=review.course_id))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Update review error: {e}")
+            flash('更新中にエラーが発生しました。', 'danger')
+
+    return render_template('edit_review.html', review=review, course=review.course)
+# ▲▲▲ 追加ここまで ▲▲▲
 
 if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):

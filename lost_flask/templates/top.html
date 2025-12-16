@@ -17,6 +17,7 @@
     
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('swipe_page') }}" class="btn-help" style="background-color: #f43f5e; border-color: #f43f5e; color: white;">⚡ 高速レビュー</a>
         <a href="{{ url_for('help_page') }}" class="btn-help">使い方</a>
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
     </div>

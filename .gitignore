@@ -8,3 +8,7 @@ lost_flask/*.pyc
 # ローカルデータベース
 instance/
 lost_flask/instance/
+
+# 講義追加
+seed_course.py
+syllabus_urls.txt

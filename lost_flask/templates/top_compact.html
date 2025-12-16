@@ -7,44 +7,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=compact_v4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=layout_fix_v1">
 </head>
 <body>
-    <!-- ▼▼▼【修正】ロゴをリンク付きで左上に配置 ▼▼▼ -->
     <a href="{{ url_for('index') }}">
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
-    <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
-
+    
     <div class="user-header">
         <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('swipe_page') }}" class="btn-help" style="background-color: #f43f5e; border-color: #f43f5e; color: white;">⚡ 高速レビュー</a>
         <a href="{{ url_for('help_page') }}" class="btn-help">使い方</a>
         <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
     </div>
 
-    <div class="container compact-container">
-        <!-- (中央のロゴは削除しました) -->
+    <div class="container">
+        <header class="main-header">
+            <h1 class="app-title">講義を検索</h1>
+        </header>
 
-        <!-- ▼▼▼ コンパクト検索フォーム ▼▼▼ -->
-        <div class="search-panel">
-            <h2 class="panel-title">講義を検索</h2>
+        <div class="search-form-container">
             <form action="{{ url_for('search_course') }}" method="post">
-                <div class="compact-grid">
+                
+                <div class="search-grid">
                     
-                    <!-- 1行目: キーワード検索 -->
-                    <div class="form-group span-2">
-                        <label>講義名 / キーワード</label>
-                        <input type="text" name="lecture_name" placeholder="講義名を入力..." class="compact-input">
-                    </div>
-                    <div class="form-group span-2">
-                        <label>教員名</label>
-                        <input type="text" name="teacher_name" placeholder="教員名を入力..." class="compact-input">
-                    </div>
+                    <div class="search-left">
+                        
+                        <label class="form-label">講義名 / キーワード</label>
+                        <input type="text" name="lecture_name" placeholder="講義名を入力（一部でも検索できます）" value="{{ form_data.lecture_name if form_data else '' }}">
 
-                    <!-- 2行目: プルダウン選択 -->
-                    <div class="form-group">
-                        <label>開講学部</label>
-                        <select name="department" class="compact-select">
+                        <label class="form-label">教員名</label>
+                        <input type="text" name="teacher_name" placeholder="教員名を入力（一部でも検索できます）" value="{{ form_data.teacher_name if form_data else '' }}">
+
+                        <label class="form-label">開講学部</label>
+                        <select name="department">
                             <option value="">--------</option>
                             <option value="工学部">工学部</option>
                             <option value="理学部">理学部</option>
@@ -55,11 +51,9 @@
                             <option value="医学部">医学部</option>
                             <option value="共通教育等">共通教育等</option>
                         </select>
-                    </div>
 
-                    <div class="form-group">
-                        <label>授業形式</label>
-                        <select name="course_format" class="compact-select">
+                        <label class="form-label">授業形式</label>
+                        <select name="course_format" style="margin-bottom: 0;">
                             <option value="">--------</option>
                             <option value="対面">対面</option>
                             <option value="オンライン">オンライン</option>
@@ -67,58 +61,67 @@
                         </select>
                     </div>
 
-                    <!-- 3行目: ラジオボタン（詳細条件） -->
-                    <!-- 縦並び(col) -->
-                    <div class="form-group span-full">
-                        <div class="filters-col">
-                            <!-- ▼▼▼ 追加: 説明文 ▼▼▼ -->
-                            <p style="margin: 0 0 15px 0; font-size: 0.85em; color: var(--text-sub); text-align: center;">
+                    <div class="search-right">
+                        <div class="search-criteria-box">
+                            <p class="criteria-description">
                                 レビューに基づき、最も多い回答（最頻値）で検索します。
                             </p>
-                            <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
 
-                            <div class="filter-item">
-                                <span class="filter-label">出席</span>
+                            <div style="margin-bottom: 15px;">
+                                <label class="form-label">出席</label>
                                 <div class="toggle-group">
-                                    <input type="radio" name="attendance" value="" id="att-any" checked><label for="att-any">指定なし</label>
-                                    <input type="radio" name="attendance" value="あり" id="att-yes"><label for="att-yes">あり</label>
-                                    <input type="radio" name="attendance" value="なし" id="att-no"><label for="att-no">なし</label>
+                                    <input type="radio" name="attendance" value="" id="att-any" checked>
+                                    <label for="att-any">指定なし</label>
+                                    
+                                    <input type="radio" name="attendance" value="あり" id="att-yes">
+                                    <label for="att-yes">あり</label>
+                                    
+                                    <input type="radio" name="attendance" value="なし" id="att-no">
+                                    <label for="att-no">なし</label>
                                 </div>
                             </div>
-                            <div class="filter-item">
-                                <span class="filter-label">テスト</span>
+
+                            <div style="margin-bottom: 15px;">
+                                <label class="form-label">テスト</label>
                                 <div class="toggle-group">
-                                    <input type="radio" name="test" value="" id="test-any" checked><label for="test-any">指定なし</label>
-                                    <input type="radio" name="test" value="あり" id="test-yes"><label for="test-yes">あり</label>
-                                    <input type="radio" name="test" value="なし" id="test-no"><label for="test-no">なし</label>
+                                    <input type="radio" name="test" value="" id="test-any" checked>
+                                    <label for="test-any">指定なし</label>
+                                    
+                                    <input type="radio" name="test" value="あり" id="test-yes">
+                                    <label for="test-yes">あり</label>
+                                    
+                                    <input type="radio" name="test" value="なし" id="test-no">
+                                    <label for="test-no">なし</label>
                                 </div>
                             </div>
-                            <div class="filter-item">
-                                <span class="filter-label">レポート</span>
+
+                            <div>
+                                <label class="form-label">レポート</label>
                                 <div class="toggle-group">
-                                    <input type="radio" name="report" value="" id="rep-any" checked><label for="rep-any">指定なし</label>
-                                    <input type="radio" name="report" value="あり" id="rep-yes"><label for="rep-yes">あり</label>
-                                    <input type="radio" name="report" value="なし" id="rep-no"><label for="rep-no">なし</label>
+                                    <input type="radio" name="report" value="" id="rep-any" checked>
+                                    <label for="rep-any">指定なし</label>
+                                    
+                                    <input type="radio" name="report" value="あり" id="rep-yes">
+                                    <label for="rep-yes">あり</label>
+                                    
+                                    <input type="radio" name="report" value="なし" id="rep-no">
+                                    <label for="rep-no">なし</label>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- 検索ボタン -->
-                    <!-- ▼▼▼ 修正: クリアボタン追加と横並び化 ▼▼▼ -->
-                    <div class="form-action span-full" style="display: flex; gap: 10px;">
-                        <button type="submit" class="btn btn-search-compact" style="flex: 3;">検索する</button>
-                        <button type="reset" class="btn btn-clear" style="flex: 1; margin-top: 5px; border-radius: 8px; padding: 10px;">条件クリア</button>
-                    </div>
-                    <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+                
+                </div> <div class="search-action-area">
+                    <button type="submit" class="btn btn-submit">検索する</button>
+                    <button type="reset" class="btn btn-clear">条件クリア</button>
                 </div>
+
             </form>
         </div>
-        <!-- ▲▲▲ コンパクト検索フォームここまで ▲▲▲ -->
 
-        <!-- 人気の講義ランキング -->
-        <section class="ranking-section">
+        <section class="ranking-section" style="margin-top: 60px;">
             <h2 class="section-title">🏆 評価の高い講義</h2>
+
             {% if top_courses %}
                 <div class="ranking-grid">
                     {% for course in top_courses %}
@@ -141,7 +144,6 @@
             {% endif %}
         </section>
         
-        <!-- シラバス検索への誘導 -->
         <div class="syllabus-link-area">
             <p>見つからない場合はシラバスから追加</p>
             <a href="{{ url_for('search_course') }}" class="btn-text">詳細検索・講義追加へ &raquo;</a>
