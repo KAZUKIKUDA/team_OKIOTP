@@ -4,28 +4,20 @@
     <meta charset="UTF-8">
     <title>ゲストログイン</title>
     
-    <!-- ▼▼▼ Google Fonts 読み込み ▼▼▼ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- ▲▲▲ Google Fonts 読み込み ▲▲▲ -->
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-          <!-- staticフォルダにある Blueonly.png を読み込み -->
-          <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+
+    <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
 
     <div class="auth-container">
         
-        <!-- ▼▼▼ アプリタイトル ▼▼▼ -->
         <h1 class="app-title">講義レビュー</h1>
-        <!-- ▲▲▲ アプリタイトル ▲▲▲ -->
-
         <h2>ゲストログイン</h2>
-        <p style="text-align: center; font-size: 0.9em; color: #777; margin-bottom: 20px;">デモ用に、お名前だけでログインできます。</p>
         
-        <!-- ▼▼▼ flashメッセージ (構文エラー修正済み) ▼▼▼ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -33,14 +25,23 @@
             {% endfor %}
           {% endif %}
         {% endwith %}
-        <!-- ▲▲▲ flashメッセージ ▲▲▲ -->
+
+        <div class="login-description" style="text-align: left;">
+            <p><strong>デモ用ゲストモードです。</strong></p>
+            <p>メール認証を行わずに、お試し用の仮アカウントですぐにログインできます。</p>
+            <ul style="margin: 10px 0 10px 20px; padding: 0; font-size: 0.9em; color: var(--text-sub);">
+                <li>自動的にユニークなユーザー名が発行されます。</li>
+                <li>「工学部 知能情報コース 3年」として作成されます。</li>
+                <li>レビューの投稿はできません（閲覧のみ可能です）。</li>
+            </ul>
+        </div>
 
         <form method="post">
-            <input type="text" name="username" placeholder="お名前" required>
-            <button type="submit" class="btn">この名前でログイン</button>
+            <!-- 入力欄は不要 -->
+            <button type="submit" class="btn btn-guest">ゲストでログインする</button>
         </form>
-        <a href="{{ url_for('login') }}" class="auth-link">学内メールでログイン</a>
+        
+        <a href="{{ url_for('login') }}" class="auth-link">通常のログインはこちら</a>
     </div>
 </body>
 </html>
-

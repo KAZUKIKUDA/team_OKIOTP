@@ -67,6 +67,11 @@ body {
 }
 
 .user-header {
+    display: flex;
+    justify-content: flex-end; /* 右寄せ */
+    align-items: center;
+    gap: 15px; /* アイテム間の隙間 */
+    position: relative; /* ドロップダウンの基準 */
     max-width: 900px;
     margin: 0 auto 10px;
     padding: 0 25px;
@@ -89,6 +94,11 @@ body {
     background: none;
     -webkit-text-fill-color: initial;
     display: inline-block;
+}
+
+/* 講義詳細などで使う少し小さめのタイトル */
+.app-title-small {
+    font-size: 1.8em !important;
 }
 
 /* 3. Solid Containers */
@@ -204,6 +214,21 @@ input:focus, textarea:focus, select:focus {
 }
 textarea { min-height: 120px; }
 
+/* フォームラベル（ブロック表示用） */
+.form-label-block {
+    font-weight: bold;
+    color: var(--text-sub);
+    display: block;
+    text-align: left;
+    margin-bottom: 5px;
+}
+
+/* ユーティリティクラス */
+.mb-0 { margin-bottom: 0 !important; }
+.mb-15 { margin-bottom: 15px !important; }
+.mb-20 { margin-bottom: 20px !important; }
+.text-right { text-align: right; }
+
 /* 5. Flat Buttons & Invert Hover Effects */
 
 /* --- Base Button Style --- */
@@ -252,7 +277,7 @@ textarea { min-height: 120px; }
     border-color: var(--accent-color);
 }
 
-/* ▼▼▼ 修正: 使い方 (Help) Button ▼▼▼ */
+/* ▼▼▼ 修正: 使い方 (Help) / 高速レビュー Button ▼▼▼ */
 .btn-help {
     display: inline-block;
     width: auto;
@@ -260,7 +285,6 @@ textarea { min-height: 120px; }
     font-size: 0.9em;
     border-radius: 50px;
     
-    /* Default: Primary Bg (Solid Blue), White Text */
     background-color: var(--primary-color);
     color: #fff;
     border: 2px solid var(--primary-color);
@@ -270,12 +294,23 @@ textarea { min-height: 120px; }
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .btn-help:hover {
-    /* Hover: White Bg, Primary Text (Invert) */
     background-color: #fff;
     color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
+
+/* 赤いアクセントボタン（高速レビューなど） */
+.btn-accent {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: white !important;
+}
+.btn-accent:hover {
+    background-color: #fff !important;
+    color: var(--accent-color) !important;
+}
+
 /* ▲▲▲ 修正ここまで ▲▲▲ */
 
 /* --- 3. Guest Login / View Only Buttons (Neutral) --- */
@@ -355,13 +390,10 @@ textarea { min-height: 120px; }
     border: 2px solid #94a3b8;
     color: #fff;
 }
-/* ▼▼▼ 修正: クリアボタンのホバーで反転 ▼▼▼ */
 .btn-clear:hover {
     background-color: #fff;
     color: #94a3b8;
-    /* border-colorは元々指定されているのでそのまま */
 }
-/* ▲▲▲ 修正ここまで ▲▲▲ */
 
 /* --- 8. View / Add Review Buttons (Action Row) --- */
 .action-btn {
@@ -683,16 +715,15 @@ a:hover { color: #0284c7; text-decoration: underline; text-decoration-thickness:
 .radio-group input[type="radio"]:checked + span::before { display: none; }
 .radio-group input[type="radio"] { display: none; }
 .radio-group span { margin-left: 0; }
-/* ▼▼▼ 追加: 縦並び用のラジオグループ ▼▼▼ */
+/* 縦並び用のラジオグループ */
 .radio-group.vertical {
     flex-direction: column;
     align-items: flex-start;
 }
 .radio-group.vertical label {
-    width: 100%; /* 横幅いっぱいに広げる */
+    width: 100%;
     box-sizing: border-box;
 }
-/* ▲▲▲ 追加ここまで ▲▲▲ */
 
 section h2 {
     font-size: 1.6em;
@@ -718,16 +749,36 @@ section h2::after {
     border-radius: 10px;
 }
 
+/* ▼▼▼ 修正: テーブルレイアウト崩れ防止のため display: flex を削除 ▼▼▼ */
 .sortable-header {
     cursor: pointer;
     user-select: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    /* display: flex;  <-- テーブル構造を壊すため削除 */
+    /* align-items: center; <-- 削除 */
+    /* justify-content: center; <-- 削除 */
+    vertical-align: middle;
 }
 .sortable-header:hover {
     color: var(--primary-color);
 }
+
+/* リンク側でフレックスボックスを使って配置を整える */
+a.sort-link {
+    color: var(--text-sub);
+    text-decoration: none;
+    display: flex;           /* ここでFlexboxを使用 */
+    align-items: center;
+    justify-content: center; /* 中央揃え */
+    gap: 5px;
+    transition: color 0.2s;
+    font-weight: 700;
+    width: 100%;            /* セル全体をクリック可能に */
+    height: 100%;
+}
+a.sort-link:hover {
+    color: var(--primary-color);
+}
+/* ▲▲▲ 修正ここまで ▲▲▲ */
 
 /* =========================================
    ▼▼▼ Reaction Buttons (New) ▼▼▼
@@ -809,8 +860,7 @@ section h2::after {
     color: #3f51b5;
 }
 
-/* ▼▼▼ 追加: 講義確認画面のボタンスタイル ▼▼▼ */
-/* Confirmation Actions (Stacked) */
+/* 講義確認画面のボタンスタイル */
 .confirmation-actions {
     display: flex;
     flex-direction: column;
@@ -825,22 +875,21 @@ section h2::after {
 }
 .confirmation-actions .btn-cancel {
     width: auto;
-    align-self: flex-start; /* 左寄せ */
+    align-self: flex-start;
     margin: 0;
     text-align: center;
     background-color: #fff;
     border: 2px solid var(--text-main);
     color: var(--text-main);
-    padding: 8px 20px; /* サイズを小さく */
-    border-radius: 8px; /* 角丸も少し小さく */
-    font-size: 0.9em; /* 文字サイズも少し小さく */
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 0.9em;
     font-weight: 700;
 }
 .confirmation-actions .btn-cancel:hover {
     background-color: var(--text-main);
     color: #fff;
 }
-/* ▲▲▲ 追加ここまで ▲▲▲ */
 
 /* =========================================
    ▼▼▼ Compact Top Page Styles (New) ▼▼▼
@@ -849,7 +898,7 @@ section h2::after {
 /* Compact Container */
 .compact-container {
     padding: 20px 30px;
-    max-width: 1000px; /* 800px -> 1000px に戻す */
+    max-width: 1000px;
 }
 
 /* Search Panel Card */
@@ -894,20 +943,18 @@ section h2::after {
     border-radius: 8px;
     font-size: 0.95em;
     background: #f8fafc;
-    margin-bottom: 0; /* Override default */
+    margin-bottom: 0;
 }
 .compact-input:focus, .compact-select:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
 
-/* ▼▼▼ Toggle Buttons (New Style) ▼▼▼ 
-   修正: 色合いをテーマカラー(水色)に合わせ、背景を白+枠線に変更
-*/
+/* Toggle Buttons (New Style) */
 .toggle-group {
     display: flex;
-    background: #ffffff;       /* 背景をグレーから白に変更 */
-    border: 1px solid #e2e8f0; /* 薄い枠線を追加 */
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 4px;
     gap: 0;
@@ -925,23 +972,23 @@ section h2::after {
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.9em;
-    color: var(--text-sub);    /* 文字色を少し薄く */
+    color: var(--text-sub);
     font-weight: 600;
     margin: 0;
     border: none;
     box-shadow: none;
 }
 
-/* 選択された状態 (Checked): 背景を水色、文字を白に */
+/* 選択された状態 (Checked) */
 .toggle-group input:checked + label {
-    background: var(--primary-color); /* ★ここを水色(#0ea5e9)に変更 */
+    background: var(--primary-color);
     color: #ffffff;
-    box-shadow: 0 1px 3px rgba(14, 165, 233, 0.3); /* 影も水色系に */
+    box-shadow: 0 1px 3px rgba(14, 165, 233, 0.3);
 }
 
 /* 未選択ボタンのホバー時 */
 .toggle-group label:hover {
-    background-color: #f1f5f9; /* ホバー時は薄いグレーに */
+    background-color: #f1f5f9;
     color: var(--primary-color);
 }
 
@@ -955,6 +1002,10 @@ section h2::after {
 }
 
 /* Ranking Cards */
+.ranking-section {
+    margin-top: 60px;
+}
+
 .ranking-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1043,15 +1094,13 @@ section h2::after {
    ▼▼▼ Tinder-like Swipe UI (New) ▼▼▼
 ========================================= */
 
-/* 画面全体を覆うコンテナ（中央寄せ） */
 .swipe-mode-container {
-    max-width: 500px; /* スマホで見やすい幅 */
+    max-width: 500px;
     margin: 40px auto;
     text-align: center;
     padding: 20px;
 }
 
-/* カードのデザイン */
 .swipe-card {
     background: var(--card-bg);
     border-radius: 24px;
@@ -1068,7 +1117,6 @@ section h2::after {
     transition: transform 0.3s ease;
 }
 
-/* 講義名 */
 .swipe-card h3 {
     font-size: 1.8em;
     color: var(--primary-color);
@@ -1076,7 +1124,6 @@ section h2::after {
     line-height: 1.4;
 }
 
-/* 教員名など */
 .swipe-card p {
     font-size: 1.1em;
     color: var(--text-sub);
@@ -1084,7 +1131,6 @@ section h2::after {
     font-weight: 600;
 }
 
-/* 操作ボタンエリア */
 .swipe-actions {
     display: flex;
     justify-content: space-between;
@@ -1092,7 +1138,6 @@ section h2::after {
     padding: 0 20px;
 }
 
-/* 共通ボタン設定 */
 .btn-swipe {
     flex: 1;
     padding: 15px 0;
@@ -1112,21 +1157,18 @@ section h2::after {
     transform: scale(0.95);
 }
 
-/* スキップボタン（左） */
 .btn-skip {
     background-color: #f1f5f9;
     color: #64748b;
     border: 2px solid #cbd5e1;
 }
 
-/* 受講したボタン（右） */
 .btn-taken {
     background-color: var(--primary-color);
     color: white;
     border: 2px solid var(--primary-color);
 }
 
-/* 即時評価用の星ボタンエリア */
 .quick-rating-area {
     margin-top: 25px;
     animation: fadeIn 0.3s ease;
@@ -1141,7 +1183,7 @@ section h2::after {
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
-    color: #cbd5e1; /* グレー */
+    color: #cbd5e1;
 }
 .quick-star-btn:hover {
     border-color: var(--warning-color);
@@ -1163,27 +1205,23 @@ section h2::after {
 
 /* =========================================
    ▼▼▼ 2-Column Search Layout (FIXED) ▼▼▼
-   ここが「配置」を決めている部分です
 ========================================= */
 
-/* 左右に分割する設定 */
 .search-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 1対1の比率で分割 */
-    gap: 40px;                      /* 真ん中の隙間 */
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
     align-items: start;
     margin-bottom: 30px;
 }
 
-/* スマホ用の設定（画面が狭いときは縦並びに戻す） */
 @media (max-width: 768px) {
     .search-grid {
-        grid-template-columns: 1fr; /* 1列にする */
+        grid-template-columns: 1fr;
         gap: 30px;
     }
 }
 
-/* 右側のボックス（グレーの枠線など）の設定 */
 .search-criteria-box {
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -1193,8 +1231,210 @@ section h2::after {
     box-sizing: border-box;
 }
 
-/* その他の調整用 */
 .search-left {
     display: flex;
     flex-direction: column;
+}
+
+/* =========================================
+   ▼▼▼ Added Styles (Pagination & Utils) ▼▼▼
+========================================= */
+
+/* Pagination Styles */
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 10px;
+}
+
+.per-page-form {
+    text-align: right;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.per-page-form select {
+    width: auto;
+    padding: 5px 25px 5px 10px;
+    margin-left: 5px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background-color: #fff;
+    display: inline-block;
+    margin-bottom: 0;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+}
+
+.pagination a, .pagination span {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: var(--primary-color);
+    transition: all 0.2s;
+    min-width: 40px;
+    text-align: center;
+}
+
+.pagination a:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.pagination .active {
+    background-color: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+    font-weight: bold;
+}
+
+.pagination .ellipsis {
+    border: none;
+    background: none;
+    color: var(--text-sub);
+}
+
+/* =========================================
+   ▼▼▼ Dropdown Logic Fixes (Hover & Focus) ▼▼▼
+========================================= */
+
+/* ドロップダウンコンテナ */
+.dropdown {
+    position: relative;
+    display: inline-block;
+    outline: none; /* クリック時の枠線を消す */
+    z-index: 1001; /* ロゴより手前に */
+}
+
+/* ホバー判定の強化: 透明な疑似要素で領域を拡張 */
+/* これにより、カーソルを少し離してもメニューが消えなくなります */
+.dropdown::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 40px; /* カーソル移動の猶予領域 */
+    background: transparent;
+}
+
+/* トリガーボタン（ユーザー名など） */
+.dropbtn {
+    background-color: transparent;
+    color: var(--text-sub); /* text-main から変更 */
+    padding: 8px 12px; /* 少しパディングを調整 */
+    font-size: 0.95em;
+    border: 1px solid transparent; 
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.dropbtn:hover,
+.dropdown:focus-within .dropbtn {
+    background-color: #fff;
+    color: var(--primary-color);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* ドロップダウンの中身 */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0; 
+    top: calc(100% + 5px); 
+    background-color: #ffffff;
+    min-width: 200px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    z-index: 2000;
+    overflow: hidden;
+    padding: 5px;
+    animation: slideDown 0.2s ease forwards;
+    transform-origin: top right;
+}
+
+/* ホバー時 または フォーカス内にいる時に表示 */
+.dropdown:hover .dropdown-content,
+.dropdown:focus-within .dropdown-content {
+    display: block;
+}
+
+/* ドロップダウン内のリンク */
+.dropdown-content a {
+    color: var(--text-main);
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.95em;
+    transition: background-color 0.1s, color 0.1s;
+    text-align: left;
+    font-weight: 500;
+    border-radius: 8px;
+}
+
+.dropdown-content a:hover {
+    background-color: #f0f9ff;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+/* ログアウトだけ少し色を変える（任意） */
+.dropdown-content a.logout-item {
+    color: var(--text-sub);
+    border-top: 1px dashed #e2e8f0;
+    margin-top: 5px;
+    padding-top: 12px;
+    border-radius: 0 0 8px 8px;
+}
+.dropdown-content a.logout-item:hover {
+    background-color: #fef2f2;
+    color: var(--accent-color);
+}
+
+/* アニメーション */
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 高速レビューボタン（ヘッダー用） */
+.header-action-btn {
+    background-color: var(--accent-color);
+    color: white !important;
+    padding: 8px 18px;
+    border-radius: 50px;
+    font-size: 0.9em;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 2px 6px rgba(244, 63, 94, 0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid var(--accent-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.header-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
+    color: var(--accent-color) !important;
+    background-color: #fff;
+    text-decoration: none;
 }

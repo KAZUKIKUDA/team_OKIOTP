@@ -29,7 +29,8 @@
             <input type="text" name="username" placeholder="ユーザー名" required>
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
             
-            <label style="font-weight: bold; color: var(--text-sub); display: block; text-align: left; margin-bottom: 5px;">学部</label>
+            <!-- インラインスタイルをクラスに置換 -->
+            <label class="form-label-block">学部</label>
             <div class="form-group">
                 <select name="faculty" required>
                     <option value="">--------</option>
@@ -43,10 +44,11 @@
                 </select>
             </div>
 
-            <label style="font-weight: bold; color: var(--text-sub); display: block; text-align: left; margin-bottom: 5px;">学科・コース</label>
-            <input type="text" name="department" placeholder="例: 知能情報コース" required style="margin-bottom: 20px;">
+            <label class="form-label-block">学科・コース</label>
+            <!-- インラインスタイルをユーティリティクラスに置換 -->
+            <input type="text" name="department" placeholder="例: 知能情報コース" required class="mb-20">
 
-            <label style="font-weight: bold; color: var(--text-sub); display: block; text-align: left; margin-bottom: 5px;">学年</label>
+            <label class="form-label-block">学年</label>
             <div class="form-group">
                 <select name="grade" required>
                     <option value="">--------</option>

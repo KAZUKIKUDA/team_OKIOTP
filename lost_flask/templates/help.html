@@ -6,11 +6,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- CSSバージョンを更新 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
     <style>
         .tutorial-container {
             max-width: 800px;
-            margin: 0 auto 50px;
+            margin: 60px auto 50px; /* ヘッダーとの距離を調整 */
+            padding: 0 20px;
         }
         .step-card {
             background: #fff;
@@ -43,6 +45,11 @@
             margin-top: 0;
             color: var(--primary-color);
             margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        .step-content p {
+            line-height: 1.8;
+            color: #334155;
         }
         .step-icon {
             font-size: 3em;
@@ -74,19 +81,41 @@
         }
         .welcome-header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 50px;
         }
         .welcome-header h1 {
             color: var(--primary-color);
-            font-size: 2em;
+            font-size: 2.2em;
             margin-bottom: 10px;
+            font-weight: 800;
         }
     </style>
 </head>
 <body>
+    <!-- ▼▼▼ ロゴ（リンク付き） ▼▼▼ -->
+    <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+
+    <!-- ▼▼▼ ヘッダー（ドロップダウン統一版） ▼▼▼ -->
     <div class="user-header">
-        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
     </div>
+    <!-- ▲▲▲ ヘッダーここまで ▲▲▲ -->
 
     <div class="tutorial-container">
         <div class="welcome-header">
@@ -97,24 +126,32 @@
         <div class="step-card">
             <div class="step-number">1</div>
             <div class="step-content">
-                <h3>🔍講義を探す</h3>
-                <p>トップページから講義名や教員名で検索できます。「オンライン」や「レポートの有無」など、細かい条件で絞り込むことも可能です。</p>
+                <h3>🔍 講義を探す</h3>
+                <p>トップページから講義名や教員名で検索できます。「オンライン」や「レポートの有無」など、細かい条件で絞り込むことも可能です。気になった講義を見つけたら詳細をチェックしましょう。</p>
             </div>
         </div>
 
         <div class="step-card">
             <div class="step-number">2</div>
             <div class="step-content">
-                <h3>👀レビューを見る・投稿する</h3>
-                <p>気になる講義のリアルな評価をチェック。自分が受けた講義のレビューを投稿して、後輩たちの役に立つこともできます。</p>
+                <h3>👀 レビューを見る・投稿する</h3>
+                <p>講義ごとの詳細ページで、先輩たちのリアルな評価（出席確認の方法やテストの難易度など）を確認できます。自分が受けた講義のレビューを投稿して、後輩たちの役に立つこともできます。</p>
             </div>
         </div>
 
         <div class="step-card">
             <div class="step-number">3</div>
             <div class="step-content">
-                <h3>✍️リアクションする</h3>
-                <p>参考になったレビューには「共感した」「なるほど」ボタンで感謝を伝えましょう。</p>
+                <h3>⚡ 高速レビューでサクサク投稿</h3>
+                <p>ヘッダーの<strong>「⚡ 高速レビュー」</strong>ボタンを押すと、まだ評価していない講義がカード形式で次々と表示されます。受講した講義があれば、直感的な操作で素早く評価を投稿できます。隙間時間の活用におすすめです。</p>
+            </div>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <h3>✍️ リアクションする</h3>
+                <p>参考になったレビューには「共感した」「なるほど」ボタンで感謝を伝えましょう。良い情報共有のサイクルを作る手助けになります。</p>
             </div>
         </div>
 

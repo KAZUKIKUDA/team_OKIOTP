@@ -6,72 +6,35 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        /* ページネーション用CSS（簡易追加） */
-        .per-page-form {
-            text-align: right;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-        }
-        .per-page-form select {
-            width: auto;
-            padding: 5px 25px 5px 10px;
-            margin-left: 5px;
-            border-radius: 6px;
-            border: 1px solid #cbd5e1;
-            background-color: #fff;
-            display: inline-block;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
-        .pagination a, .pagination span {
-            display: inline-block;
-            padding: 8px 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            border: 1px solid #e2e8f0;
-            background: #fff;
-            color: var(--primary-color);
-            transition: all 0.2s;
-            min-width: 40px;
-            text-align: center;
-        }
-        .pagination a:hover {
-            background-color: #f1f5f9;
-            border-color: #cbd5e1;
-        }
-        .pagination .active {
-            background-color: var(--primary-color);
-            color: #fff;
-            border-color: var(--primary-color);
-            font-weight: bold;
-        }
-        .pagination .ellipsis {
-            border: none;
-            background: none;
-            color: var(--text-sub);
-        }
-    </style>
+    <!-- CSSのバージョンを更新してキャッシュクリア -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=layout_fix_v2">
+    <!-- inline style removed; moved to style.css -->
 </head>
 <body>
-    <!-- ▼▼▼【！！追加！！】大学ロゴバナー ▼▼▼ -->
     <a href="{{ url_for('index') }}">
-        <!-- staticフォルダにある Blueonly.png を読み込み -->
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
-    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
+    
+    <!-- ▼▼▼ ドロップダウンヘッダー ▼▼▼ -->
     <div class="user-header">
-        <span>こんにちは, {{ current_user.username }} さん</span>
-        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <!-- tabindex="0" を追加してフォーカス可能にする -->
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
     </div>
+    <!-- ▲▲▲ ここまで ▲▲▲ -->
 
     <div class="container">
         <header class="main-header">
@@ -92,12 +55,10 @@
 
         <section>
             {% if pagination.items %}
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
-                    <p style="margin: 0;">全 {{ pagination.total }} 件中 {{ (pagination.page - 1) * pagination.per_page + 1 }} - {{ [(pagination.page * pagination.per_page), pagination.total] | min }} 件を表示</p>
+                <div class="results-header">
+                    <p class="mb-0">全 {{ pagination.total }} 件中 {{ (pagination.page - 1) * pagination.per_page + 1 }} - {{ [(pagination.page * pagination.per_page), pagination.total] | min }} 件を表示</p>
                     
-                    <!-- ▼▼▼ 件数選択フォーム ▼▼▼ -->
-                    <form method="get" action="{{ url_for('search_course') }}" class="per-page-form" style="margin: 0;">
-                        <!-- 現在のフィルター条件をhiddenで保持 -->
+                    <form method="get" action="{{ url_for('search_course') }}" class="per-page-form">
                         {% for key, value in form_data.items() %}
                             {% if key != 'per_page' %}
                                 <input type="hidden" name="{{ key }}" value="{{ value }}">
@@ -114,23 +75,51 @@
                             <option value="all" {% if form_data.per_page == 'all' %}selected{% endif %}>全件</option>
                         </select>
                     </form>
-                    <!-- ▲▲▲ 件数選択フォーム ▲▲▲ -->
                 </div>
+
+                <!-- ▼▼▼ ソートリンク用マクロ ▼▼▼ -->
+                {% macro sort_link(key, label) %}
+                    {% set current_sort = form_data.sort %}
+                    {% set current_order = form_data.order %}
+                    {% set new_order = 'asc' if current_sort == key and current_order == 'desc' else 'desc' %}
+                    
+                    <!-- 既存のパラメータをコピーしてURLを構築 -->
+                    <a href="{{ url_for('search_course', 
+                        sort=key, order=new_order,
+                        lecture_name=form_data.lecture_name,
+                        teacher_name=form_data.teacher_name,
+                        department=form_data.department,
+                        course_format=form_data.course_format,
+                        attendance=form_data.attendance,
+                        test=form_data.test,
+                        report=form_data.report,
+                        per_page=form_data.per_page,
+                        page=1
+                    ) }}" class="sort-link">
+                        {{ label }}
+                        {% if current_sort == key %}
+                            <span style="color: var(--primary-color);">{{ '▼' if current_order == 'desc' else '▲' }}</span>
+                        {% else %}
+                            <span style="color: #cbd5e1; font-size: 0.8em;">▼</span>
+                        {% endif %}
+                    </a>
+                {% endmacro %}
+                <!-- ▲▲▲ マクロここまで ▲▲▲ -->
 
                 <table class="search-results-table">
                     <thead>
                         <tr>
                             <th>講義名</th>
                             <th>担当教員</th>
-                            <!-- ▼▼▼ ソート機能付きヘッダー ▼▼▼ -->
-                            <th class="sortable-header" onclick="toggleSort()">
-                                総合評価 <span id="sort-icon" class="sort-icon">▼</span>
+                            <th class="sortable-header">
+                                {{ sort_link('rating', '総合評価') }}
                             </th>
-                            <!-- ▲▲▲ ソート機能付きヘッダー ▲▲▲ -->
-                            <th>レビュー件数</th>
+                            <th class="sortable-header">
+                                {{ sort_link('reviews', 'レビュー件数') }}
+                            </th>
                         </tr>
                     </thead>
-                    <tbody id="results-body">
+                    <tbody>
                         {% for course in pagination.items %}
                         <tr class="selectable-row" data-course-id="{{ course.id }}" data-course-name="{{ course.name }}">
                             <td>{{ course.name }}</td>
@@ -140,9 +129,8 @@
                         </tr>
                         {% endfor %}
                         
-                        <!-- アクション行 (詳細はJavaScriptで移動・表示) -->
                         <tr id="action-row" class="action-row-container" style="display: none;">
-                            <td colspan="4"> <!-- 列数に合わせてcolspanを4に変更 -->
+                            <td colspan="4">
                                 <div class="action-buttons-content"> 
                                     <h3 id="selected-course-name"></h3>
                                     <a id="view-review-btn" href="#" class="action-btn">レビューを閲覧する</a>
@@ -153,7 +141,6 @@
                     </tbody>
                 </table>
 
-                <!-- ▼▼▼ ページネーションリンク ▼▼▼ -->
                 <div class="pagination">
                     {% if pagination.has_prev %}
                         <a href="{{ url_for('search_course', page=pagination.prev_num, **form_data) }}">&laquo; 前へ</a>
@@ -175,21 +162,22 @@
                         <a href="{{ url_for('search_course', page=pagination.next_num, **form_data) }}">次へ &raquo;</a>
                     {% endif %}
                 </div>
-                <!-- ▲▲▲ ページネーションリンク ▲▲▲ -->
 
             {% else %}
                 <p>該当する講義は見つかりませんでした。</p>
             {% endif %}
         </section>
 
-        <a href="{{ url_for('index') }}" class="back-link">検索に戻る (ホーム)</a>
+        <div style="margin-top: 60px;">
+            <a href="{{ url_for('index') }}" class="back-link">検索に戻る (ホーム)</a>
+        </div>
         <hr>
 
         {% if not current_user.email.endswith('@demo.com') %}
         <section>
             <h2>お探しの講義が見つかりませんか？</h2>
 
-            <p style="text-align: center; margin-bottom: 20px;">
+            <p class="mb-20" style="text-align: center;">
                 <a href="https://tiglon.jim.u-ryukyu.ac.jp/Portal/Public/Syllabus/SearchMain.aspx" 
                    target="_blank" rel="noopener noreferrer" 
                    class="btn btn-syllabus">
@@ -245,58 +233,9 @@
                 });
             });
         });
-
-        // ▼▼▼ ソート機能 ▼▼▼
-        let isAscending = true; // 初期値をtrueにしておき、最初のクリックでfalse(降順)にする
-
-        function toggleSort() {
-            const tbody = document.getElementById('results-body');
-            const rows = Array.from(document.querySelectorAll('.selectable-row'));
-            const actionRow = document.getElementById('action-row');
-            const sortIcon = document.getElementById('sort-icon');
-
-            // アクション行を一時退避
-            if(actionRow) {
-                actionRow.style.display = 'none';
-                tbody.appendChild(actionRow);
-            }
-
-            // フラグを反転 (初回クリック: true -> false = 降順)
-            isAscending = !isAscending;
-
-            // ソート実行
-            rows.sort((a, b) => {
-                // 3列目(index 2)のテキスト "★ 3.50" を取得
-                const textA = a.cells[2].innerText.replace('★', '').trim();
-                const textB = b.cells[2].innerText.replace('★', '').trim();
-
-                let valA = parseFloat(textA);
-                let valB = parseFloat(textB);
-
-                // "評価なし" は -1 扱い
-                if (isNaN(valA)) valA = -1;
-                if (isNaN(valB)) valB = -1;
-
-                if (isAscending) {
-                    // 昇順 (低い順) 1 -> 5
-                    return valA - valB; 
-                } else {
-                    // 降順 (高い順) 5 -> 1
-                    return valB - valA;
-                }
-            });
-
-            // 再配置
-            rows.forEach(row => tbody.appendChild(row));
-            
-            // アクション行を戻す
-            if(actionRow) {
-                tbody.appendChild(actionRow);
-            }
-
-            // アイコン更新: ▲=昇順(低い順), ▼=降順(高い順)
-            sortIcon.textContent = isAscending ? '▲' : '▼'; 
-        }
+        /* 以前の toggleSort (JavaScriptソート) は削除しました。
+           現在はサーバーサイドで全件ソートを行っています。
+        */
     </script>
 </body>
 </html>

@@ -4,6 +4,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import uuid
+import datetime # 追加
+import random   # 追加
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from config import Config
 from flask_migrate import Migrate
@@ -294,6 +296,9 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         password_confirm = request.form.get('password_confirm')
+        faculty = request.form.get('faculty')
+        department = request.form.get('department')
+        grade = request.form.get('grade')
         
         if password != password_confirm:
             flash('パスワードが一致しません。', 'danger')
@@ -311,7 +316,15 @@ def register():
 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-            new_user = User(username=username, email=email, password=hashed_password, is_verified=False)
+            new_user = User(
+                username=username, 
+                email=email, 
+                password=hashed_password, 
+                is_verified=False,
+                faculty=faculty,
+                department=department,
+                grade=grade
+            )
             db.session.add(new_user)
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -419,32 +432,50 @@ def login():
         return redirect(next_page or url_for('index'))
     return render_template('login.html')
 
+# ▼▼▼ 修正: 完全自動ゲストログイン ▼▼▼
 @app.route('/guest_login', methods=['GET', 'POST'])
 def guest_login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+    
     if request.method == 'POST':
-        username = request.form.get('username')
-        if not username:
-            flash('お名前を入力してください。', 'danger')
-            return redirect(url_for('guest_login'))
-        if User.query.filter_by(username=username).first():
-            flash('その名前は登録済みのユーザーが使用しています。', 'danger')
-            return redirect(url_for('guest_login'))
         try:
-            guest_email = f"guest_{uuid.uuid4().hex}@demo.com"
+            # ランダムなサフィックスを生成 (例: 8f3d)
+            random_suffix = uuid.uuid4().hex[:4]
+            # ユニークな名前を生成 (例: ゲスト_8f3d)
+            guest_username = f"ゲスト_{random_suffix}"
+            
+            # ユニークなメールアドレスを生成
+            guest_email = f"guest_{uuid.uuid4().hex[:8]}@demo.com"
+            
+            # ランダムなパスワード
             hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}", method='pbkdf2:sha256')
-            new_guest_user = User(username=username, email=guest_email, password=hashed_password, is_verified=True)
+            
+            new_guest_user = User(
+                username=guest_username,
+                email=guest_email, 
+                password=hashed_password, 
+                is_verified=True,
+                faculty='工学部',        # デモ用デフォルト
+                department='知能情報コース', # デモ用デフォルト
+                grade='3年'             # デモ用デフォルト
+            )
+            
             db.session.add(new_guest_user)
             db.session.commit() 
+            
             login_user(new_guest_user)
-            flash(f'{username}さんとしてゲストログインしました。', 'success')
+            flash(f'{guest_username} としてログインしました。（デモ用）', 'success')
             return redirect(url_for('index'))
+            
         except Exception as e:
             db.session.rollback()
-            flash('エラーが発生しました。', 'danger')
+            app.logger.error(f"Guest login error: {e}")
+            flash('エラーが発生しました。もう一度お試しください。', 'danger')
             return redirect(url_for('guest_login'))
+            
     return render_template('guest_login.html')
+# ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/logout')
 @login_required
@@ -521,6 +552,11 @@ def search_course():
     def get_param(key):
         return request.args.get(key) or request.form.get(key) or ''
 
+    # ▼▼▼ 修正: ソート条件の取得 ▼▼▼
+    sort_key = get_param('sort') or 'id'
+    sort_order = get_param('order') or 'desc'
+    # ▲▲▲ 修正ここまで ▲▲▲
+
     form_data = {
         'lecture_name': get_param('lecture_name'),
         'teacher_name': get_param('teacher_name'),
@@ -529,7 +565,9 @@ def search_course():
         'attendance': get_param('attendance'),
         'test': get_param('test'),
         'report': get_param('report'),
-        'per_page': per_page_str # 状態維持のため保存
+        'per_page': per_page_str,
+        'sort': sort_key,    # 追加
+        'order': sort_order  # 追加
     }
     
     # クエリ構築
@@ -576,6 +614,28 @@ def search_course():
                 filtered_results.append(c)
     else:
         filtered_results = base_results
+
+    # ▼▼▼ 追加: 全件ソートロジック (ページ分けの前に行う) ▼▼▼
+    reverse = (sort_order == 'desc')
+
+    if sort_key == 'rating':
+        # 評価順: "評価なし" は -1.0 として扱う
+        def get_rating_value(c):
+            try:
+                return float(c.star_rating)
+            except:
+                return -1.0
+        filtered_results.sort(key=get_rating_value, reverse=reverse)
+        
+    elif sort_key == 'reviews':
+        # レビュー件数順
+        filtered_results.sort(key=lambda c: len(c.reviews), reverse=reverse)
+        
+    else:
+        # デフォルト (ID順)
+        # filtered_results は一度リスト化されているため、明示的にソートし直す
+        filtered_results.sort(key=lambda c: c.id, reverse=reverse)
+    # ▲▲▲ 追加ここまで ▲▲▲
 
     # ページネーション処理
     if per_page_str == 'all':
@@ -780,6 +840,60 @@ def edit_review(review_id):
             flash('更新中にエラーが発生しました。', 'danger')
 
     return render_template('edit_review.html', review=review, course=review.course)
+# ▲▲▲ 追加ここまで ▲▲▲
+
+# ▼▼▼ 追加: レビュー削除機能 ▼▼▼
+@app.route('/delete_review/<int:review_id>', methods=['POST'])
+@login_required
+def delete_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    # 権限チェック (本人以外は削除不可)
+    if review.user_id != current_user.id:
+        flash('他のユーザーのレビューは削除できません。', 'danger')
+        return redirect(url_for('course_detail', id=review.course_id))
+    
+    try:
+        course_id = review.course_id
+        db.session.delete(review)
+        db.session.commit()
+        flash('レビューを削除しました。', 'success')
+        return redirect(url_for('course_view_detail', id=course_id))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Delete review error: {e}")
+        flash('削除中にエラーが発生しました。', 'danger')
+        return redirect(url_for('course_view_detail', id=review.course_id))
+# ▲▲▲ 追加ここまで ▲▲▲
+
+# ▼▼▼ 追加: マイページ（プロフィール編集） ▼▼▼
+@app.route('/mypage', methods=['GET', 'POST'])
+@login_required
+def mypage():
+    if request.method == 'POST':
+        try:
+            # ゲストユーザーは変更できないようにする場合
+            if current_user.email.endswith('@demo.com'):
+                flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
+                return redirect(url_for('mypage'))
+
+            current_user.username = request.form.get('username')
+            # emailの変更は再認証が必要になるため今回はスキップするか、読み取り専用として扱う
+            current_user.faculty = request.form.get('faculty')
+            current_user.department = request.form.get('department')
+            current_user.grade = request.form.get('grade')
+            
+            db.session.commit()
+            flash('プロフィールを更新しました。', 'success')
+        except IntegrityError:
+            db.session.rollback()
+            flash('そのユーザー名は既に使用されています。', 'danger')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Profile update error: {e}")
+            flash('更新中にエラーが発生しました。', 'danger')
+        return redirect(url_for('mypage'))
+        
+    return render_template('mypage.html', user=current_user)
 # ▲▲▲ 追加ここまで ▲▲▲
 
 if __name__ == '__main__':

@@ -7,19 +7,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=layout_fix_v1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=layout_fix_v4">
 </head>
 <body>
     <a href="{{ url_for('index') }}">
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
     
+    <!-- ▼▼▼ 修正: ドロップダウンヘッダー ▼▼▼ -->
     <div class="user-header">
-        <span>こんにちは, {{ current_user.username }} さん</span>
-        <a href="{{ url_for('swipe_page') }}" class="btn-help" style="background-color: #f43f5e; border-color: #f43f5e; color: white;">⚡ 高速レビュー</a>
-        <a href="{{ url_for('help_page') }}" class="btn-help">使い方</a>
-        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
     </div>
+    <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
     <div class="container">
         <header class="main-header">
@@ -32,14 +45,13 @@
                 <div class="search-grid">
                     
                     <div class="search-left">
-                        
-                        <label class="form-label">講義名 / キーワード</label>
+                        <label class="form-label-block">講義名 / キーワード</label>
                         <input type="text" name="lecture_name" placeholder="講義名を入力（一部でも検索できます）" value="{{ form_data.lecture_name if form_data else '' }}">
 
-                        <label class="form-label">教員名</label>
+                        <label class="form-label-block">教員名</label>
                         <input type="text" name="teacher_name" placeholder="教員名を入力（一部でも検索できます）" value="{{ form_data.teacher_name if form_data else '' }}">
 
-                        <label class="form-label">開講学部</label>
+                        <label class="form-label-block">開講学部</label>
                         <select name="department">
                             <option value="">--------</option>
                             <option value="工学部">工学部</option>
@@ -52,8 +64,8 @@
                             <option value="共通教育等">共通教育等</option>
                         </select>
 
-                        <label class="form-label">授業形式</label>
-                        <select name="course_format" style="margin-bottom: 0;">
+                        <label class="form-label-block">授業形式</label>
+                        <select name="course_format" class="mb-0">
                             <option value="">--------</option>
                             <option value="対面">対面</option>
                             <option value="オンライン">オンライン</option>
@@ -63,47 +75,41 @@
 
                     <div class="search-right">
                         <div class="search-criteria-box">
-                            <p class="criteria-description">
+                            <p class="criteria-description mb-15">
                                 レビューに基づき、最も多い回答（最頻値）で検索します。
                             </p>
 
-                            <div style="margin-bottom: 15px;">
-                                <label class="form-label">出席</label>
+                            <div class="mb-15">
+                                <label class="form-label-block">出席</label>
                                 <div class="toggle-group">
                                     <input type="radio" name="attendance" value="" id="att-any" checked>
                                     <label for="att-any">指定なし</label>
-                                    
                                     <input type="radio" name="attendance" value="あり" id="att-yes">
                                     <label for="att-yes">あり</label>
-                                    
                                     <input type="radio" name="attendance" value="なし" id="att-no">
                                     <label for="att-no">なし</label>
                                 </div>
                             </div>
 
-                            <div style="margin-bottom: 15px;">
-                                <label class="form-label">テスト</label>
+                            <div class="mb-15">
+                                <label class="form-label-block">テスト</label>
                                 <div class="toggle-group">
                                     <input type="radio" name="test" value="" id="test-any" checked>
                                     <label for="test-any">指定なし</label>
-                                    
                                     <input type="radio" name="test" value="あり" id="test-yes">
                                     <label for="test-yes">あり</label>
-                                    
                                     <input type="radio" name="test" value="なし" id="test-no">
                                     <label for="test-no">なし</label>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="form-label">レポート</label>
+                                <label class="form-label-block">レポート</label>
                                 <div class="toggle-group">
                                     <input type="radio" name="report" value="" id="rep-any" checked>
                                     <label for="rep-any">指定なし</label>
-                                    
                                     <input type="radio" name="report" value="あり" id="rep-yes">
                                     <label for="rep-yes">あり</label>
-                                    
                                     <input type="radio" name="report" value="なし" id="rep-no">
                                     <label for="rep-no">なし</label>
                                 </div>
@@ -111,15 +117,17 @@
                         </div>
                     </div>
                 
-                </div> <div class="search-action-area">
-                    <button type="submit" class="btn btn-submit">検索する</button>
-                    <button type="reset" class="btn btn-clear">条件クリア</button>
+                </div> 
+                
+                <div class="search-action-area" style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="submit" class="btn btn-search" style="flex: 3;">検索する</button>
+                    <button type="reset" class="btn btn-clear" style="flex: 1;">条件クリア</button>
                 </div>
 
             </form>
         </div>
 
-        <section class="ranking-section" style="margin-top: 60px;">
+        <section class="ranking-section">
             <h2 class="section-title">🏆 評価の高い講義</h2>
 
             {% if top_courses %}

@@ -14,8 +14,21 @@
     </a>
 
     <div class="user-header">
-        <span>こんにちは, {{ current_user.username }} さん</span>
-        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -93,11 +106,22 @@
                 <h4>備考欄 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
                 <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など">{{ review.review or '' }}</textarea>
 
-                <div style="margin-top: 30px; display: flex; gap: 15px;">
-                    <button type="submit" class="btn">更新する</button>
-                    <a href="{{ url_for('course_view_detail', id=course.id) }}" class="btn-cancel">キャンセル</a>
+                <div style="margin-top: 40px; display: flex; gap: 20px; align-items: center;">
+                    <a href="{{ url_for('course_view_detail', id=course.id) }}" class="btn-cancel" style="flex: 1; text-align: center;">キャンセル</a>
+                    <button type="submit" class="btn" style="flex: 2;">更新する</button>
                 </div>
             </form>
+            
+            <!-- ▼▼▼ 追加: 削除ボタン (編集フォームの外に配置) ▼▼▼ -->
+            <div style="margin-top: 30px; text-align: right;">
+                <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST">
+                    <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" 
+                            style="background:none; border:none; color: #f43f5e; text-decoration: underline; cursor: pointer;">
+                        このレビューを削除する
+                    </button>
+                </form>
+            </div>
+            <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
         </section>
     </div>
 </body>

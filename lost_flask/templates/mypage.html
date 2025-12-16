@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>マイページ - プロフィール編集</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+
+    <div class="user-header">
+        <span>こんにちは, {{ current_user.username }} さん</span>
+        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1 class="app-title">マイページ</h1>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section style="max-width: 600px; margin: 0 auto;">
+            <div class="auth-container" style="margin-top: 0; padding: 40px; box-shadow: none; border: none; background: transparent;">
+                <h2 style="text-align: center; margin-bottom: 30px;">プロフィール編集</h2>
+                
+                <form method="post">
+                    <label class="form-label-block">ユーザー名</label>
+                    <input type="text" name="username" placeholder="ユーザー名" value="{{ user.username }}" required>
+
+                    <label class="form-label-block">メールアドレス <small>(変更不可)</small></label>
+                    <input type="email" value="{{ user.email }}" disabled style="background-color: #f1f5f9; color: #64748b;">
+
+                    <label class="form-label-block">学部</label>
+                    <div class="form-group">
+                        <select name="faculty" required>
+                            <option value="">--------</option>
+                            <option value="工学部" {% if user.faculty == '工学部' %}selected{% endif %}>工学部</option>
+                            <option value="理学部" {% if user.faculty == '理学部' %}selected{% endif %}>理学部</option>
+                            <option value="国際地域創造学部" {% if user.faculty == '国際地域創造学部' %}selected{% endif %}>国際地域創造学部</option>
+                            <option value="教育学部" {% if user.faculty == '教育学部' %}selected{% endif %}>教育学部</option>
+                            <option value="人文社会学部" {% if user.faculty == '人文社会学部' %}selected{% endif %}>人文社会学部</option>
+                            <option value="農学部" {% if user.faculty == '農学部' %}selected{% endif %}>農学部</option>
+                            <option value="医学部" {% if user.faculty == '医学部' %}selected{% endif %}>医学部</option>
+                        </select>
+                    </div>
+
+                    <label class="form-label-block">学科・コース</label>
+                    <input type="text" name="department" placeholder="例: 知能情報コース" value="{{ user.department or '' }}" required class="mb-20">
+
+                    <label class="form-label-block">学年</label>
+                    <div class="form-group">
+                        <select name="grade" required>
+                            <option value="">--------</option>
+                            <option value="1年" {% if user.grade == '1年' %}selected{% endif %}>1年</option>
+                            <option value="2年" {% if user.grade == '2年' %}selected{% endif %}>2年</option>
+                            <option value="3年" {% if user.grade == '3年' %}selected{% endif %}>3年</option>
+                            <option value="4年" {% if user.grade == '4年' %}selected{% endif %}>4年</option>
+                            <option value="修士1年" {% if user.grade == '修士1年' %}selected{% endif %}>修士1年</option>
+                            <option value="修士2年" {% if user.grade == '修士2年' %}selected{% endif %}>修士2年</option>
+                            <option value="博士後期" {% if user.grade == '博士後期' %}selected{% endif %}>博士後期</option>
+                            <option value="その他" {% if user.grade == 'その他' %}selected{% endif %}>その他</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 40px; display: flex; gap: 20px; align-items: center;">
+                        <a href="{{ url_for('index') }}" class="btn-cancel" style="flex: 1; text-align: center;">戻る</a>
+                        <button type="submit" class="btn" style="flex: 2;">保存する</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

@@ -7,7 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=pc_v3">
+    <!-- CSSキャッシュ対策を適用 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <!-- ▼▼▼ ロゴ（リンク付き） ▼▼▼ -->
@@ -15,12 +16,27 @@
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
     
+    <!-- ▼▼▼ 修正: ドロップダウンヘッダー（ここを差し替えました） ▼▼▼ -->
     <div class="user-header">
-        <span>こんにちは, {{ current_user.username }} さん</span>
-        <a href="{{ url_for('swipe_page') }}" class="btn-help" style="background-color: #f43f5e; border-color: #f43f5e; color: white;">⚡ 高速レビュー</a>
-        <a href="{{ url_for('help_page') }}" class="btn-help">使い方</a>
-        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        <!-- 高速レビューは目立つように単独配置 -->
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <!-- ドロップダウンメニュー -->
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
     </div>
+    <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
     <div class="container">
         <header class="main-header">

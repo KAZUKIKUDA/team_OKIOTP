@@ -16,8 +16,21 @@
         </a>
 
     <div class="user-header">
-        <span>こんにちは, {{ current_user.username }} さん</span>
-        <a href="{{ url_for('logout') }}" class="btn-logout">ログアウト</a>
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -144,15 +157,20 @@
                             <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
                         </div>
 
-                        <!-- ▼ 追加: 自分のレビューなら編集ボタンを表示 ▼ -->
+                        <!-- ▼▼▼ 修正: 自分のレビューなら編集・削除ボタンを表示 ▼▼▼ -->
                         {% if current_user.is_authenticated and review.user_id == current_user.id %}
-                        <div style="margin-bottom: 15px; text-align: right;">
+                        <div style="margin-bottom: 15px; text-align: right; display: flex; justify-content: flex-end; gap: 15px;">
                             <a href="{{ url_for('edit_review', review_id=review.id) }}" style="color: #64748b; font-size: 0.9em; text-decoration: underline;">
-                                ✎ 自分のレビューを編集
+                                ✎ 編集
                             </a>
+                            <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" style="background:none; border:none; color: #f43f5e; font-size: 0.9em; text-decoration: underline; cursor: pointer; padding: 0;">
+                                    🗑 削除
+                                </button>
+                            </form>
                         </div>
                         {% endif %}
-                        <!-- ▲ 追加ここまで ▲ -->
+                        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
                         {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>
@@ -222,35 +240,25 @@
 
     <script>
     function toggleReaction(reviewId, reactionType, btnElement) {
-        // ▼▼▼【修正】クリックした瞬間に見た目を更新する（Optimistic UI） ▼▼▼
         const container = btnElement.closest('.reaction-container');
         const currentActive = container.querySelector('.btn-reaction.active');
         const allButtons = container.querySelectorAll('.btn-reaction');
         
-        // 1. まず見た目を即座に変更（サーバーの返事を待たない）
-        // 一旦すべてのボタンからactiveを外す
         allButtons.forEach(btn => btn.classList.remove('active'));
     
         if (currentActive === btnElement) {
-            // A. 同じボタンを再度押した（取り消し）
-            // このボタンのカウントを減らす
             const countEl = btnElement.querySelector('.reaction-count');
             countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
-            // activeは付け直さない
         } else {
-            // B. 違うボタンを押した、または新規
             if (currentActive) {
-                // 元々押されていたボタンのカウントを減らす
                 const oldCount = currentActive.querySelector('.reaction-count');
                 oldCount.textContent = Math.max(0, parseInt(oldCount.textContent) - 1);
             }
-            // 新しく押したボタンのカウントを増やす
             btnElement.classList.add('active');
             const newCount = btnElement.querySelector('.reaction-count');
             newCount.textContent = parseInt(newCount.textContent) + 1;
         }
     
-        // 2. 裏側でサーバーに通信（結果が返ってきたら正解データで上書き補正）
         fetch('/api/react', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -262,19 +270,13 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // サーバーから「正しい最新のカウント」が返ってくるので、念のため上書き同期する
-                // (もし連打などでズレていてもここで直る)
                 const buttons = container.querySelectorAll('.btn-reaction');
-                
-                // Active状態の再確認と同期
                 allButtons.forEach(btn => btn.classList.remove('active'));
                 
-                // サーバーの正解データでカウントを更新
                 buttons[0].querySelector('.reaction-count').textContent = data.counts.empathy;
                 buttons[1].querySelector('.reaction-count').textContent = data.counts.insightful;
                 buttons[2].querySelector('.reaction-count').textContent = data.counts.hmm;
                 
-                // Activeクラスをサーバーの状態に合わせる
                 if (data.user_reaction === 'empathy') buttons[0].classList.add('active');
                 if (data.user_reaction === 'insightful') buttons[1].classList.add('active');
                 if (data.user_reaction === 'hmm') buttons[2].classList.add('active');
