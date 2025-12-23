@@ -9,7 +9,7 @@ import random
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from config import Config
 from flask_migrate import Migrate
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 import os
 import logging 
 import time 
@@ -145,11 +145,21 @@ class Review(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    try:
-        return User.query.get(int(user_id))
-    except Exception as e:
-        app.logger.error(f"Error loading user {user_id}: {e}")
-        return None
+    # ▼▼▼ 修正: DB接続リトライ機能を追加 ▼▼▼
+    # 無料枠の不安定な接続に対応するため、最大3回まで再試行する
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return User.query.get(int(user_id))
+        except Exception as e:
+            # 最後の試行で失敗した場合のみログを出してNoneを返す
+            if attempt == max_retries - 1:
+                app.logger.error(f"Error loading user {user_id} after {max_retries} attempts: {e}")
+                return None
+            # 失敗した場合は少し待ってから再試行 (0.1秒, 0.2秒...)
+            time.sleep(0.1 * (2 ** attempt))
+    return None
+    # ▲▲▲ 修正ここまで ▲▲▲
 
 def scrape_syllabus(url):
     headers = {
@@ -407,8 +417,7 @@ def guest_login():
     
     if request.method == 'POST':
         try:
-            # ▼▼▼ 修正: 毎回新規作成せず、固定のゲストユーザーを使い回す ▼▼▼
-            # これによりハッシュ計算のCPU負荷を回避し、爆速化する
+            # 毎回新規作成せず、固定のゲストユーザーを使い回す
             GUEST_EMAIL = "guest@demo.com"
             user = User.query.filter_by(email=GUEST_EMAIL).first()
 
@@ -420,7 +429,6 @@ def guest_login():
             else:
                 # 初回のみゲストユーザーを作成 (次回からは上記ifに入る)
                 guest_username = "ゲスト"
-                # 安全なパスワードを設定（誰も知らないパスワードでOK）
                 hashed_password = generate_password_hash("GuestPassword123!", method='pbkdf2:sha256')
                 
                 new_guest_user = User(
@@ -439,7 +447,6 @@ def guest_login():
                 login_user(new_guest_user)
                 flash('ゲストユーザーを新規作成してログインしました。', 'success')
                 return redirect(url_for('index'))
-            # ▲▲▲ 修正ここまで ▲▲▲
             
         except Exception as e:
             db.session.rollback()
@@ -674,14 +681,12 @@ def course_view_detail(id):
 def add_review(id):
     course = Course.query.get_or_404(id)
     
-    # ▼▼▼ 修正: ゲストユーザーのダミー投稿処理 ▼▼▼
-    # 実際には保存しないが、保存したように見せかける
+    # ゲストユーザーのダミー投稿処理
     if current_user.email.endswith('@demo.com'):
         # 本来ならここでDB保存処理だが、ゲストなのでスキップ
         # ユーザーには成功メッセージを表示（体感速度向上）
         flash('レビューを投稿しました。（デモ動作：ゲストのため実際には保存されません）', 'success')
         return redirect(url_for('course_view_detail', id=id))
-    # ▲▲▲ 修正ここまで ▲▲▲
 
     if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
         flash('既にレビューを投稿しています。', 'warning')
@@ -855,11 +860,9 @@ def delete_review(review_id):
 def mypage():
     if request.method == 'POST':
         try:
-            # ▼▼▼ 修正: ゲストユーザーのプロフィール変更をブロック ▼▼▼
             if current_user.email.endswith('@demo.com'):
                 flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
                 return redirect(url_for('mypage'))
-            # ▲▲▲ 修正ここまで ▲▲▲
 
             current_user.username = request.form.get('username')
             current_user.faculty = request.form.get('faculty')
