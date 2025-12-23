@@ -1438,3 +1438,87 @@ a.sort-link:hover {
     background-color: #fff;
     text-decoration: none;
 }
+
+/* =========================================
+   ▼▼▼ Review Action Buttons (Updated) ▼▼▼
+========================================= */
+
+/* 閲覧ページの編集・削除ボタン（デザイン統一） */
+.review-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 0.9em;
+    font-weight: 700;
+    border-radius: 12px;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+/* 編集ボタン (Outline Style -> Solid Styleに変更して統一感を出す例、またはOutlineのまま色を濃くする) */
+/* ここでは他の .btn と合わせるため、Primary Colorの実線ボタンスタイル（またはOutline）にします */
+.review-action-btn.edit {
+    background-color: #fff;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.review-action-btn.edit:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+}
+
+/* 削除ボタン (Danger Style - 通常時から赤くする) */
+.review-action-btn.delete {
+    background-color: #fff;
+    color: var(--accent-color); /* 通常時から赤文字 */
+    border-color: var(--accent-color); /* 通常時から赤枠 */
+}
+.review-action-btn.delete:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(244, 63, 94, 0.2);
+}
+
+/* 編集ページの削除エリア */
+.delete-section {
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 2px dashed #e2e8f0;
+    text-align: center;
+}
+
+/* 編集ページの削除ボタン（通常時から赤色のボタンデザイン） */
+.btn-delete-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 30px;
+    font-size: 1em;
+    font-weight: 700;
+    border-radius: 12px;
+    
+    /* 通常時から赤枠・赤文字（または赤背景・白文字）にする */
+    background-color: #fff; 
+    color: var(--accent-color);
+    border: 2px solid var(--accent-color);
+    
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.btn-delete-danger:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
+    text-decoration: none;
+}
