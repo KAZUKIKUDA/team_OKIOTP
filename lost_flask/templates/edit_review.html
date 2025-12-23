@@ -6,13 +6,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+    <!-- CSS読み込み -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
 </head>
 <body>
     <a href="{{ url_for('index') }}">
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
 
+    <!-- ヘッダー（ドロップダウンメニュー） -->
     <div class="user-header">
         <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
             ⚡ 高速レビュー
@@ -56,7 +58,6 @@
 
                 <h4>総合評価</h4>
                 <div class="star-rating-input">
-                    <!-- check if rating matches to add 'checked' attribute -->
                     <input type="radio" id="rating-5" name="rating" value="5.0" {% if review.rating == 5.0 %}checked{% endif %} required><label class="star half-right" for="rating-5">★</label>
                     <input type="radio" id="rating-4.5" name="rating" value="4.5" {% if review.rating == 4.5 %}checked{% endif %}><label class="star half" for="rating-4.5">★</label>
                     <input type="radio" id="rating-4" name="rating" value="4.0" {% if review.rating == 4.0 %}checked{% endif %}><label class="star half-right" for="rating-4">★</label>
@@ -103,6 +104,7 @@
 
                 <h4>開講教室 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
                 <input type="text" name="classroom" placeholder="例： 共通教育棟1-101" value="{{ review.classroom or '' }}">
+                
                 <h4>備考欄 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
                 <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など">{{ review.review or '' }}</textarea>
 
@@ -112,16 +114,16 @@
                 </div>
             </form>
             
-            <!-- ▼▼▼ 追加: 削除ボタン (編集フォームの外に配置) ▼▼▼ -->
-            <div style="margin-top: 30px; text-align: right;">
+            <div class="delete-section">
                 <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST">
                     <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" 
-                            style="background:none; border:none; color: #f43f5e; text-decoration: underline; cursor: pointer;">
+                            class="btn-delete-danger">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         このレビューを削除する
                     </button>
                 </form>
             </div>
-            <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
+
         </section>
     </div>
 </body>

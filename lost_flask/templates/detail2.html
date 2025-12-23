@@ -6,13 +6,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
 </head>
 <body>
     <a href="{{ url_for('index') }}">
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
+    
     <div class="user-header">
         <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
             ⚡ 高速レビュー
@@ -48,12 +48,10 @@
                 <p><strong>講義名：</strong> {{ course.name }}</p>
                 <p><strong>担当教員：</strong> {{ course.teacher }}</p>
                 <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
-                
                 <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
                 <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
                 <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
                 <p><strong>授業形式：</strong> {{ course.format or '未登録' }}</p>
-                
                 {% if course.syllabus_url %}
                 <p><strong>シラバス：</strong> 
                     <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">
@@ -95,20 +93,21 @@
                             <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
                         </div>
 
-                        <!-- ▼▼▼ 修正: 自分のレビューなら編集・削除ボタンを表示 ▼▼▼ -->
                         {% if current_user.is_authenticated and review.user_id == current_user.id %}
-                        <div style="margin-bottom: 15px; text-align: right; display: flex; justify-content: flex-end; gap: 15px;">
-                            <a href="{{ url_for('edit_review', review_id=review.id) }}" style="color: #64748b; font-size: 0.9em; text-decoration: underline;">
-                                ✎ 編集
+                        <div style="margin-bottom: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 12px;">
+                            <a href="{{ url_for('edit_review', review_id=review.id) }}" class="review-action-btn edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                編集
                             </a>
+                            
                             <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" style="background:none; border:none; color: #f43f5e; font-size: 0.9em; text-decoration: underline; cursor: pointer; padding: 0;">
-                                    🗑 削除
+                                <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" class="review-action-btn delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                    削除
                                 </button>
                             </form>
                         </div>
                         {% endif %}
-                        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
                         {% if review.review %}
                         <p class="review-text">{{ review.review }}</p>
@@ -159,7 +158,7 @@
                                 </div>
                             </button>
                         </div>
-                        </td>
+                    </td>
                 </tr>
                 {% endfor %}
             </table>
