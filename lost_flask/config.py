@@ -1,5 +1,5 @@
 import os
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool  # ▼▼▼ 追加: NullPoolをインポート ▼▼▼
 
 # このファイルの絶対パスを基準に、プロジェクトのルートディレクトリを設定
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -44,8 +44,9 @@ class Config:
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # ▼▼▼ 修正: DB接続の安定化設定 (調整版) ▼▼▼
-    # RenderやSupabaseでのSSL接続エラーやタイムアウトを防ぐための設定です
+    # ▼▼▼ 修正: DB接続設定 (Supabase Transaction Mode + Render無料枠 最適化版) ▼▼▼
+    # NullPoolを使うことで、アプリ側で接続を保持せず、メモリを節約します。
+    # 接続管理はSupabase側(ポート6543)に任せます。
     SQLALCHEMY_ENGINE_OPTIONS = {
         'poolclass': NullPool,       # プーリングを無効化（都度接続・切断）
         'connect_args': {
@@ -53,7 +54,7 @@ class Config:
             'keepalives_idle': 30,
             'keepalives_interval': 10,
             'keepalives_count': 5,
-            'prepare_threshold': None # これだけは絶対に消さないでください！
+            'prepare_threshold': None # これだけは絶対に消さないでください！(ポート6543用)
         }
     }
     # ▲▲▲ 修正ここまで ▲▲▲

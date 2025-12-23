@@ -143,15 +143,6 @@ class Review(db.Model):
     def get_user_reactions(self, user_id):
         return [r.reaction_type for r in self.reactions.filter_by(user_id=user_id).all()]
 
-# ▼▼▼ 修正: 起動時の自動 create_all を削除 ▼▼▼
-# これがあるとワーカー起動ごとにDB接続が発生し、起動遅延やエラーの原因になる
-# with app.app_context():
-#     try:
-#         db.create_all()
-#     except Exception as e:
-#         app.logger.error(f"DB create_all failed on startup: {e}")
-# ▲▲▲ 修正ここまで ▲▲▲
-
 @login_manager.user_loader
 def load_user(user_id):
     try:
@@ -240,7 +231,7 @@ def index():
             func.avg(Review.rating).label('avg_rating')
         ).group_by(Review.course_id).subquery()
 
-        # ▼▼▼ 修正: joinedload を復活させて N+1問題を回避 (トップページ) ▼▼▼
+        # joinedload を復活させて N+1問題を回避 (トップページ)
         top_courses_query = db.session.query(Course)\
             .join(stmt, Course.id == stmt.c.course_id)\
             .options(joinedload(Course.reviews))\
@@ -248,7 +239,6 @@ def index():
             .limit(10)
             
         top_courses = top_courses_query.all()
-        # ▲▲▲ 修正ここまで ▲▲▲
         
     except Exception as e:
         app.logger.error(f"Error fetching top courses: {e}")
@@ -417,27 +407,39 @@ def guest_login():
     
     if request.method == 'POST':
         try:
-            random_suffix = uuid.uuid4().hex[:4]
-            guest_username = f"ゲスト_{random_suffix}"
-            guest_email = f"guest_{uuid.uuid4().hex[:8]}@demo.com"
-            hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}", method='pbkdf2:sha256')
-            
-            new_guest_user = User(
-                username=guest_username,
-                email=guest_email, 
-                password=hashed_password, 
-                is_verified=True,
-                faculty='工学部',
-                department='知能情報コース',
-                grade='3年'
-            )
-            
-            db.session.add(new_guest_user)
-            db.session.commit() 
-            
-            login_user(new_guest_user)
-            flash(f'{guest_username} としてログインしました。（デモ用）', 'success')
-            return redirect(url_for('index'))
+            # ▼▼▼ 修正: 毎回新規作成せず、固定のゲストユーザーを使い回す ▼▼▼
+            # これによりハッシュ計算のCPU負荷を回避し、爆速化する
+            GUEST_EMAIL = "guest@demo.com"
+            user = User.query.filter_by(email=GUEST_EMAIL).first()
+
+            if user:
+                # 既に存在するゲストユーザーでログイン
+                login_user(user)
+                flash('ゲストとしてログインしました。', 'success')
+                return redirect(url_for('index'))
+            else:
+                # 初回のみゲストユーザーを作成 (次回からは上記ifに入る)
+                guest_username = "ゲスト"
+                # 安全なパスワードを設定（誰も知らないパスワードでOK）
+                hashed_password = generate_password_hash("GuestPassword123!", method='pbkdf2:sha256')
+                
+                new_guest_user = User(
+                    username=guest_username,
+                    email=GUEST_EMAIL, 
+                    password=hashed_password, 
+                    is_verified=True,
+                    faculty='工学部',
+                    department='知能情報コース',
+                    grade='3年'
+                )
+                
+                db.session.add(new_guest_user)
+                db.session.commit()
+                
+                login_user(new_guest_user)
+                flash('ゲストユーザーを新規作成してログインしました。', 'success')
+                return redirect(url_for('index'))
+            # ▲▲▲ 修正ここまで ▲▲▲
             
         except Exception as e:
             db.session.rollback()
@@ -464,10 +466,6 @@ def add_course_step1_scrape():
     if not syllabus_url or url_pattern not in syllabus_url:
         flash('正しいシラバス詳細URLを入力してください。', 'danger')
         return redirect(url_for('index')) 
-    
-    # サーバー負荷軽減のためのWaitは、ここでは削除（ブロッキング回避）
-    # app.logger.info("Waiting 3 seconds before scraping...")
-    # time.sleep(3)
     
     course_data = scrape_syllabus(syllabus_url)
     if course_data is None:
@@ -608,12 +606,10 @@ def search_course():
                 query = query.order_by(Course.id.asc())
 
         # --- ページネーション実行 ---
-        # ▼▼▼ 修正: joinedload を復活させて N+1問題を回避 (検索結果) ▼▼▼
         # 検索一覧でも各カードで★の数やレビュー件数を表示しているため、ここで取得しておく必要がある
         pagination = query.options(joinedload(Course.reviews)).paginate(
             page=page, per_page=per_page, error_out=False
         )
-        # ▲▲▲ 修正ここまで ▲▲▲
     
     except Exception as e:
         app.logger.error(f"Search Error: {e}")
@@ -677,9 +673,16 @@ def course_view_detail(id):
 @login_required
 def add_review(id):
     course = Course.query.get_or_404(id)
+    
+    # ▼▼▼ 修正: ゲストユーザーのダミー投稿処理 ▼▼▼
+    # 実際には保存しないが、保存したように見せかける
     if current_user.email.endswith('@demo.com'):
-        flash('ゲストユーザーはレビューを投稿できません。', 'warning')
-        return redirect(url_for('course_detail', id=id))
+        # 本来ならここでDB保存処理だが、ゲストなのでスキップ
+        # ユーザーには成功メッセージを表示（体感速度向上）
+        flash('レビューを投稿しました。（デモ動作：ゲストのため実際には保存されません）', 'success')
+        return redirect(url_for('course_view_detail', id=id))
+    # ▲▲▲ 修正ここまで ▲▲▲
+
     if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
         flash('既にレビューを投稿しています。', 'warning')
         return redirect(url_for('course_detail', id=id))
@@ -852,9 +855,11 @@ def delete_review(review_id):
 def mypage():
     if request.method == 'POST':
         try:
+            # ▼▼▼ 修正: ゲストユーザーのプロフィール変更をブロック ▼▼▼
             if current_user.email.endswith('@demo.com'):
                 flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
                 return redirect(url_for('mypage'))
+            # ▲▲▲ 修正ここまで ▲▲▲
 
             current_user.username = request.form.get('username')
             current_user.faculty = request.form.get('faculty')
