@@ -15,7 +15,7 @@ import logging
 import time 
 import requests 
 from bs4 import BeautifulSoup 
-from sqlalchemy.sql.expression import func
+from sqlalchemy.sql.expression import func, or_
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail as SendGridMail
@@ -97,7 +97,9 @@ class User(UserMixin, db.Model):
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) 
-    teacher = db.Column(db.String(100), nullable=False) 
+    # ▼▼▼ 修正: 教員名の文字数を100から1000に変更 ▼▼▼
+    teacher = db.Column(db.String(1000), nullable=False) 
+    # ▲▲▲ 修正ここまで ▲▲▲
     syllabus_url = db.Column(db.String(300), nullable=True) 
     subject_code = db.Column(db.String(50), nullable=True) 
     department = db.Column(db.String(100), nullable=True) 
@@ -791,20 +793,27 @@ def fetch_cards():
     query = Course.query.filter(~Course.id.in_(reviewed_ids))
 
     # 2. 学部フィルタリング（ユーザーに学部が設定されている場合のみ適用）
-    # ※ 登録フローでfacultyが保存されていないケースに対応するため条件分岐を追加
     if current_user.faculty:
-        query = query.filter(Course.department.like(f'%{current_user.faculty}%'))
+        query = query.filter(
+            or_(
+                Course.department.like(f'%{current_user.faculty}%'),
+                Course.department.like('%共通教育等科目%')
+            )
+        )
     
     # 3. ランダムに10件取得
     cards = query.order_by(func.random()).limit(10).all()
 
     # JSONで返す
+    # ▼▼▼ 修正: departmentを追加 ▼▼▼
     data = [{
         'id': c.id,
         'name': c.name,
         'teacher': c.teacher,
-        'format': c.format
+        'format': c.format,
+        'department': c.department  # ここを追加
     } for c in cards]
+    # ▲▲▲ 修正ここまで ▲▲▲
     
     return jsonify(data)
 
