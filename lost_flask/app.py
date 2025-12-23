@@ -4,8 +4,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import uuid
-import datetime # 追加
-import random   # 追加
+import datetime
+import random
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from config import Config
 from flask_migrate import Migrate
@@ -23,7 +23,7 @@ from sendgrid.helpers.mail import Mail as SendGridMail
 from collections import Counter
 from sqlalchemy.orm import joinedload
 from urllib.parse import urlparse, parse_qs
-from sqlalchemy import text # SQL直接実行用
+from sqlalchemy import text 
 
 # --- Application Setup ---
 app = Flask(__name__)
@@ -89,17 +89,15 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
     is_tutorial_seen = db.Column(db.Boolean, default=False)
-    # ▼▼▼ 追加 Kousuke ▼▼▼　
     faculty = db.Column(db.String(50))      # 学部 (例: 工学部)
     department = db.Column(db.String(50))   # 学科 (例: 知能情報コース)
     grade = db.Column(db.String(10))        # 学年 (例: 2024年度入学)
-    # ▲▲▲ 追加ここまで ▲▲▲
+
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) 
-    # ▼▼▼ 修正: 教員名の文字数を100から1000に変更 ▼▼▼
+    # 教員名の文字数を1000に拡張
     teacher = db.Column(db.String(1000), nullable=False) 
-    # ▲▲▲ 修正ここまで ▲▲▲
     syllabus_url = db.Column(db.String(300), nullable=True) 
     subject_code = db.Column(db.String(50), nullable=True) 
     department = db.Column(db.String(100), nullable=True) 
@@ -107,9 +105,7 @@ class Course(db.Model):
     format = db.Column(db.String(50), nullable=True) 
     syllabus_year = db.Column(db.String(20), nullable=True) 
     reviews = db.relationship('Review', backref='course', lazy=True, cascade="all, delete-orphan")
-    __table_args__ = (
-        db.UniqueConstraint('name', 'teacher', name='_name_teacher_uc'),
-    )
+    # name, teacher, subject_code のユニーク制約はDB側で設定済みとする
     @property
     def star_rating(self):
         if not self.reviews: return "評価なし"
@@ -249,14 +245,12 @@ class SimplePagination:
 @app.route('/')
 @login_required 
 def index():
-    # ▼▼▼【修正】DB接続エラー時に500エラーにならないよう、try-exceptで囲む ▼▼▼
     try:
         if not current_user.is_tutorial_seen:
             return redirect(url_for('help_page'))
     except Exception as e:
         app.logger.error(f"Database error during tutorial check: {e}")
         pass
-    # ▲▲▲ 修正ここまで ▲▲▲
 
     try:
         form_data = {
@@ -434,7 +428,6 @@ def login():
         return redirect(next_page or url_for('index'))
     return render_template('login.html')
 
-# ▼▼▼ 修正: 完全自動ゲストログイン ▼▼▼
 @app.route('/guest_login', methods=['GET', 'POST'])
 def guest_login():
     if current_user.is_authenticated:
@@ -442,15 +435,9 @@ def guest_login():
     
     if request.method == 'POST':
         try:
-            # ランダムなサフィックスを生成 (例: 8f3d)
             random_suffix = uuid.uuid4().hex[:4]
-            # ユニークな名前を生成 (例: ゲスト_8f3d)
             guest_username = f"ゲスト_{random_suffix}"
-            
-            # ユニークなメールアドレスを生成
             guest_email = f"guest_{uuid.uuid4().hex[:8]}@demo.com"
-            
-            # ランダムなパスワード
             hashed_password = generate_password_hash(f"guest_pw_{uuid.uuid4().hex}", method='pbkdf2:sha256')
             
             new_guest_user = User(
@@ -458,9 +445,9 @@ def guest_login():
                 email=guest_email, 
                 password=hashed_password, 
                 is_verified=True,
-                faculty='工学部',        # デモ用デフォルト
-                department='知能情報コース', # デモ用デフォルト
-                grade='3年'             # デモ用デフォルト
+                faculty='工学部',
+                department='知能情報コース',
+                grade='3年'
             )
             
             db.session.add(new_guest_user)
@@ -477,7 +464,6 @@ def guest_login():
             return redirect(url_for('guest_login'))
             
     return render_template('guest_login.html')
-# ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/logout')
 @login_required
@@ -546,18 +532,14 @@ def search_course():
     search_term = None 
     results = []
     
-    # ページネーション設定の取得 (GET or POST)
     page = request.args.get('page', 1, type=int)
     per_page_str = request.args.get('per_page') or request.form.get('per_page') or '10'
 
-    # 検索条件の取得 (GET or POST, Pagination時はGET優先)
     def get_param(key):
         return request.args.get(key) or request.form.get(key) or ''
 
-    # ▼▼▼ 修正: ソート条件の取得 ▼▼▼
     sort_key = get_param('sort') or 'id'
     sort_order = get_param('order') or 'desc'
-    # ▲▲▲ 修正ここまで ▲▲▲
 
     form_data = {
         'lecture_name': get_param('lecture_name'),
@@ -568,11 +550,10 @@ def search_course():
         'test': get_param('test'),
         'report': get_param('report'),
         'per_page': per_page_str,
-        'sort': sort_key,    # 追加
-        'order': sort_order  # 追加
+        'sort': sort_key,
+        'order': sort_order
     }
     
-    # クエリ構築
     query = Course.query.options(joinedload(Course.reviews))
     filters = []
     if form_data['lecture_name']:
@@ -585,10 +566,8 @@ def search_course():
         filters.append(Course.department.like(f'%{form_data["department"]}%'))
     if filters: query = query.filter(db.and_(*filters))
     
-    # データベースからの基本結果取得 (ID降順)
     base_results = query.order_by(db.desc(Course.id)).all()
 
-    # Python側でのレビュー内容による絞り込み (Attendance, Test, Report)
     filtered_results = []
     has_python_filter = any(form_data[k] and form_data[k] != "--------" for k in ['attendance', 'test', 'report'])
 
@@ -617,11 +596,9 @@ def search_course():
     else:
         filtered_results = base_results
 
-    # ▼▼▼ 追加: 全件ソートロジック (ページ分けの前に行う) ▼▼▼
     reverse = (sort_order == 'desc')
 
     if sort_key == 'rating':
-        # 評価順: "評価なし" は -1.0 として扱う
         def get_rating_value(c):
             try:
                 return float(c.star_rating)
@@ -630,16 +607,11 @@ def search_course():
         filtered_results.sort(key=get_rating_value, reverse=reverse)
         
     elif sort_key == 'reviews':
-        # レビュー件数順
         filtered_results.sort(key=lambda c: len(c.reviews), reverse=reverse)
         
     else:
-        # デフォルト (ID順)
-        # filtered_results は一度リスト化されているため、明示的にソートし直す
         filtered_results.sort(key=lambda c: c.id, reverse=reverse)
-    # ▲▲▲ 追加ここまで ▲▲▲
 
-    # ページネーション処理
     if per_page_str == 'all':
         per_page = len(filtered_results) if filtered_results else 1
         if per_page == 0: per_page = 1
@@ -776,8 +748,6 @@ def complete_tutorial():
         db.session.commit()
     return redirect(url_for('index'))
 
-# ▼▼▼ ここに追加してください Kousuke▼▼▼
-
 @app.route('/swipe')
 @login_required
 def swipe_page():
@@ -801,30 +771,35 @@ def fetch_cards():
             )
         )
     
-    # 3. ランダムに10件取得
-    cards = query.order_by(func.random()).limit(10).all()
+    # 3. 高速化のため、まずIDリストを取得してPython側でランダムサンプリング
+    candidate_ids = [c.id for c in query.with_entities(Course.id).all()]
+    
+    if not candidate_ids:
+        return jsonify([])
 
-    # JSONで返す
-    # ▼▼▼ 修正: departmentを追加 ▼▼▼
+    # IDリストからランダムに10個選ぶ
+    sample_size = min(len(candidate_ids), 10)
+    selected_ids = random.sample(candidate_ids, sample_size)
+    
+    # 選ばれたIDの講義データを取得
+    cards = Course.query.filter(Course.id.in_(selected_ids)).all()
+
     data = [{
         'id': c.id,
         'name': c.name,
         'teacher': c.teacher,
         'format': c.format,
-        'department': c.department  # ここを追加
+        'department': c.department
     } for c in cards]
-    # ▲▲▲ 修正ここまで ▲▲▲
+    
+    random.shuffle(data)
     
     return jsonify(data)
 
-# ▲▲▲ ここまで ▲▲▲
-
-# ▼▼▼ 追加: レビュー編集機能 ▼▼▼
 @app.route('/edit_review/<int:review_id>', methods=['GET', 'POST'])
 @login_required
 def edit_review(review_id):
     review = Review.query.get_or_404(review_id)
-    # 権限チェック (本人以外は編集不可)
     if review.user_id != current_user.id:
         flash('他のユーザーのレビューは編集できません。', 'danger')
         return redirect(url_for('course_detail', id=review.course_id))
@@ -849,14 +824,11 @@ def edit_review(review_id):
             flash('更新中にエラーが発生しました。', 'danger')
 
     return render_template('edit_review.html', review=review, course=review.course)
-# ▲▲▲ 追加ここまで ▲▲▲
 
-# ▼▼▼ 追加: レビュー削除機能 ▼▼▼
 @app.route('/delete_review/<int:review_id>', methods=['POST'])
 @login_required
 def delete_review(review_id):
     review = Review.query.get_or_404(review_id)
-    # 権限チェック (本人以外は削除不可)
     if review.user_id != current_user.id:
         flash('他のユーザーのレビューは削除できません。', 'danger')
         return redirect(url_for('course_detail', id=review.course_id))
@@ -872,21 +844,17 @@ def delete_review(review_id):
         app.logger.error(f"Delete review error: {e}")
         flash('削除中にエラーが発生しました。', 'danger')
         return redirect(url_for('course_view_detail', id=review.course_id))
-# ▲▲▲ 追加ここまで ▲▲▲
 
-# ▼▼▼ 追加: マイページ（プロフィール編集） ▼▼▼
 @app.route('/mypage', methods=['GET', 'POST'])
 @login_required
 def mypage():
     if request.method == 'POST':
         try:
-            # ゲストユーザーは変更できないようにする場合
             if current_user.email.endswith('@demo.com'):
                 flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
                 return redirect(url_for('mypage'))
 
             current_user.username = request.form.get('username')
-            # emailの変更は再認証が必要になるため今回はスキップするか、読み取り専用として扱う
             current_user.faculty = request.form.get('faculty')
             current_user.department = request.form.get('department')
             current_user.grade = request.form.get('grade')
@@ -903,10 +871,11 @@ def mypage():
         return redirect(url_for('mypage'))
         
     return render_template('mypage.html', user=current_user)
-# ▲▲▲ 追加ここまで ▲▲▲
 
 if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     with app.app_context(): db.create_all()
-    app.run(debug=True, port=5005)
+    
+    port = int(os.environ.get('PORT', 5005))
+    app.run(debug=False, host='0.0.0.0', port=port)
