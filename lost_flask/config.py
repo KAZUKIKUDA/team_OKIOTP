@@ -32,5 +32,16 @@ class Config:
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # ▼▼▼ 追加: DB接続の安定化設定 (ここに追加します) ▼▼▼
+    # RenderやSupabaseでのSSL接続エラーやタイムアウトを防ぐための設定です
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,   # 接続前に生存確認を行う（重要：切断されていたら再接続する）
+        'pool_recycle': 280,     # 280秒ごとに接続を作り直す（DB側のタイムアウトより短くする）
+        'pool_size': 10,         # プールする接続数
+        'max_overflow': 20,      # あふれた場合の最大接続数
+        'pool_timeout': 30       # 接続待ちのタイムアウト秒数
+    }
+    # ▲▲▲ 追加ここまで ▲▲▲
+
     # --- メール設定 ---
     # SendGrid API (app.pyで直接os.environ.get) を使うため、Flask-Mailの設定はすべて不要
