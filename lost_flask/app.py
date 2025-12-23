@@ -141,9 +141,13 @@ class Review(db.Model):
     def get_user_reactions(self, user_id):
         return [r.reaction_type for r in self.reactions.filter_by(user_id=user_id).all()]
 
-# テーブル自動作成
+# テーブル自動作成 (Gunicorn起動時用)
+# import時に実行されるため、DB接続が確立できる状態で動作します
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        app.logger.error(f"DB create_all failed on startup: {e}")
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -228,15 +232,11 @@ def index():
         }
         
         # SQLレベルで評価平均を計算してトップ10を取得 (軽量化)
-        # Note: SQLiteなど一部DBではnullslastが効かない場合があるが、一般的なSQLAlchemy記述とする
-        
         stmt = db.session.query(
             Review.course_id,
             func.avg(Review.rating).label('avg_rating')
         ).group_by(Review.course_id).subquery()
 
-        # 平均評価の高い順に10件取得
-        # joinedload(Course.reviews)を入れることで、表示時のN+1を防ぐ
         top_courses_query = db.session.query(Course)\
             .join(stmt, Course.id == stmt.c.course_id)\
             .options(joinedload(Course.reviews))\
@@ -859,6 +859,8 @@ def mypage():
 if __name__ == '__main__':
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
+    
+    # 手動起動(python app.py)の場合のDB作成
     with app.app_context(): db.create_all()
     
     port = int(os.environ.get('PORT', 5005))
