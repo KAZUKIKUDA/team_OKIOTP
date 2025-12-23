@@ -27,6 +27,7 @@ from sqlalchemy import text
 
 # --- Application Setup ---
 app = Flask(__name__)
+# Configクラスから設定を読み込む (DB URIや接続オプションもここに含まれる)
 app.config.from_object(Config)
 
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +75,7 @@ login_manager.login_message_category = "danger"
 
 class ReviewReaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    # ユーザー削除時にリアクションも削除 (ON DELETE CASCADE)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     review_id = db.Column(db.Integer, db.ForeignKey('review.id'), nullable=False)
     reaction_type = db.Column(db.String(20), nullable=False) 
@@ -96,6 +98,7 @@ class User(UserMixin, db.Model):
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) 
+    # 教員名の文字数を1000に設定 (長い教員名リストに対応)
     teacher = db.Column(db.String(1000), nullable=False) 
     syllabus_url = db.Column(db.String(300), nullable=True) 
     subject_code = db.Column(db.String(50), nullable=True) 
@@ -140,7 +143,8 @@ class Review(db.Model):
     def get_user_reactions(self, user_id):
         return [r.reaction_type for r in self.reactions.filter_by(user_id=user_id).all()]
 
-# テーブル自動作成
+# テーブル自動作成 (Gunicorn起動時用)
+# import時に実行されるため、DB接続が確立できる状態で動作します
 with app.app_context():
     try:
         db.create_all()
@@ -229,7 +233,7 @@ def index():
             'attendance': '', 'test': '', 'report': ''
         }
         
-        # SQLレベルで評価平均を計算してトップ10を取得
+        # SQLレベルで評価平均を計算してトップ10を取得 (軽量化)
         stmt = db.session.query(
             Review.course_id,
             func.avg(Review.rating).label('avg_rating')
@@ -503,6 +507,7 @@ def add_course_step2_create():
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
+    # ページネーションとフィルタパラメータの取得
     page = request.args.get('page', 1, type=int)
     per_page_str = request.args.get('per_page') or request.form.get('per_page') or '10'
     try:
@@ -532,10 +537,9 @@ def search_course():
     
     try:
         # 基本クエリの構築
-        # ▼▼▼ 修正: joinedload(Course.reviews) を外して軽量化 ▼▼▼
         query = Course.query
-        # ▲▲▲ 修正ここまで ▲▲▲
 
+        # --- 基本情報のSQLフィルタリング ---
         if form_data['lecture_name']:
             for term in form_data['lecture_name'].split():
                 query = query.filter(Course.name.like(f'%{term}%'))
@@ -550,6 +554,7 @@ def search_course():
         if form_data['department'] and form_data['department'] != "--------":
             query = query.filter(Course.department.like(f'%{form_data["department"]}%'))
 
+        # --- レビュー内容に基づくSQLフィルタリング ---
         review_criteria = []
         if form_data['attendance'] and form_data['attendance'] != "--------":
             review_criteria.append(Review.attendance == form_data['attendance'])
@@ -559,10 +564,13 @@ def search_course():
             review_criteria.append(Review.report == form_data['report'])
         
         if review_criteria:
+            # 条件に一致するレビューを持つCourse.idをサブクエリで取得
             sub_query = db.session.query(Review.course_id).filter(*review_criteria).distinct()
             query = query.filter(Course.id.in_(sub_query))
 
+        # --- SQLソート ---
         if sort_key == 'rating':
+            # 評価平均でソート
             stmt = db.session.query(
                 Review.course_id, func.avg(Review.rating).label('avg_rating')
             ).group_by(Review.course_id).subquery()
@@ -574,6 +582,7 @@ def search_course():
                 query = query.order_by(stmt.c.avg_rating.asc().nullslast())
             
         elif sort_key == 'reviews':
+            # レビュー数でソート
             stmt = db.session.query(
                 Review.course_id, func.count(Review.id).label('review_count')
             ).group_by(Review.course_id).subquery()
@@ -583,18 +592,23 @@ def search_course():
                 query = query.order_by(stmt.c.review_count.desc().nullslast())
             else:
                 query = query.order_by(stmt.c.review_count.asc().nullslast())
+                
         else:
+            # ID順
             if sort_order == 'desc':
                 query = query.order_by(Course.id.desc())
             else:
                 query = query.order_by(Course.id.asc())
 
+        # --- ページネーション実行 ---
+        # 修正: joinedload(Course.reviews) を外して検索一覧ではレビュー詳細を読み込まないように軽量化
         pagination = query.paginate(
             page=page, per_page=per_page, error_out=False
         )
     
     except Exception as e:
         app.logger.error(f"Search Error: {e}")
+        # エラー発生時は空の結果を返すか、エラーメッセージを表示
         flash('検索中にエラーが発生しました。条件を変更して再度お試しください。', 'danger')
         return render_template('search.html', 
                                pagination=None, 
@@ -733,11 +747,14 @@ def swipe_page():
 @app.route('/api/fetch_cards')
 @login_required
 def fetch_cards():
+    # 1. 自分が既にレビューした講義IDを取得（サブクエリで高速化）
     reviewed_subquery = db.session.query(Review.course_id)\
         .filter(Review.user_id == current_user.id)
 
+    # クエリのベースを作成（まだレビューしていない講義を除外）
     query = Course.query.filter(~Course.id.in_(reviewed_subquery))
 
+    # 2. 学部フィルタリング（ユーザーに学部が設定されている場合のみ適用）
     if current_user.faculty:
         query = query.filter(
             or_(
@@ -746,14 +763,18 @@ def fetch_cards():
             )
         )
     
+    # 3. 高速化のため、まずIDリストを取得してPython側でランダムサンプリング
+    # IDのみを取得する軽量クエリ
     candidate_ids = [r[0] for r in query.with_entities(Course.id).all()]
     
     if not candidate_ids:
         return jsonify([])
 
+    # IDリストからランダムに10個選ぶ
     sample_size = min(len(candidate_ids), 10)
     selected_ids = random.sample(candidate_ids, sample_size)
     
+    # 選ばれたIDの講義データを取得
     cards = Course.query.filter(Course.id.in_(selected_ids)).all()
 
     data = [{
@@ -772,6 +793,7 @@ def fetch_cards():
 @login_required
 def edit_review(review_id):
     review = Review.query.get_or_404(review_id)
+    # 権限チェック
     if review.user_id != current_user.id:
         flash('他のユーザーのレビューは編集できません。', 'danger')
         return redirect(url_for('course_detail', id=review.course_id))
@@ -801,6 +823,7 @@ def edit_review(review_id):
 @login_required
 def delete_review(review_id):
     review = Review.query.get_or_404(review_id)
+    # 権限チェック
     if review.user_id != current_user.id:
         flash('他のユーザーのレビューは削除できません。', 'danger')
         return redirect(url_for('course_detail', id=review.course_id))
@@ -845,10 +868,12 @@ def mypage():
     return render_template('mypage.html', user=current_user)
 
 if __name__ == '__main__':
+    # 開発環境用の設定
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
     with app.app_context(): db.create_all()
     
+    # 環境変数PORTに対応（Render等）
     port = int(os.environ.get('PORT', 5005))
     app.run(debug=False, host='0.0.0.0', port=port)
