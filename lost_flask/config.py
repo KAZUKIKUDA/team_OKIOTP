@@ -47,10 +47,10 @@ class Config:
     # RenderやSupabaseでのSSL接続エラーやタイムアウトを防ぐための設定です
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,   # 接続前に生存確認を行う（重要：切断されていたら再接続する）
-        'pool_recycle': 120,     # 280秒から120秒へ短縮（より頻繁にリサイクルして切断を防ぐ）
+        'pool_recycle': 3600,     # 280秒から120秒へ短縮（より頻繁にリサイクルして切断を防ぐ）
         'pool_size': 5,          # プール数を少し減らして接続数制限に配慮 (10 -> 5)
         'max_overflow': 10,      # あふれた場合の最大接続数 (20 -> 10)
-        'pool_timeout': 60,      # 接続待ちタイムアウトを延長 (30 -> 60)
+        'pool_timeout': 30,      # 接続待ちタイムアウトを延長 (30 -> 60)
         'connect_args': {
             'keepalives': 1,
             'keepalives_idle': 30,
