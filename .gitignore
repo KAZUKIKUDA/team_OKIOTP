@@ -12,7 +12,7 @@ lost_flask/instance/
 # 講義追加
 seed_course.py
 syllabus_urls.txt
-lost_flaskretry.py
+lost_flask/retry.py
 lost_flask/check_db.py
 lost_flask/course_list.txt
 lost_flask/failed_urls.txt

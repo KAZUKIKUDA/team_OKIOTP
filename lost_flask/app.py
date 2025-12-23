@@ -868,12 +868,20 @@ def mypage():
     return render_template('mypage.html', user=current_user)
 
 if __name__ == '__main__':
-    # 開発環境用の設定
+    # インスタンスディレクトリの作成
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
-    with app.app_context(): db.create_all()
+    # データベースの作成
+    with app.app_context():
+        db.create_all()
     
-    # 環境変数PORTに対応（Render等）
+    # 環境変数からポートを取得 (デフォルト: 5005)
     port = int(os.environ.get('PORT', 5005))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    
+    # 環境変数 FLASK_ENV が 'development' の場合のみデバッグモードを有効にする
+    # 本番環境 (Render) では通常 FLASK_ENV は設定されていないか 'production' になっているはず
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    
+    # 0.0.0.0 でバインドして外部アクセスを許可
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
