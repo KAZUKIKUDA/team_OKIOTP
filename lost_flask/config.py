@@ -55,7 +55,7 @@ class Config:
             'keepalives': 1,
             'keepalives_idle': 30,
             'keepalives_interval': 10,
-            'keepalives_count': 5
+            'keepalives_count': 5,
             'prepare_threshold': None
         }
     }
