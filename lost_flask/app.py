@@ -143,13 +143,14 @@ class Review(db.Model):
     def get_user_reactions(self, user_id):
         return [r.reaction_type for r in self.reactions.filter_by(user_id=user_id).all()]
 
-# テーブル自動作成 (Gunicorn起動時用)
-# import時に実行されるため、DB接続が確立できる状態で動作します
-with app.app_context():
-    try:
-        db.create_all()
-    except Exception as e:
-        app.logger.error(f"DB create_all failed on startup: {e}")
+# ▼▼▼ 修正: 起動時の自動 create_all を削除 ▼▼▼
+# これがあるとワーカー起動ごとにDB接続が発生し、起動遅延やエラーの原因になる
+# with app.app_context():
+#     try:
+#         db.create_all()
+#     except Exception as e:
+#         app.logger.error(f"DB create_all failed on startup: {e}")
+# ▲▲▲ 修正ここまで ▲▲▲
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -233,18 +234,21 @@ def index():
             'attendance': '', 'test': '', 'report': ''
         }
         
-        # SQLレベルで評価平均を計算してトップ10を取得 (軽量化)
+        # SQLレベルで評価平均を計算してトップ10を取得
         stmt = db.session.query(
             Review.course_id,
             func.avg(Review.rating).label('avg_rating')
         ).group_by(Review.course_id).subquery()
 
+        # ▼▼▼ 修正: joinedload を復活させて N+1問題を回避 (トップページ) ▼▼▼
         top_courses_query = db.session.query(Course)\
             .join(stmt, Course.id == stmt.c.course_id)\
+            .options(joinedload(Course.reviews))\
             .order_by(stmt.c.avg_rating.desc())\
             .limit(10)
             
         top_courses = top_courses_query.all()
+        # ▲▲▲ 修正ここまで ▲▲▲
         
     except Exception as e:
         app.logger.error(f"Error fetching top courses: {e}")
@@ -460,8 +464,11 @@ def add_course_step1_scrape():
     if not syllabus_url or url_pattern not in syllabus_url:
         flash('正しいシラバス詳細URLを入力してください。', 'danger')
         return redirect(url_for('index')) 
-    app.logger.info("Waiting 3 seconds before scraping...")
-    time.sleep(3)
+    
+    # サーバー負荷軽減のためのWaitは、ここでは削除（ブロッキング回避）
+    # app.logger.info("Waiting 3 seconds before scraping...")
+    # time.sleep(3)
+    
     course_data = scrape_syllabus(syllabus_url)
     if course_data is None:
         flash('シラバス情報の取得に失敗しました。', 'danger')
@@ -601,10 +608,12 @@ def search_course():
                 query = query.order_by(Course.id.asc())
 
         # --- ページネーション実行 ---
-        # 修正: joinedload(Course.reviews) を外して検索一覧ではレビュー詳細を読み込まないように軽量化
-        pagination = query.paginate(
+        # ▼▼▼ 修正: joinedload を復活させて N+1問題を回避 (検索結果) ▼▼▼
+        # 検索一覧でも各カードで★の数やレビュー件数を表示しているため、ここで取得しておく必要がある
+        pagination = query.options(joinedload(Course.reviews)).paginate(
             page=page, per_page=per_page, error_out=False
         )
+        # ▲▲▲ 修正ここまで ▲▲▲
     
     except Exception as e:
         app.logger.error(f"Search Error: {e}")
@@ -793,7 +802,6 @@ def fetch_cards():
 @login_required
 def edit_review(review_id):
     review = Review.query.get_or_404(review_id)
-    # 権限チェック
     if review.user_id != current_user.id:
         flash('他のユーザーのレビューは編集できません。', 'danger')
         return redirect(url_for('course_detail', id=review.course_id))
@@ -823,7 +831,6 @@ def edit_review(review_id):
 @login_required
 def delete_review(review_id):
     review = Review.query.get_or_404(review_id)
-    # 権限チェック
     if review.user_id != current_user.id:
         flash('他のユーザーのレビューは削除できません。', 'danger')
         return redirect(url_for('course_detail', id=review.course_id))
@@ -868,19 +875,18 @@ def mypage():
     return render_template('mypage.html', user=current_user)
 
 if __name__ == '__main__':
-    # インスタンスディレクトリの作成
+    # 開発環境用の設定
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
-    # データベースの作成
-    with app.app_context():
-        db.create_all()
+    # 手動起動(python app.py)の場合のDB作成
+    # ※ 本番環境(Gunicorn)ではここは実行されない
+    with app.app_context(): db.create_all()
     
-    # 環境変数からポートを取得 (デフォルト: 5005)
+    # 環境変数PORTに対応（Render等）
     port = int(os.environ.get('PORT', 5005))
     
     # 環境変数 FLASK_ENV が 'development' の場合のみデバッグモードを有効にする
-    # 本番環境 (Render) では通常 FLASK_ENV は設定されていないか 'production' になっているはず
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
     
     # 0.0.0.0 でバインドして外部アクセスを許可
