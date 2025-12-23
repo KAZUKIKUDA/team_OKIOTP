@@ -1,4 +1,5 @@
 import os
+from sqlalchemy.pool import NullPool
 
 # このファイルの絶対パスを基準に、プロジェクトのルートディレクトリを設定
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -46,17 +47,13 @@ class Config:
     # ▼▼▼ 修正: DB接続の安定化設定 (調整版) ▼▼▼
     # RenderやSupabaseでのSSL接続エラーやタイムアウトを防ぐための設定です
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': True,   # 接続前に生存確認を行う（重要：切断されていたら再接続する）
-        'pool_recycle': 3600,     # 280秒から120秒へ短縮（より頻繁にリサイクルして切断を防ぐ）
-        'pool_size': 5,          # プール数を少し減らして接続数制限に配慮 (10 -> 5)
-        'max_overflow': 10,      # あふれた場合の最大接続数 (20 -> 10)
-        'pool_timeout': 30,      # 接続待ちタイムアウトを延長 (30 -> 60)
+        'poolclass': NullPool,       # プーリングを無効化（都度接続・切断）
         'connect_args': {
             'keepalives': 1,
             'keepalives_idle': 30,
             'keepalives_interval': 10,
             'keepalives_count': 5,
-            'prepare_threshold': None
+            'prepare_threshold': None # これだけは絶対に消さないでください！
         }
     }
     # ▲▲▲ 修正ここまで ▲▲▲
