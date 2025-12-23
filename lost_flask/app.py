@@ -209,37 +209,6 @@ def scrape_syllabus(url):
         app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
         return None
 
-# --- Pagination Helper ---
-class SimplePagination:
-    def __init__(self, items, page, per_page):
-        self.total = len(items)
-        self.page = page
-        self.per_page = per_page
-        if per_page > 0:
-            self.pages = (self.total + per_page - 1) // per_page
-        else:
-            self.pages = 1
-        
-        start = (page - 1) * per_page
-        end = start + per_page
-        self.items = items[start:end]
-        
-        self.has_prev = page > 1
-        self.has_next = page < self.pages
-        self.prev_num = page - 1
-        self.next_num = page + 1
-
-    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
-        last = 0
-        for num in range(1, self.pages + 1):
-            if num <= left_edge or \
-               (num > self.page - left_current - 1 and num < self.page + right_current) or \
-               num > self.pages - right_edge:
-                if last + 1 != num:
-                    yield None
-                yield num
-                last = num
-
 # --- Routes ---
 
 @app.route('/')
@@ -257,17 +226,25 @@ def index():
             'lecture_name': '', 'teacher_name': '', 'course_format': '',
             'attendance': '', 'test': '', 'report': ''
         }
-        all_courses = Course.query.options(joinedload(Course.reviews)).all()
-        courses_with_ratings = []
-        for course in all_courses:
-            rating_str = course.star_rating
-            if rating_str != "評価なし":
-                try:
-                    courses_with_ratings.append((course, float(rating_str)))
-                except ValueError:
-                    continue 
-        sorted_courses = sorted(courses_with_ratings, key=lambda x: x[1], reverse=True)
-        top_courses = [course for course, rating in sorted_courses[:10]]
+        
+        # SQLレベルで評価平均を計算してトップ10を取得 (軽量化)
+        # Note: SQLiteなど一部DBではnullslastが効かない場合があるが、一般的なSQLAlchemy記述とする
+        
+        stmt = db.session.query(
+            Review.course_id,
+            func.avg(Review.rating).label('avg_rating')
+        ).group_by(Review.course_id).subquery()
+
+        # 平均評価の高い順に10件取得
+        # joinedload(Course.reviews)を入れることで、表示時のN+1を防ぐ
+        top_courses_query = db.session.query(Course)\
+            .join(stmt, Course.id == stmt.c.course_id)\
+            .options(joinedload(Course.reviews))\
+            .order_by(stmt.c.avg_rating.desc())\
+            .limit(10)
+            
+        top_courses = top_courses_query.all()
+        
     except Exception as e:
         app.logger.error(f"Error fetching top courses: {e}")
         top_courses = []
@@ -529,11 +506,14 @@ def add_course_step2_create():
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
-    search_term = None 
-    results = []
-    
+    # ページネーションとフィルタパラメータの取得
     page = request.args.get('page', 1, type=int)
     per_page_str = request.args.get('per_page') or request.form.get('per_page') or '10'
+    try:
+        per_page = int(per_page_str)
+        if per_page <= 0: per_page = 10
+    except:
+        per_page = 10
 
     def get_param(key):
         return request.args.get(key) or request.form.get(key) or ''
@@ -549,84 +529,87 @@ def search_course():
         'attendance': get_param('attendance'),
         'test': get_param('test'),
         'report': get_param('report'),
-        'per_page': per_page_str,
+        'per_page': str(per_page),
         'sort': sort_key,
         'order': sort_order
     }
     
-    query = Course.query.options(joinedload(Course.reviews))
-    filters = []
+    # 基本クエリの構築
+    query = Course.query
+
+    # --- 基本情報のSQLフィルタリング ---
     if form_data['lecture_name']:
-        for term in form_data['lecture_name'].split(): filters.append(Course.name.like(f'%{term}%'))
-    if form_data['teacher_name']:
-        for term in form_data['teacher_name'].split(): filters.append(Course.teacher.like(f'%{term}%'))
-    if form_data['course_format'] and form_data['course_format'] != "--------":
-        filters.append(Course.format == form_data['course_format'])
-    if form_data['department'] and form_data['department'] != "--------":
-        filters.append(Course.department.like(f'%{form_data["department"]}%'))
-    if filters: query = query.filter(db.and_(*filters))
+        for term in form_data['lecture_name'].split():
+            query = query.filter(Course.name.like(f'%{term}%')) # SQLite互換性のためlikeを使用
     
-    base_results = query.order_by(db.desc(Course.id)).all()
+    if form_data['teacher_name']:
+        for term in form_data['teacher_name'].split():
+            query = query.filter(Course.teacher.like(f'%{term}%'))
 
-    filtered_results = []
-    has_python_filter = any(form_data[k] and form_data[k] != "--------" for k in ['attendance', 'test', 'report'])
+    if form_data['course_format'] and form_data['course_format'] != "--------":
+        query = query.filter(Course.format == form_data['course_format'])
 
-    if has_python_filter:
-        for c in base_results:
-            match = True
-            for filter_key in ['attendance', 'test', 'report']:
-                val = form_data[filter_key]
-                if val and val != "--------":
-                    if not c.reviews:
-                        match = False
-                        break
-                    vals = [getattr(r, filter_key) for r in c.reviews if getattr(r, filter_key) in ['あり', 'なし']]
-                    if not vals:
-                        match = False
-                        break
-                    try:
-                        if Counter(vals).most_common(1)[0][0] != val:
-                            match = False
-                            break
-                    except:
-                        match = False
-                        break
-            if match:
-                filtered_results.append(c)
-    else:
-        filtered_results = base_results
+    if form_data['department'] and form_data['department'] != "--------":
+        query = query.filter(Course.department.like(f'%{form_data["department"]}%'))
 
-    reverse = (sort_order == 'desc')
+    # --- レビュー内容に基づくSQLフィルタリング ---
+    # Pythonループを回避するため、サブクエリ(EXISTS/IN)を使用
+    review_criteria = []
+    if form_data['attendance'] and form_data['attendance'] != "--------":
+        review_criteria.append(Review.attendance == form_data['attendance'])
+    if form_data['test'] and form_data['test'] != "--------":
+        review_criteria.append(Review.test == form_data['test'])
+    if form_data['report'] and form_data['report'] != "--------":
+        review_criteria.append(Review.report == form_data['report'])
+    
+    if review_criteria:
+        # 条件に一致するレビューを持つCourse.idをサブクエリで取得
+        sub_query = db.session.query(Review.course_id).filter(*review_criteria).distinct()
+        query = query.filter(Course.id.in_(sub_query))
 
+    # --- SQLソート ---
     if sort_key == 'rating':
-        def get_rating_value(c):
-            try:
-                return float(c.star_rating)
-            except:
-                return -1.0
-        filtered_results.sort(key=get_rating_value, reverse=reverse)
+        # 評価平均でソート (SQL集計)
+        stmt = db.session.query(
+            Review.course_id, func.avg(Review.rating).label('avg_rating')
+        ).group_by(Review.course_id).subquery()
+        
+        query = query.outerjoin(stmt, Course.id == stmt.c.course_id)
+        if sort_order == 'desc':
+            # nullslast() はDBによりサポートが異なるため、汎用的な記述でNULLを最後に
+            query = query.order_by(stmt.c.avg_rating.desc().nullslast())
+        else:
+            query = query.order_by(stmt.c.avg_rating.asc().nullslast())
         
     elif sort_key == 'reviews':
-        filtered_results.sort(key=lambda c: len(c.reviews), reverse=reverse)
+        # レビュー数でソート (SQL集計)
+        stmt = db.session.query(
+            Review.course_id, func.count(Review.id).label('review_count')
+        ).group_by(Review.course_id).subquery()
         
+        query = query.outerjoin(stmt, Course.id == stmt.c.course_id)
+        if sort_order == 'desc':
+            query = query.order_by(stmt.c.review_count.desc().nullslast())
+        else:
+            query = query.order_by(stmt.c.review_count.asc().nullslast())
+            
     else:
-        filtered_results.sort(key=lambda c: c.id, reverse=reverse)
+        # ID順
+        if sort_order == 'desc':
+            query = query.order_by(Course.id.desc())
+        else:
+            query = query.order_by(Course.id.asc())
 
-    if per_page_str == 'all':
-        per_page = len(filtered_results) if filtered_results else 1
-        if per_page == 0: per_page = 1
-    else:
-        try:
-            per_page = int(per_page_str)
-            if per_page <= 0: per_page = 10
-        except:
-            per_page = 10
-
-    pagination = SimplePagination(filtered_results, page, per_page)
+    # --- ページネーション実行 ---
+    # ここで初めてDBアクセスが発生し、現在のページに必要なデータ(LIMIT)だけを取得
+    # joinedload(Course.reviews) を指定して、表示時のN+1問題を回避
+    pagination = query.options(joinedload(Course.reviews)).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
     
     return render_template('search.html', 
                            pagination=pagination, 
-                           search_term=search_term, 
+                           search_term=None, 
                            form_data=form_data)
 
 @app.route('/course/<int:id>')
@@ -772,7 +755,8 @@ def fetch_cards():
         )
     
     # 3. 高速化のため、まずIDリストを取得してPython側でランダムサンプリング
-    candidate_ids = [c.id for c in query.with_entities(Course.id).all()]
+    # IDのみを取得する軽量クエリ
+    candidate_ids = [r[0] for r in query.with_entities(Course.id).all()]
     
     if not candidate_ids:
         return jsonify([])

@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <!-- CSSのバージョンを更新してキャッシュクリア -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=layout_fix_v2">
-    <!-- inline style removed; moved to style.css -->
 </head>
 <body>
     <a href="{{ url_for('index') }}">
@@ -146,7 +145,8 @@
                         <a href="{{ url_for('search_course', page=pagination.prev_num, **form_data) }}">&laquo; 前へ</a>
                     {% endif %}
                     
-                    {% for page_num in pagination.iter_pages() %}
+                    <!-- iter_pages に引数を追加し、ページ数が多い場合の表示崩れを防止 -->
+                    {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
                         {% if page_num %}
                             {% if page_num == pagination.page %}
                                 <span class="active">{{ page_num }}</span>
@@ -233,9 +233,6 @@
                 });
             });
         });
-        /* 以前の toggleSort (JavaScriptソート) は削除しました。
-           現在はサーバーサイドで全件ソートを行っています。
-        */
     </script>
 </body>
 </html>
