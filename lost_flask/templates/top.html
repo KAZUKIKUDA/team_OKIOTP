@@ -31,6 +31,8 @@
             </div>
             <div class="dropdown-content">
                 <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <!-- 【追加】ここにお気に入りへのリンクを追加 -->
+                <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
                 <a href="{{ url_for('help_page') }}">❓ 使い方</a>
                 <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
             </div>

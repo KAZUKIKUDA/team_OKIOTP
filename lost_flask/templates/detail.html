@@ -27,6 +27,8 @@
             </div>
             <div class="dropdown-content">
                 <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <!-- 【追加】お気に入りへのリンク -->
+                <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
                 <a href="{{ url_for('help_page') }}">❓ 使い方</a>
                 <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
             </div>
@@ -35,9 +37,9 @@
 
     <div class="container">
         <header class="main-header">
-            <h1 class="app-title" style="font-size: 1.8em;">講義詳細</h1>
+            <h1 class="app-title" style="font-size: 1.8em;">レビュー投稿</h1>
         </header>
-
+        
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
               {% for category, message in messages %}
@@ -51,12 +53,10 @@
                 <p><strong>講義名：</strong> {{ course.name }}</p>
                 <p><strong>担当教員：</strong> {{ course.teacher }}</p>
                 <p><strong>総合評価：</strong>★ {{ course.star_rating }} / 5.00</p>
-                
                 <p><strong>科目番号：</strong> {{ course.subject_code or '未登録' }}</p>
                 <p><strong>開講学部等：</strong> {{ course.department or '未登録' }}</p>
                 <p><strong>単位数：</strong> {{ course.credits or '未登録' }}</p>
                 <p><strong>授業形式：</strong> {{ course.format or '未登録' }}</p>
-                
                 {% if course.syllabus_url %}
                 <p><strong>シラバス：</strong> 
                     <a href="{{ course.syllabus_url }}" target="_blank" rel="noopener noreferrer">
@@ -64,6 +64,23 @@
                     </a>
                 </p>
                 {% endif %}
+
+                <!-- 【追加】お気に入りボタン -->
+                <button id="favorite-btn" class="btn-reaction" style="margin-top: 15px; font-size: 1.0em; padding: 0; background: none; border: none; cursor: pointer;" onclick="toggleFavorite({{ course.id }})">
+                    <div class="reaction-icon-wrapper" id="fav-icon-wrapper" 
+                         style="{% if course in current_user.favorite_courses %}background-color: #fee2e2; border-color: #ef4444; color: #ef4444;{% endif %}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="{% if course in current_user.favorite_courses %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </div>
+                    <span id="fav-text" style="margin-left: 8px; font-weight: bold; color: #64748b;">
+                        {% if course in current_user.favorite_courses %}
+                            お気に入り済み
+                        {% else %}
+                            お気に入りに追加
+                        {% endif %}
+                    </span>
+                </button>
             </div>
 
             <div class="rating-distribution-container">
@@ -81,211 +98,103 @@
         </section>
 
         <section>
-            <h2>レビューを追加</h2>
             <form action="{{ url_for('add_review', id=course.id) }}" method="post">
+                <p style="margin-bottom: 20px; font-size: 0.9em; color: var(--text-sub); text-align: center;">
+                    ※ すでにこの講義のレビューを投稿済みの場合は、上書きではなくエラーになります。<br>
+                    編集したい場合は<a href="{{ url_for('course_view_detail', id=course.id) }}">レビュー閲覧ページ</a>から編集してください。
+                </p>
 
-                <h4>総合評価</h4>
+                <h4>総合評価 <span style="color:var(--accent-color)">*</span></h4>
                 <div class="star-rating-input">
-                <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
-                <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
-                <input type="radio" id="rating-4" name="rating" value="4.0"><label class="star half-right" for="rating-4">★</label>
-                <input type="radio" id="rating-3.5" name="rating" value="3.5"><label class="star half" for="rating-3.5">★</label>
-                <input type="radio" id="rating-3" name="rating" value="3.0" checked><label class="star half-right" for="rating-3">★</label>
-                <input type="radio" id="rating-2.5" name="rating" value="2.5"><label class="star half" for="rating-2.5">★</label>
-                <input type="radio" id="rating-2" name="rating" value="2.0"><label class="star half-right" for="rating-2">★</label>
-                <input type="radio" id="rating-1.5" name="rating" value="1.5"><label class="star half" for="rating-1.5">★</label>
-                <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
-                <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
+                    <input type="radio" id="rating-5" name="rating" value="5.0" required><label class="star half-right" for="rating-5">★</label>
+                    <input type="radio" id="rating-4.5" name="rating" value="4.5"><label class="star half" for="rating-4.5">★</label>
+                    <input type="radio" id="rating-4" name="rating" value="4.0"><label class="star half-right" for="rating-4">★</label>
+                    <input type="radio" id="rating-3.5" name="rating" value="3.5"><label class="star half" for="rating-3.5">★</label>
+                    <input type="radio" id="rating-3" name="rating" value="3.0"><label class="star half-right" for="rating-3">★</label>
+                    <input type="radio" id="rating-2.5" name="rating" value="2.5"><label class="star half" for="rating-2.5">★</label>
+                    <input type="radio" id="rating-2" name="rating" value="2.0"><label class="star half-right" for="rating-2">★</label>
+                    <input type="radio" id="rating-1.5" name="rating" value="1.5"><label class="star half" for="rating-1.5">★</label>
+                    <input type="radio" id="rating-1" name="rating" value="1.0"><label class="star half-right" for="rating-1">★</label>
+                    <input type="radio" id="rating-0.5" name="rating" value="0.5"><label class="star half" for="rating-0.5">★</label>
                 </div>
-                
-                <h4>出席</h4>
+
+                <h4>出席確認 <span style="color:var(--accent-color)">*</span></h4>
                 <div class="radio-group">
                     <label><input type="radio" name="attendance" value="あり" required><span>あり</span></label>
                     <label><input type="radio" name="attendance" value="なし"><span>なし</span></label>
                     <label><input type="radio" name="attendance" value="その他"><span>その他</span></label>
                 </div>
 
-                <h4>テスト</h4>
+                <h4>テスト <span style="color:var(--accent-color)">*</span></h4>
                 <div class="radio-group">
                      <label><input type="radio" name="test" value="あり" required><span>あり</span></label>
                     <label><input type="radio" name="test" value="なし"><span>なし</span></label>
                     <label><input type="radio" name="test" value="その他"><span>その他</span></label>
                 </div>
 
-                <h4>レポート</h4>
+                <h4>レポート <span style="color:var(--accent-color)">*</span></h4>
                 <div class="radio-group">
                      <label><input type="radio" name="report" value="あり" required><span>あり</span></label>
                     <label><input type="radio" name="report" value="なし"><span>なし</span></label>
                     <label><input type="radio" name="report" value="その他"><span>その他</span></label>
                 </div>
-
+                
                 <h4>授業形式 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
                 <div class="radio-group">
-                    <label><input type="radio" name="course_format" value="対面"><span>対面</span></label>
-                    <label><input type="radio" name="course_format" value="オンライン"><span>オンライン</span></label>
-                     <label><input type="radio" name="course_format" value="オンデマンド"><span>オンデマンド</span></label>
-                    <label><input type="radio" name="course_format" value="その他"><span>その他</span></label>
+                    <label><input type="radio" name="course_format" value="対面" {% if course.format == '対面' %}checked{% endif %}><span>対面</span></label>
+                    <label><input type="radio" name="course_format" value="オンライン" {% if course.format == 'オンライン' %}checked{% endif %}><span>オンライン</span></label>
+                    <label><input type="radio" name="course_format" value="オンデマンド" {% if course.format == 'オンデマンド' %}checked{% endif %}><span>オンデマンド</span></label>
+                    <label><input type="radio" name="course_format" value="その他" {% if course.format == 'その他' %}checked{% endif %}><span>その他</span></label>
                 </div>
                 
                 <h4>開講年度 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
-                <input type="text" name="year" placeholder="例： 2024年度">
+                <input type="text" name="year" placeholder="例： 2024年度" value="{{ course.syllabus_year or '' }}">
 
                 <h4>開講教室 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
                 <input type="text" name="classroom" placeholder="例： 共通教育棟1-101">
+
                 <h4>備考欄 <small style="font-weight:normal; color:var(--text-sub)">(任意)</small></h4>
                 <textarea name="review" placeholder="単位の取りやすさ、課題の量、テスト形式、その他特記事項など"></textarea>
 
-                <button type="submit" class="btn">レビューを投稿する</button>
+                <button type="submit" class="btn">投稿する</button>
             </form>
-        </section>
-
-        <section>
-            <h2>レビュー一覧 ({{ course.reviews|length }}件)</h2>
-            {% if course.reviews %}
-            <table class="review-table">
-                {% for review in course.reviews | reverse %}
-                <tr>
-                    <td>
-                        <div class="review-meta">
-                            <span><strong>投稿者:</strong> {{ review.author.username }}</span>
-                            <span><strong>評価:</strong> ★{{ "%.1f"|format(review.rating) }}</span>
-                            <span><strong>出席:</strong> {{ review.attendance }}</span>
-                            <span><strong>テスト:</strong> {{ review.test }}</span>
-                            <span><strong>レポート:</strong> {{ review.report }}</span>
-                            <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
-                            <span><strong>開講年度:</strong> {{ review.year or '未登録' }}</span>
-                            <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
-                        </div>
-
-                        <!-- ▼▼▼ 修正: 自分のレビューなら編集・削除ボタンを表示 ▼▼▼ -->
-                        {% if current_user.is_authenticated and review.user_id == current_user.id %}
-                        <div style="margin-bottom: 15px; text-align: right; display: flex; justify-content: flex-end; gap: 15px;">
-                            <a href="{{ url_for('edit_review', review_id=review.id) }}" style="color: #64748b; font-size: 0.9em; text-decoration: underline;">
-                                ✎ 編集
-                            </a>
-                            <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" style="background:none; border:none; color: #f43f5e; font-size: 0.9em; text-decoration: underline; cursor: pointer; padding: 0;">
-                                    🗑 削除
-                                </button>
-                            </form>
-                        </div>
-                        {% endif %}
-                        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
-
-                        {% if review.review %}
-                        <p class="review-text">{{ review.review }}</p>
-                        {% endif %}
-
-                        <div class="reaction-container">
-                            {% set counts = review.get_reaction_counts() %}
-                            {% set my_reactions = review.get_user_reactions(current_user.id) %}
-
-                            <button class="btn-reaction btn-empathy {% if 'empathy' in my_reactions %}active{% endif %}" 
-                                    onclick="toggleReaction({{ review.id }}, 'empathy', this)">
-                                <div class="reaction-icon-wrapper">
-                                    <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div class="reaction-label">共感した</div>
-                                    <div class="reaction-count">{{ counts['empathy'] }}</div>
-                                </div>
-                            </button>
-
-                            <button class="btn-reaction btn-insightful {% if 'insightful' in my_reactions %}active{% endif %}" 
-                                    onclick="toggleReaction({{ review.id }}, 'insightful', this)">
-                                <div class="reaction-icon-wrapper">
-                                    <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div class="reaction-label">なるほど</div>
-                                    <div class="reaction-count">{{ counts['insightful'] }}</div>
-                                </div>
-                            </button>
-
-                            <button class="btn-reaction btn-hmm {% if 'hmm' in my_reactions %}active{% endif %}" 
-                                    onclick="toggleReaction({{ review.id }}, 'hmm', this)">
-                                <div class="reaction-icon-wrapper">
-                                    <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div class="reaction-label">うーん</div>
-                                    <div class="reaction-count">{{ counts['hmm'] }}</div>
-                                </div>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
-            {% else %}
-            <p>この講義にはまだレビューがありません。</p>
-            {% endif %}
-        </section>
-        
-        <div class="page-navigation">
-            <div class="links-container">
-                <a href="javascript:history.back()" class="back-link">« 前のページに戻る</a>
-                <a href="{{ url_for('index') }}" class="back-link">« ホームに戻る</a>
+            
+            <div style="margin-top: 30px; text-align: center;">
+                 <a href="{{ url_for('course_view_detail', id=course.id) }}" class="back-link">レビュー閲覧ページへ</a>
             </div>
-        </div>
+        </section>
     </div>
 
+    <!-- お気に入り機能のスクリプト -->
     <script>
-    function toggleReaction(reviewId, reactionType, btnElement) {
-        const container = btnElement.closest('.reaction-container');
-        const currentActive = container.querySelector('.btn-reaction.active');
-        const allButtons = container.querySelectorAll('.btn-reaction');
-        
-        allButtons.forEach(btn => btn.classList.remove('active'));
-    
-        if (currentActive === btnElement) {
-            const countEl = btnElement.querySelector('.reaction-count');
-            countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
-        } else {
-            if (currentActive) {
-                const oldCount = currentActive.querySelector('.reaction-count');
-                oldCount.textContent = Math.max(0, parseInt(oldCount.textContent) - 1);
-            }
-            btnElement.classList.add('active');
-            const newCount = btnElement.querySelector('.reaction-count');
-            newCount.textContent = parseInt(newCount.textContent) + 1;
-        }
-    
-        fetch('/api/react', {
+    function toggleFavorite(courseId) {
+        fetch('/api/toggle_favorite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                review_id: reviewId,
-                reaction_type: reactionType
-            })
+            body: JSON.stringify({ course_id: courseId })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const buttons = container.querySelectorAll('.btn-reaction');
-                allButtons.forEach(btn => btn.classList.remove('active'));
-                
-                buttons[0].querySelector('.reaction-count').textContent = data.counts.empathy;
-                buttons[1].querySelector('.reaction-count').textContent = data.counts.insightful;
-                buttons[2].querySelector('.reaction-count').textContent = data.counts.hmm;
-                
-                if (data.user_reaction === 'empathy') buttons[0].classList.add('active');
-                if (data.user_reaction === 'insightful') buttons[1].classList.add('active');
-                if (data.user_reaction === 'hmm') buttons[2].classList.add('active');
-    
-            } else {
-                console.error('Error:', data.error);
+                const wrapper = document.getElementById('fav-icon-wrapper');
+                const text = document.getElementById('fav-text');
+                const svg = wrapper.querySelector('svg');
+
+                if (data.is_favorited) {
+                    wrapper.style.backgroundColor = '#fee2e2';
+                    wrapper.style.borderColor = '#ef4444';
+                    wrapper.style.color = '#ef4444';
+                    svg.setAttribute('fill', 'currentColor');
+                    text.textContent = 'お気に入り済み';
+                } else {
+                    wrapper.style.backgroundColor = '';
+                    wrapper.style.borderColor = '#ccc';
+                    wrapper.style.color = '#999';
+                    svg.setAttribute('fill', 'none');
+                    text.textContent = 'お気に入りに追加';
+                }
             }
-        })
-        .catch((error) => console.error('Error:', error));
+        });
     }
     </script>
 </body>

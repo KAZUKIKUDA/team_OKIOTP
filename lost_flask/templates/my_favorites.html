@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>お気に入り講義一覧</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+</head>
+<body>
+    <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
+    </a>
+
+    <!-- ドロップダウンヘッダー -->
+    <div class="user-header">
+        <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
+            ⚡ 高速レビュー
+        </a>
+
+        <div class="dropdown" tabindex="0">
+            <div class="dropbtn">
+                <span>{{ current_user.username }} さん</span>
+                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
+            </div>
+            <div class="dropdown-content">
+                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('my_favorites') }}" style="background-color: #f0f9ff; color: #0ea5e9;">💖 お気に入り講義</a>
+                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
+                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="main-header">
+            <h1 class="app-title">お気に入りリスト 💖</h1>
+        </header>
+
+        <!-- ▼▼▼ 修正: .count() ではなく |length を使用 ▼▼▼ -->
+        {% if courses|length > 0 %}
+            <p style="text-align: center; margin-bottom: 20px;">
+                保存した講義：{{ courses|length }}件
+            </p>
+            
+            <table class="search-results-table">
+                <thead>
+                    <tr>
+                        <th>講義名</th>
+                        <th>担当教員</th>
+                        <th>評価</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr class="selectable-row" onclick="window.location.href='{{ url_for('course_view_detail', id=course.id) }}'">
+                        <td>{{ course.name }}</td>
+                        <td>{{ course.teacher }}</td>
+                        <td>★ {{ course.star_rating }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 40px; text-align: center;">
+                <a href="{{ url_for('index') }}" class="btn">もっと講義を探す</a>
+            </div>
+
+        {% else %}
+            <div style="text-align: center; padding: 50px 20px; background-color: #f8fafc; border-radius: 16px; border: 1px dashed #e2e8f0;">
+                <h3 style="color: #64748b; margin-top: 0;">まだお気に入りがありません</h3>
+                <p style="color: #94a3b8; margin-bottom: 30px;">
+                    気になる講義の詳細ページで<br>
+                    「お気に入りに追加」ボタンを押すとここに表示されます。
+                </p>
+                <a href="{{ url_for('index') }}" class="btn">講義を探しに行く</a>
+            </div>
+        {% endif %}
+        
+        <div style="margin-top: 40px;">
+            <a href="{{ url_for('index') }}" class="back-link">« ホームに戻る</a>
+        </div>
+    </div>
+</body>
+</html>

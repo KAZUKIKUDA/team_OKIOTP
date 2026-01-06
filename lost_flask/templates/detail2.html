@@ -24,6 +24,7 @@
             </div>
             <div class="dropdown-content">
                 <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
                 <a href="{{ url_for('help_page') }}">❓ 使い方</a>
                 <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
             </div>
@@ -59,6 +60,23 @@
                     </a>
                 </p>
                 {% endif %}
+
+                <!-- 【追加】お気に入りボタン -->
+                <button id="favorite-btn" class="btn-reaction" style="margin-top: 15px; font-size: 1.0em; padding: 0; background: none; border: none; cursor: pointer;" onclick="toggleFavorite({{ course.id }})">
+                    <div class="reaction-icon-wrapper" id="fav-icon-wrapper" 
+                         style="{% if course in current_user.favorite_courses %}background-color: #fee2e2; border-color: #ef4444; color: #ef4444;{% endif %}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="{% if course in current_user.favorite_courses %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </div>
+                    <span id="fav-text" style="margin-left: 8px; font-weight: bold; color: #64748b;">
+                        {% if course in current_user.favorite_courses %}
+                            お気に入り済み
+                        {% else %}
+                            お気に入りに追加
+                        {% endif %}
+                    </span>
+                </button>
             </div>
 
             <div class="rating-distribution-container">
@@ -227,6 +245,37 @@
             }
         })
         .catch((error) => console.error('Error:', error));
+    }
+
+    // 【追加】お気に入り登録処理
+    function toggleFavorite(courseId) {
+        fetch('/api/toggle_favorite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ course_id: courseId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const wrapper = document.getElementById('fav-icon-wrapper');
+                const text = document.getElementById('fav-text');
+                const svg = wrapper.querySelector('svg');
+
+                if (data.is_favorited) {
+                    wrapper.style.backgroundColor = '#fee2e2';
+                    wrapper.style.borderColor = '#ef4444';
+                    wrapper.style.color = '#ef4444';
+                    svg.setAttribute('fill', 'currentColor');
+                    text.textContent = 'お気に入り済み';
+                } else {
+                    wrapper.style.backgroundColor = '';
+                    wrapper.style.borderColor = '#ccc';
+                    wrapper.style.color = '#999';
+                    svg.setAttribute('fill', 'none');
+                    text.textContent = 'お気に入りに追加';
+                }
+            }
+        });
     }
     </script>
 </body>

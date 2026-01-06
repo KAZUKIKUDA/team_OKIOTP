@@ -133,11 +133,9 @@
     </a>
 
     <div class="user-header">
-        <!-- ▼▼▼ 修正: インラインスタイルを削除してデフォルトの色（Primary Color）に戻す ▼▼▼ -->
         <a href="{{ url_for('index') }}" class="header-action-btn">
             🏠 ホームに戻る
         </a>
-        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
         <div class="dropdown" tabindex="0">
             <div class="dropbtn">
@@ -146,6 +144,8 @@
             </div>
             <div class="dropdown-content">
                 <a href="{{ url_for('mypage') }}">👤 マイページ</a>
+                <!-- 【追加】お気に入りへのリンク -->
+                <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
                 <a href="{{ url_for('help_page') }}">❓ 使い方</a>
                 <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
             </div>

@@ -73,6 +73,12 @@ login_manager.login_message_category = "danger"
 
 # --- Database Models ---
 
+# 【追加】お気に入り機能用の中間テーブル
+favorites = db.Table('favorites',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('course_id', db.Integer, db.ForeignKey('course.id'), primary_key=True)
+)
+
 class ReviewReaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # ユーザー削除時にリアクションも削除 (ON DELETE CASCADE)
@@ -94,6 +100,9 @@ class User(UserMixin, db.Model):
     faculty = db.Column(db.String(50))      # 学部 (例: 工学部)
     department = db.Column(db.String(50))   # 学科 (例: 知能情報コース)
     grade = db.Column(db.String(10))        # 学年 (例: 2024年度入学)
+    
+    # 【追加】お気に入りした講義へのリレーション
+    favorite_courses = db.relationship('Course', secondary=favorites, backref=db.backref('favorited_by', lazy='dynamic'))
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -742,6 +751,34 @@ def api_react():
         db.session.rollback()
         app.logger.error(f"Reaction error: {e}")
         return jsonify({'error': 'Database error'}), 500
+
+# 【追加】お気に入り登録・解除API
+@app.route('/api/toggle_favorite', methods=['POST'])
+@login_required
+def toggle_favorite():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    
+    course = Course.query.get_or_404(course_id)
+    
+    if course in current_user.favorite_courses:
+        current_user.favorite_courses.remove(course)
+        is_favorited = False
+    else:
+        current_user.favorite_courses.append(course)
+        is_favorited = True
+        
+    db.session.commit()
+    
+    return jsonify({'success': True, 'is_favorited': is_favorited})
+
+# 【追加】お気に入り一覧ページ
+@app.route('/my_favorites')
+@login_required
+def my_favorites():
+    # ユーザーのお気に入り講義を取得
+    courses = current_user.favorite_courses
+    return render_template('my_favorites.html', courses=courses)
     
 @app.route('/help')
 @login_required
