@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>新規登録</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* エラー箇所を強調するためのスタイルを追加 */
+        .input-error {
+            border-color: #f43f5e !important; /* 赤色 (accent-color) */
+            background-color: #fef2f2 !important; /* 薄い赤背景 */
+            box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.2) !important;
+        }
+    </style>
 </head>
 <body>
 
@@ -25,48 +29,57 @@
             {% endfor %}
           {% endif %}
         {% endwith %}
+        
         <form method="post">
-            <input type="text" name="username" placeholder="ユーザー名" required>
-            <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
+            <input type="text" name="username" placeholder="ユーザー名" required
+                   value="{{ form_data.get('username', '') }}"
+                   class="{% if error_field == 'username' %}input-error{% endif %}">
+
+            <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required
+                   value="{{ form_data.get('email', '') }}"
+                   class="{% if error_field == 'email' %}input-error{% endif %}">
             
-            <!-- インラインスタイルをクラスに置換 -->
             <label class="form-label-block">学部</label>
             <div class="form-group">
-                <select name="faculty" required>
+                <select name="faculty" required class="{% if error_field == 'faculty' %}input-error{% endif %}">
                     <option value="">--------</option>
-                    <option value="工学部">工学部</option>
-                    <option value="理学部">理学部</option>
-                    <option value="国際地域創造学部">国際地域創造学部</option>
-                    <option value="教育学部">教育学部</option>
-                    <option value="人文社会学部">人文社会学部</option>
-                    <option value="農学部">農学部</option>
-                    <option value="医学部">医学部</option>
+                    <option value="工学部" {% if form_data.get('faculty') == '工学部' %}selected{% endif %}>工学部</option>
+                    <option value="理学部" {% if form_data.get('faculty') == '理学部' %}selected{% endif %}>理学部</option>
+                    <option value="国際地域創造学部" {% if form_data.get('faculty') == '国際地域創造学部' %}selected{% endif %}>国際地域創造学部</option>
+                    <option value="教育学部" {% if form_data.get('faculty') == '教育学部' %}selected{% endif %}>教育学部</option>
+                    <option value="人文社会学部" {% if form_data.get('faculty') == '人文社会学部' %}selected{% endif %}>人文社会学部</option>
+                    <option value="農学部" {% if form_data.get('faculty') == '農学部' %}selected{% endif %}>農学部</option>
+                    <option value="医学部" {% if form_data.get('faculty') == '医学部' %}selected{% endif %}>医学部</option>
                 </select>
             </div>
 
             <label class="form-label-block">学科・コース</label>
-            <!-- インラインスタイルをユーティリティクラスに置換 -->
-            <input type="text" name="department" placeholder="例: 知能情報コース" required class="mb-20">
+            <input type="text" name="department" placeholder="例: 知能情報コース" required class="mb-20 {% if error_field == 'department' %}input-error{% endif %}"
+                   value="{{ form_data.get('department', '') }}">
 
             <label class="form-label-block">学年</label>
             <div class="form-group">
-                <select name="grade" required>
+                <select name="grade" required class="{% if error_field == 'grade' %}input-error{% endif %}">
                     <option value="">--------</option>
-                    <option value="1年">1年</option>
-                    <option value="2年">2年</option>
-                    <option value="3年">3年</option>
-                    <option value="4年">4年</option>
-                    <option value="修士1年">修士1年</option>
-                    <option value="修士2年">修士2年</option>
-                    <option value="博士後期">博士後期</option>
-                    <option value="その他">その他</option>
+                    <option value="1年" {% if form_data.get('grade') == '1年' %}selected{% endif %}>1年</option>
+                    <option value="2年" {% if form_data.get('grade') == '2年' %}selected{% endif %}>2年</option>
+                    <option value="3年" {% if form_data.get('grade') == '3年' %}selected{% endif %}>3年</option>
+                    <option value="4年" {% if form_data.get('grade') == '4年' %}selected{% endif %}>4年</option>
+                    <option value="修士1年" {% if form_data.get('grade') == '修士1年' %}selected{% endif %}>修士1年</option>
+                    <option value="修士2年" {% if form_data.get('grade') == '修士2年' %}selected{% endif %}>修士2年</option>
+                    <option value="博士後期" {% if form_data.get('grade') == '博士後期' %}selected{% endif %}>博士後期</option>
+                    <option value="その他" {% if form_data.get('grade') == 'その他' %}selected{% endif %}>その他</option>
                 </select>
             </div>
+            
             <input type="password" name="password" placeholder="パスワード" required
                    pattern="^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$"
-                   title="パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。">
+                   title="パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。"
+                   class="{% if error_field == 'password' %}input-error{% endif %}">
             
-            <input type="password" name="password_confirm" placeholder="パスワード（確認用）" required>
+            <input type="password" name="password_confirm" placeholder="パスワード（確認用）" required
+                   class="{% if error_field == 'password_confirm' %}input-error{% endif %}">
+            
             <p class="password-constraint">
                 パスワードは12文字以上で、大文字、小文字、数字を
                 それぞれ1文字以上含める必要があります。
