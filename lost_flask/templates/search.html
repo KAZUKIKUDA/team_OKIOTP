@@ -28,7 +28,7 @@
             </div>
             <div class="dropdown-content">
                 <a href="{{ url_for('mypage') }}">👤 マイページ</a>
-                <!-- 【追加】ここにお気に入りへのリンクを追加 -->
+                <!-- 【追加】お気に入りへのリンク -->
                 <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
                 <a href="{{ url_for('help_page') }}">❓ 使い方</a>
                 <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
@@ -77,6 +77,30 @@
                         </select>
                     </form>
                 </div>
+
+                <!-- ▼▼▼ 追加: 上部ページネーション ▼▼▼ -->
+                <div class="pagination" style="margin-top: 10px; margin-bottom: 20px;">
+                    {% if pagination.has_prev %}
+                        <a href="{{ url_for('search_course', page=pagination.prev_num, **form_data) }}">&laquo; 前へ</a>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                                <span class="active">{{ page_num }}</span>
+                            {% else %}
+                                <a href="{{ url_for('search_course', page=page_num, **form_data) }}">{{ page_num }}</a>
+                            {% endif %}
+                        {% else %}
+                            <span class="ellipsis">…</span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                        <a href="{{ url_for('search_course', page=pagination.next_num, **form_data) }}">次へ &raquo;</a>
+                    {% endif %}
+                </div>
+                <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
 
                 <!-- ▼▼▼ ソートリンク用マクロ ▼▼▼ -->
                 {% macro sort_link(key, label) %}
