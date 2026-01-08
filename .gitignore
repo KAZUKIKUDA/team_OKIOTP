@@ -8,6 +8,8 @@ lost_flask/*.pyc
 # ローカルデータベース
 instance/
 lost_flask/instance/
+*.sql
+restore_log.txt
 
 # 講義追加
 lost_flask/seed_course.py
