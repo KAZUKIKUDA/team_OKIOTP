@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
 </head>
 <body>
     <a href="{{ url_for('index') }}">
@@ -61,7 +61,7 @@
                 </p>
                 {% endif %}
 
-                <!-- 【追加】お気に入りボタン -->
+                <!-- お気に入りボタン -->
                 <button id="favorite-btn" class="btn-reaction" style="margin-top: 15px; font-size: 1.0em; padding: 0; background: none; border: none; cursor: pointer;" onclick="toggleFavorite({{ course.id }})">
                     <div class="reaction-icon-wrapper" id="fav-icon-wrapper" 
                          style="{% if course in current_user.favorite_courses %}background-color: #fee2e2; border-color: #ef4444; color: #ef4444;{% endif %}">
@@ -99,9 +99,18 @@
             <table class="review-table">
                 {% for review in course.reviews | reverse %}
                 <tr>
-                    <td>
+                    <!-- ▼▼▼ 修正: 高レベルユーザーの場合、枠線を目立たせるクラスを追加 ▼▼▼ -->
+                    {% set author_level = review.author.get_level_info() %}
+                    <td class="{% if author_level.level >= 4 %}review-card-highlight{% endif %}">
                         <div class="review-meta">
-                            <span><strong>投稿者:</strong> {{ review.author.username }}</span>
+                            <span>
+                                <strong>投稿者:</strong> {{ review.author.username }}
+                                <!-- ▼▼▼ 追加: レベルと称号バッジの表示 ▼▼▼ -->
+                                <span class="review-author-badge {{ author_level.style_class }}">
+                                    {{ author_level.icon }} {{ author_level.title }}
+                                </span>
+                                <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
+                            </span>
                             <span><strong>評価:</strong> ★{{ "%.1f"|format(review.rating) }}</span>
                             <span><strong>出席:</strong> {{ review.attendance }}</span>
                             <span><strong>テスト:</strong> {{ review.test }}</span>
@@ -247,7 +256,7 @@
         .catch((error) => console.error('Error:', error));
     }
 
-    // 【追加】お気に入り登録処理
+    // お気に入り登録処理
     function toggleFavorite(courseId) {
         fetch('/api/toggle_favorite', {
             method: 'POST',

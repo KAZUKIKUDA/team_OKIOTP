@@ -6,14 +6,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
 </head>
 <body>
     <a href="{{ url_for('index') }}">
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
 
-    <!-- ▼▼▼ ヘッダー（ドロップダウン統一版） ▼▼▼ -->
+    <!-- ヘッダー -->
     <div class="user-header">
         <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
             ⚡ 高速レビュー
@@ -32,7 +32,6 @@
             </div>
         </div>
     </div>
-    <!-- ▲▲▲ ヘッダーここまで ▲▲▲ -->
 
     <div class="container">
         <header class="main-header">
@@ -46,6 +45,60 @@
               {% endfor %}
             {% endif %}
         {% endwith %}
+
+        <!-- ▼▼▼ 追加: レベル・ランクカード ▼▼▼ -->
+        {% set level_info = user.get_level_info() %}
+        <div class="level-card {{ level_info.style_class }}">
+            <div class="level-header">
+                <div class="level-icon-large">{{ level_info.icon }}</div>
+                <div class="level-info">
+                    <h3>Reviewer Rank</h3>
+                    <div class="level-rank-title">{{ level_info.title }} <span style="font-size:0.6em; font-weight:normal; color:#666;">(Lv.{{ level_info.level }})</span></div>
+                </div>
+            </div>
+            
+            <div class="level-desc">{{ level_info.desc }}</div>
+            
+            {% if level_info.next_goal %}
+            <div class="level-progress-area">
+                <div class="level-progress-text">
+                    <span>次のランクまで</span>
+                    <span>あと <strong>{{ level_info.next_goal }}</strong> 件のレビュー</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="level-progress-area">
+                <div class="level-progress-text" style="justify-content:center; color:var(--warning-color);">
+                    <span>🎉 最高ランクに到達しました！</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
+
+        <!-- バッジセクション -->
+        <section class="badge-section" style="max-width: 600px; margin: 0 auto 30px; background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+            <h2 style="text-align: center; margin-bottom: 20px; font-size: 1.4em; color: var(--primary-color);">🏆 実績バッジコレクション</h2>
+            <div class="badge-container">
+                {% for badge in all_badges %}
+                    {% if badge in user.badges %}
+                        <!-- 獲得済みバッジ -->
+                        <div class="badge-item awarded">
+                            <div class="badge-icon">{{ badge.icon }}</div>
+                            <div class="badge-name">{{ badge.name }}</div>
+                            <div class="badge-desc">{{ badge.description }}</div>
+                        </div>
+                    {% else %}
+                        <!-- 未獲得バッジ (グレーアウト) -->
+                        <div class="badge-item locked">
+                            <div class="badge-icon">🔒</div>
+                            <div class="badge-name">???</div>
+                            <div class="badge-desc">{{ badge.description }}</div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
 
         <section style="max-width: 600px; margin: 0 auto;">
             <div class="auth-container" style="margin-top: 0; padding: 40px; box-shadow: none; border: none; background: transparent;">

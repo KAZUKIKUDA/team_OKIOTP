@@ -73,11 +73,27 @@ login_manager.login_message_category = "danger"
 
 # --- Database Models ---
 
-# 【追加】お気に入り機能用の中間テーブル
+# お気に入り機能用の中間テーブル
 favorites = db.Table('favorites',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('course_id', db.Integer, db.ForeignKey('course.id'), primary_key=True)
 )
+
+# バッジ機能用の中間テーブル
+user_badges = db.Table('user_badges',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('badge_id', db.Integer, db.ForeignKey('badge.id'), primary_key=True),
+    db.Column('earned_at', db.DateTime, default=datetime.datetime.utcnow)
+)
+
+# バッジモデル
+class Badge(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)       # バッジ名
+    description = db.Column(db.String(200), nullable=False) # 説明
+    icon = db.Column(db.String(10), nullable=False)       # 絵文字アイコン
+    condition_type = db.Column(db.String(50), nullable=False) # 判定条件 (review_count, swipe_count)
+    condition_value = db.Column(db.Integer, nullable=False)   # 達成閾値
 
 class ReviewReaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -101,13 +117,33 @@ class User(UserMixin, db.Model):
     department = db.Column(db.String(50))   # 学科 (例: 知能情報コース)
     grade = db.Column(db.String(10))        # 学年 (例: 2024年度入学)
     
-    # 【追加】お気に入りした講義へのリレーション
+    # お気に入りした講義へのリレーション
     favorite_courses = db.relationship('Course', secondary=favorites, backref=db.backref('favorited_by', lazy='dynamic'))
+    
+    # 獲得したバッジへのリレーション
+    badges = db.relationship('Badge', secondary=user_badges, backref=db.backref('holders', lazy='dynamic'))
+
+    # ▼▼▼ 追加: レベル・称号計算ロジック ▼▼▼
+    def get_level_info(self):
+        """レビュー数に基づいてレベル情報を返す"""
+        # レビュー数を取得
+        count = Review.query.filter_by(user_id=self.id).count()
+
+        if count >= 50:
+            return {'level': 5, 'rank': 'S', 'title': 'レジェンド', 'icon': '👑', 'next_goal': None, 'style_class': 'rank-legend', 'desc': 'あなたは神です。'}
+        elif count >= 30:
+            return {'level': 4, 'rank': 'A', 'title': '琉大マスター', 'icon': '🦉', 'next_goal': 50 - count, 'style_class': 'rank-master', 'desc': '誰もが頼る知識の泉。'}
+        elif count >= 10:
+            return {'level': 3, 'rank': 'B', 'title': '頼れる先輩', 'icon': '🐔', 'next_goal': 30 - count, 'style_class': 'rank-senior', 'desc': '後輩からの信頼も厚い！'}
+        elif count >= 3:
+            return {'level': 2, 'rank': 'C', 'title': '駆け出し学生', 'icon': '🐥', 'next_goal': 10 - count, 'style_class': 'rank-rookie', 'desc': 'レビューに慣れてきましたね。'}
+        else:
+            return {'level': 1, 'rank': 'D', 'title': '迷える新入生', 'icon': '🐣', 'next_goal': 3 - count, 'style_class': 'rank-beginner', 'desc': 'まずは3件投稿して殻を破ろう！'}
+    # ▲▲▲ 追加ここまで ▲▲▲
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) 
-    # 教員名の文字数を1000に設定 (長い教員名リストに対応)
     teacher = db.Column(db.String(1000), nullable=False) 
     syllabus_url = db.Column(db.String(300), nullable=True) 
     subject_code = db.Column(db.String(50), nullable=True) 
@@ -154,21 +190,16 @@ class Review(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    # ▼▼▼ 修正: DB接続リトライ機能を追加 ▼▼▼
-    # 無料枠の不安定な接続に対応するため、最大3回まで再試行する
     max_retries = 3
     for attempt in range(max_retries):
         try:
             return User.query.get(int(user_id))
         except Exception as e:
-            # 最後の試行で失敗した場合のみログを出してNoneを返す
             if attempt == max_retries - 1:
                 app.logger.error(f"Error loading user {user_id} after {max_retries} attempts: {e}")
                 return None
-            # 失敗した場合は少し待ってから再試行 (0.1秒, 0.2秒...)
             time.sleep(0.1 * (2 ** attempt))
     return None
-    # ▲▲▲ 修正ここまで ▲▲▲
 
 def scrape_syllabus(url):
     headers = {
@@ -226,6 +257,63 @@ def scrape_syllabus(url):
         app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
         return None
 
+# --- Badge Logic ---
+
+def initialize_badges():
+    """バッジのマスターデータが存在しない場合、作成する"""
+    try:
+        if Badge.query.count() == 0:
+            badges = [
+                Badge(name="はじめの一歩", description="初めてレビューを投稿しました！", icon="🔰", condition_type="review_count", condition_value=1),
+                Badge(name="ブロンズレビュアー", description="レビューを5件投稿しました。", icon="🥉", condition_type="review_count", condition_value=5),
+                Badge(name="シルバーレビュアー", description="レビューを10件投稿しました。", icon="🥈", condition_type="review_count", condition_value=10),
+                Badge(name="ゴールドレビュアー", description="レビューを30件投稿しました。すごい！", icon="🥇", condition_type="review_count", condition_value=30),
+                Badge(name="レジェンド", description="レビューを50件投稿しました。あなたは神です。", icon="👑", condition_type="review_count", condition_value=50),
+                Badge(name="サクサク評価", description="高速レビューで10回評価しました。", icon="⚡", condition_type="swipe_count", condition_value=10),
+            ]
+            db.session.bulk_save_objects(badges)
+            db.session.commit()
+            app.logger.info("Badges initialized.")
+    except Exception as e:
+        app.logger.error(f"Badge initialization error: {e}")
+
+def check_and_award_badges(user):
+    """ユーザーのバッジ獲得状況をチェックし、付与する"""
+    try:
+        all_badges = Badge.query.all()
+        # 通常レビュー数
+        review_count = Review.query.filter_by(user_id=user.id).count()
+        # 高速レビュー数 (テキストが【高速レビュー】のもの)
+        swipe_count = Review.query.filter_by(user_id=user.id, review='【高速レビュー】').count()
+
+        newly_awarded = []
+
+        for badge in all_badges:
+            # すでに持っているバッジはスキップ
+            if badge in user.badges:
+                continue
+            
+            awarded = False
+            if badge.condition_type == 'review_count':
+                if review_count >= badge.condition_value:
+                    awarded = True
+            elif badge.condition_type == 'swipe_count':
+                if swipe_count >= badge.condition_value:
+                    awarded = True
+            
+            if awarded:
+                user.badges.append(badge)
+                newly_awarded.append(badge)
+        
+        if newly_awarded:
+            db.session.commit()
+            # 獲得したバッジ名を通知
+            names = "、".join([b.name for b in newly_awarded])
+            flash(f'🎉 おめでとうございます！新しいバッジ「{names}」を獲得しました！', 'success')
+            
+    except Exception as e:
+        app.logger.error(f"Badge check error: {e}")
+
 # --- Routes ---
 
 @app.route('/')
@@ -278,13 +366,7 @@ def index():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-        
-    # GETリクエスト時は空のデータを渡す
-    form_data = {}
-    
     if request.method == 'POST':
-        form_data = request.form # 入力内容を保持
-        
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
@@ -293,23 +375,19 @@ def register():
         department = request.form.get('department')
         grade = request.form.get('grade')
         
-        # 1. パスワード一致確認
         if password != password_confirm:
             flash('パスワードが一致しません。', 'danger')
-            # redirect ではなく render_template で戻す (error_fieldを指定)
-            return render_template('register.html', form_data=form_data, error_field='password_confirm')
+            return redirect(url_for('register'))
 
-        # 2. パスワード強度確認
         password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
         if not re.match(password_pattern, password):
             flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
-            return render_template('register.html', form_data=form_data, error_field='password')
+            return redirect(url_for('register'))
         
-        # 3. メールアドレス形式確認
         email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$' 
         if not re.match(email_pattern, email):
             flash('現在、登録はCSコースのアドレス (eXXXXXX@cs.u-ryukyu.ac.jp) に限定されています。', 'danger')
-            return render_template('register.html', form_data=form_data, error_field='email')
+            return redirect(url_for('register'))
 
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
@@ -323,11 +401,6 @@ def register():
                 grade=grade
             )
             db.session.add(new_user)
-            
-            # ... (中略: メール送信処理などはそのまま) ...
-            
-            # メール送信前のコミット等
-            # (SendGrid処理は既存のまま)
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
@@ -338,39 +411,32 @@ def register():
                 to_emails=email,
                 subject='講義レビュー | メールアドレスの確認',
                 html_content=html_content)
-            
-            if sg:
-                response = sg.send(message) 
-                if response.status_code < 200 or response.status_code >= 300:
-                    raise Exception(f"SendGrid API error (Status {response.status_code})")
-            
+            if not sg:
+                raise Exception("SendGrid API Client (sg) is not initialized.")
+            response = sg.send(message) 
+            if response.status_code < 200 or response.status_code >= 300:
+                raise Exception(f"SendGrid API error (Status {response.status_code})")
             db.session.commit() 
             flash('確認メールを送信しました。', 'success')
             return redirect(url_for('login'))
-            
         except IntegrityError: 
             db.session.rollback() 
             existing_user_by_email = User.query.filter_by(email=email).first()
             if existing_user_by_email:
                 if existing_user_by_email.is_verified:
                     flash('このメールアドレスは既に使用されています。', 'danger')
-                    # 既に登録済みならログイン画面へ飛ばしても良いが、入力画面に戻すなら以下
-                    return render_template('register.html', form_data=form_data, error_field='email')
+                    return redirect(url_for('login'))
                 else:
                     flash('このメールアドレスは登録済みですが、未認証です。', 'warning')
                     return redirect(url_for('resend_activation'))
-            
-            # メール以外（ユーザー名など）の重複エラーの場合
-            flash('ユーザー名またはメールアドレスが既に使用されています。', 'danger')
-            return render_template('register.html', form_data=form_data, error_field='username')
-            
+            flash('エラーが発生しました。', 'danger')
+            return redirect(url_for('register'))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Registration error: {e}")
             flash(f'不明なエラーが発生しました。', 'danger')
-            return render_template('register.html', form_data=form_data)
-
-    return render_template('register.html', form_data=form_data)
+            return redirect(url_for('register'))
+    return render_template('register.html')
 
 @app.route('/confirm_email/<token>')
 def confirm_email(token):
@@ -737,6 +803,10 @@ def add_review(id):
         )
         db.session.add(new_review)
         db.session.commit()
+        
+        # バッジ判定
+        check_and_award_badges(current_user)
+        
         flash('レビューを投稿しました。', 'success')
     except Exception as e:
         db.session.rollback()
@@ -774,7 +844,6 @@ def api_react():
         app.logger.error(f"Reaction error: {e}")
         return jsonify({'error': 'Database error'}), 500
 
-# 【追加】お気に入り登録・解除API
 @app.route('/api/toggle_favorite', methods=['POST'])
 @login_required
 def toggle_favorite():
@@ -794,7 +863,6 @@ def toggle_favorite():
     
     return jsonify({'success': True, 'is_favorited': is_favorited})
 
-# 【追加】お気に入り一覧ページ
 @app.route('/my_favorites')
 @login_required
 def my_favorites():
@@ -823,6 +891,9 @@ def swipe_page():
 @app.route('/api/fetch_cards')
 @login_required
 def fetch_cards():
+    keyword = request.args.get('keyword', '').strip()
+    department_filter = request.args.get('department', '').strip()
+
     # 1. 自分が既にレビューした講義IDを取得（サブクエリで高速化）
     reviewed_subquery = db.session.query(Review.course_id)\
         .filter(Review.user_id == current_user.id)
@@ -830,8 +901,22 @@ def fetch_cards():
     # クエリのベースを作成（まだレビューしていない講義を除外）
     query = Course.query.filter(~Course.id.in_(reviewed_subquery))
 
-    # 2. 学部フィルタリング（ユーザーに学部が設定されている場合のみ適用）
-    if current_user.faculty:
+    if keyword:
+        # キーワードがある場合（講義名 or 教員名）
+        search_terms = keyword.split()
+        for term in search_terms:
+            query = query.filter(
+                or_(
+                    Course.name.like(f'%{term}%'),
+                    Course.teacher.like(f'%{term}%')
+                )
+            )
+    
+    if department_filter:
+        # 明示的に学部が指定された場合
+        query = query.filter(Course.department.like(f'%{department_filter}%'))
+    elif current_user.faculty and not keyword:
+        # キーワードも学部指定もない場合のみ、デフォルトでユーザーの学部＋共通科目を優先する。
         query = query.filter(
             or_(
                 Course.department.like(f'%{current_user.faculty}%'),
@@ -839,8 +924,7 @@ def fetch_cards():
             )
         )
     
-    # 3. 高速化のため、まずIDリストを取得してPython側でランダムサンプリング
-    # IDのみを取得する軽量クエリ
+    # 2. 高速化のため、まずIDリストを取得してPython側でランダムサンプリング
     candidate_ids = [r[0] for r in query.with_entities(Course.id).all()]
     
     if not candidate_ids:
@@ -938,17 +1022,23 @@ def mypage():
             app.logger.error(f"Profile update error: {e}")
             flash('更新中にエラーが発生しました。', 'danger')
         return redirect(url_for('mypage'))
-        
-    return render_template('mypage.html', user=current_user)
+    
+    # バッジ一覧を取得して渡す
+    all_badges = Badge.query.all()
+    return render_template('mypage.html', user=current_user, all_badges=all_badges)
+
+# flask run コマンドでもテーブルが作成されるようにする
+with app.app_context():
+    try:
+        db.create_all()
+        initialize_badges()
+    except Exception as e:
+        app.logger.error(f"Failed to initialize database: {e}")
 
 if __name__ == '__main__':
     # 開発環境用の設定
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
-    
-    # 手動起動(python app.py)の場合のDB作成
-    # ※ 本番環境(Gunicorn)ではここは実行されない
-    with app.app_context(): db.create_all()
     
     # 環境変数PORTに対応（Render等）
     port = int(os.environ.get('PORT', 5005))

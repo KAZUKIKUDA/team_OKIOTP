@@ -23,6 +23,12 @@
     --card-border: #e2e8f0;         /* 薄いグレーの境界線 */
     --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06); /* 控えめな影 */
     --input-bg: #f8fafc;            /* フォーム背景 (Solid) */
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    
+    --header-height: 60px;
 }
 
 body, html {
@@ -110,6 +116,7 @@ body {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
     box-shadow: var(--card-shadow);
+    position: relative; /* 子要素の配置基準 */
 }
 
 .auth-container {
@@ -1521,4 +1528,297 @@ a.sort-link:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
     text-decoration: none;
+}
+
+/* 10. Swipe Filter (新規追加) */
+.swipe-filter-area {
+    max-width: 400px;
+    margin: 0 auto 20px;
+    background: #fff;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
+}
+
+.swipe-filter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.swipe-filter-row:last-child {
+    margin-bottom: 0;
+}
+
+.swipe-input, .swipe-select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: var(--radius-sm);
+    font-size: 0.95em;
+    background-color: #fff;
+}
+
+.swipe-filter-btn {
+    padding: 10px 20px;
+    font-size: 0.95em;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.swipe-filter-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+/* 11. Badges (バッジスタイル) */
+.badge-section {
+    max-width: 600px;
+    margin: 0 auto 30px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.badge-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 15px;
+    justify-content: center;
+}
+
+.badge-item {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 15px 10px;
+    text-align: center;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.badge-item.awarded {
+    border-color: var(--warning-color);
+    background: #fffbeb;
+    box-shadow: 0 4px 6px rgba(245, 158, 11, 0.15);
+    transform: translateY(-2px);
+}
+
+.badge-item.locked {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    opacity: 0.7;
+    filter: grayscale(100%);
+}
+
+.badge-icon {
+    font-size: 2.5em;
+    margin-bottom: 8px;
+    line-height: 1;
+}
+
+.badge-name {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: var(--text-main);
+    margin-bottom: 5px;
+}
+
+.badge-desc {
+    font-size: 0.75em;
+    color: var(--text-sub);
+    line-height: 1.3;
+}
+
+/* =========================================
+   ▼▼▼ Level & Rank Styles (New) ▼▼▼
+========================================= */
+
+/* レベルカード (マイページ用) */
+.level-card {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 30px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.level-card.rank-legend { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fde68a; }
+.level-card.rank-master { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #e9d5ff; }
+.level-card.rank-senior { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-color: #bfdbfe; }
+.level-card.rank-rookie { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0; }
+
+.level-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.level-icon-large {
+    font-size: 3em;
+    background: #fff;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.level-info h3 {
+    margin: 0;
+    color: var(--text-sub);
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.level-rank-title {
+    font-size: 1.5em;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 2px 0 0 0;
+}
+
+.level-desc {
+    font-size: 0.9em;
+    color: var(--text-sub);
+    margin-bottom: 15px;
+}
+
+.level-progress-area {
+    background: rgba(255,255,255,0.6);
+    padding: 15px;
+    border-radius: 12px;
+}
+
+.level-progress-text {
+    font-size: 0.9em;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* レビュー作成者のバッジ (詳細画面用) */
+.review-author-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: bold;
+    background: #f1f5f9;
+    color: var(--text-sub);
+    border: 1px solid #e2e8f0;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+.review-author-badge.rank-legend { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.review-author-badge.rank-master { background: #faf5ff; color: #7e22ce; border-color: #d8b4fe; }
+.review-author-badge.rank-senior { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+.review-author-badge.rank-rookie { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+
+/* 信頼できるレビュアーの強調スタイル */
+.review-card-highlight {
+    border: 2px solid #fcd34d !important; /* ゴールドの枠線 */
+    background: #fffbf0 !important;
+    position: relative;
+}
+.review-card-highlight::before {
+    content: '👑 信頼できるレビュアー';
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: #fbbf24;
+    color: #fff;
+    font-size: 0.75em;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 12. Media Queries (Mobile Fixes) */
+@media (max-width: 600px) {
+    .container {
+        padding: 0 15px;
+        margin-top: 70px; /* スマホヘッダー考慮 */
+    }
+    
+    .auth-container {
+        padding: 30px 20px;
+        margin: 20px auto;
+    }
+
+    .ranking-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* 検索フォームのレスポンシブ */
+    .search-grid, .search-left, .search-right {
+        width: 100%;
+        display: block;
+    }
+    
+    .search-form-container {
+        padding: 20px;
+    }
+
+    .rating-distribution-container {
+        padding: 15px;
+    }
+    
+    .review-meta {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .badge-container {
+        grid-template-columns: repeat(3, 1fr); /* スマホは3列 */
+    }
+
+    /* テーブルの横スクロール対応（はみ出し防止） */
+    .search-results-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .search-results-table th, .search-results-table td {
+        white-space: nowrap; /* テキスト折り返しなし */
+        padding: 12px 10px;
+    }
+
+    .user-header {
+        position: relative;
+        justify-content: center;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .header-action-btn {
+        margin-right: 0;
+    }
 }
