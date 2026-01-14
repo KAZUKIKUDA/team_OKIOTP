@@ -116,6 +116,10 @@ class User(UserMixin, db.Model):
     faculty = db.Column(db.String(50))      # 学部 (例: 工学部)
     department = db.Column(db.String(50))   # 学科 (例: 知能情報コース)
     grade = db.Column(db.String(10))        # 学年 (例: 2024年度入学)
+    pass_expires_at = db.Column(db.DateTime, nullable=True)
+    permanent_access = db.Column(db.Boolean, nullable=False, default=False)
+    quick_review_count = db.Column(db.Integer, nullable=False, default=0)
+    detailed_review_count = db.Column(db.Integer, nullable=False, default=0)
     
     # お気に入りした講義へのリレーション
     favorite_courses = db.relationship('Course', secondary=favorites, backref=db.backref('favorited_by', lazy='dynamic'))
@@ -176,6 +180,7 @@ class Review(db.Model):
     classroom = db.Column(db.String(100), nullable=True)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_quick = db.Column(db.Boolean, nullable=False, default=False)
     reactions = db.relationship('ReviewReaction', backref='review', lazy='dynamic', cascade="all, delete-orphan")
 
     def get_reaction_counts(self):
@@ -200,6 +205,40 @@ def load_user(user_id):
                 return None
             time.sleep(0.1 * (2 ** attempt))
     return None
+
+
+def can_view_detail(user):
+    if not user.is_authenticated:
+        return False
+    if getattr(user, 'permanent_access', False):
+        return True
+    expires_at = getattr(user, 'pass_expires_at', None)
+    if not expires_at:
+        return False
+    return expires_at > datetime.datetime.utcnow()
+
+
+def grant_day_pass(user, days):
+    base = user.pass_expires_at
+    now = datetime.datetime.utcnow()
+    if not base or base < now:
+        base = now
+    user.pass_expires_at = base + datetime.timedelta(days=days)
+
+
+def apply_review_rewards(user, is_quick_review):
+    if user.permanent_access:
+        return
+    if is_quick_review:
+        return
+
+    if user.detailed_review_count >= 15:
+        user.permanent_access = True
+        user.pass_expires_at = None
+        return
+
+    if user.detailed_review_count % 3 == 0:
+        grant_day_pass(user, 1)
 
 def scrape_syllabus(url):
     headers = {
@@ -392,19 +431,20 @@ def register():
         try:
             hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             new_user = User(
-                username=username, 
-                email=email, 
-                password=hashed_password, 
+                username=username,
+                email=email,
+                password=hashed_password,
                 is_verified=False,
                 faculty=faculty,
                 department=department,
                 grade=grade
             )
             db.session.add(new_user)
+            db.session.commit()
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
-            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
-            SENDER_NAME = '講義レビューサイト' 
+            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp'
+            SENDER_NAME = '講義レビューサイト'
             html_content = render_template('email/activate.html', confirm_url=confirm_url)
             message = SendGridMail(
                 from_email=(SENDER_EMAIL, SENDER_NAME),
@@ -412,14 +452,24 @@ def register():
                 subject='講義レビュー | メールアドレスの確認',
                 html_content=html_content)
             if not sg:
-                raise Exception("SendGrid API Client (sg) is not initialized.")
-            response = sg.send(message) 
-            if response.status_code < 200 or response.status_code >= 300:
-                raise Exception(f"SendGrid API error (Status {response.status_code})")
-            db.session.commit() 
-            flash('確認メールを送信しました。', 'success')
+                app.logger.warning(f"SendGrid未設定のため認証メールを送信できませんでした。認証URL: {confirm_url}")
+                flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
+                return redirect(url_for('login'))
+
+            try:
+                response = sg.send(message)
+                if response.status_code < 200 or response.status_code >= 300:
+                    app.logger.error(f"SendGrid API error (Status {response.status_code}). 認証URL: {confirm_url}")
+                    flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
+                else:
+                    flash('確認メールを送信しました。', 'success')
+            except Exception as e:
+                app.logger.error(f"SendGrid送信中にエラーが発生しました: {e}. 認証URL: {confirm_url}")
+                flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
+
             return redirect(url_for('login'))
-        except IntegrityError: 
+
+        except IntegrityError:
             db.session.rollback() 
             existing_user_by_email = User.query.filter_by(email=email).first()
             if existing_user_by_email:
@@ -519,6 +569,10 @@ def guest_login():
             user = User.query.filter_by(email=GUEST_EMAIL).first()
 
             if user:
+                if not user.permanent_access:
+                    user.permanent_access = True
+                    user.pass_expires_at = None
+                    db.session.commit()
                 # 既に存在するゲストユーザーでログイン
                 login_user(user)
                 flash('ゲストとしてログインしました。', 'success')
@@ -535,7 +589,9 @@ def guest_login():
                     is_verified=True,
                     faculty='工学部',
                     department='知能情報コース',
-                    grade='3年'
+                    grade='3年',
+                    permanent_access=True,
+                    pass_expires_at=None
                 )
                 
                 db.session.add(new_guest_user)
@@ -733,6 +789,7 @@ def search_course():
 @login_required
 def course_detail(id):
     course = Course.query.options(joinedload(Course.reviews)).get_or_404(id)
+    can_view = can_view_detail(current_user)
     rating_counts = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 }
     total_reviews = len(course.reviews)
     for review in course.reviews:
@@ -749,12 +806,13 @@ def course_detail(id):
     else:
         for star in rating_counts.keys():
             rating_distribution[star] = { 'count': 0, 'percentage': 0 }
-    return render_template('detail.html', course=course, rating_distribution=rating_distribution)
+    return render_template('detail.html', course=course, rating_distribution=rating_distribution, can_view_detail=can_view)
 
 @app.route('/course_view/<int:id>')
 @login_required
 def course_view_detail(id):
     course = Course.query.options(joinedload(Course.reviews)).get_or_404(id)
+    can_view = can_view_detail(current_user)
     rating_counts = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 }
     total_reviews = len(course.reviews)
     for review in course.reviews:
@@ -771,7 +829,7 @@ def course_view_detail(id):
     else:
         for star in rating_counts.keys():
             rating_distribution[star] = { 'count': 0, 'percentage': 0 }
-    return render_template('detail2.html', course=course, rating_distribution=rating_distribution)
+    return render_template('detail2.html', course=course, rating_distribution=rating_distribution, can_view_detail=can_view)
 
 @app.route('/add_review/<int:id>', methods=['POST'])
 @login_required
@@ -785,10 +843,18 @@ def add_review(id):
         flash('レビューを投稿しました。（デモ動作：ゲストのため実際には保存されません）', 'success')
         return redirect(url_for('course_view_detail', id=id))
 
-    if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
-        flash('既にレビューを投稿しています。', 'warning')
-        return redirect(url_for('course_detail', id=id))
     try:
+        is_quick_review = (request.form.get('review') == '【高速レビュー】')
+
+        if is_quick_review:
+            if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
+                flash('既にレビューを投稿しています。', 'warning')
+                return redirect(url_for('course_detail', id=id))
+        else:
+            if Review.query.filter_by(course_id=id, user_id=current_user.id, is_quick=False).first():
+                flash('既にレビューを投稿しています。', 'warning')
+                return redirect(url_for('course_detail', id=id))
+
         new_review = Review(
             rating=float(request.form.get('rating')),
             attendance=request.form.get('attendance'),
@@ -799,9 +865,17 @@ def add_review(id):
             classroom=request.form.get('classroom'),
             review=request.form.get('review'),
             course_id=course.id, 
-            user_id=current_user.id
+            user_id=current_user.id,
+            is_quick=is_quick_review
         )
         db.session.add(new_review)
+
+        if is_quick_review:
+            current_user.quick_review_count = (current_user.quick_review_count or 0) + 1
+        else:
+            current_user.detailed_review_count = (current_user.detailed_review_count or 0) + 1
+
+        apply_review_rewards(current_user, is_quick_review)
         db.session.commit()
         
         # バッジ判定
@@ -817,6 +891,8 @@ def add_review(id):
 @app.route('/api/react', methods=['POST'])
 @login_required
 def api_react():
+    if not can_view_detail(current_user):
+        return jsonify({'error': 'Access denied'}), 403
     data = request.get_json()
     review_id = data.get('review_id')
     reaction_type = data.get('reaction_type')
@@ -1035,10 +1111,40 @@ with app.app_context():
     except Exception as e:
         app.logger.error(f"Failed to initialize database: {e}")
 
+
+def seed_demo_courses_if_needed():
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI') or ''
+    if not uri.startswith('sqlite'):
+        return
+    try:
+        if Course.query.count() > 0:
+            return
+        demo_courses = [
+            Course(name='プログラミング基礎', teacher='山田 太郎', subject_code='CS101', department='工学部', credits='2', format='対面', syllabus_year='2025年度'),
+            Course(name='データ構造とアルゴリズム', teacher='佐藤 花子', subject_code='CS201', department='工学部', credits='2', format='対面', syllabus_year='2025年度'),
+            Course(name='データベース', teacher='鈴木 一郎', subject_code='CS301', department='工学部', credits='2', format='オンライン', syllabus_year='2025年度'),
+            Course(name='ソフトウェア工学', teacher='高橋 次郎', subject_code='CS302', department='工学部', credits='2', format='対面', syllabus_year='2025年度'),
+            Course(name='ネットワーク', teacher='伊藤 美咲', subject_code='CS303', department='工学部', credits='2', format='対面', syllabus_year='2025年度'),
+            Course(name='情報倫理', teacher='田中 恒一', subject_code='GE101', department='共通教育等科目', credits='1', format='オンライン', syllabus_year='2025年度'),
+            Course(name='アカデミック・ライティング', teacher='中村 恵', subject_code='GE102', department='共通教育等科目', credits='1', format='オンデマンド', syllabus_year='2025年度'),
+            Course(name='統計学入門', teacher='小林 健', subject_code='GE201', department='共通教育等科目', credits='2', format='対面', syllabus_year='2025年度'),
+        ]
+        db.session.add_all(demo_courses)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Seed demo courses error: {e}")
+
 if __name__ == '__main__':
     # 開発環境用の設定
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
+    
+    # 手動起動(python app.py)の場合のDB作成
+    # ※ 本番環境(Gunicorn)ではここは実行されない
+    with app.app_context():
+        db.create_all()
+        seed_demo_courses_if_needed()
     
     # 環境変数PORTに対応（Render等）
     port = int(os.environ.get('PORT', 5005))

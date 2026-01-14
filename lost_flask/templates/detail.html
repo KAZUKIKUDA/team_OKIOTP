@@ -48,6 +48,18 @@
             {% endif %}
         {% endwith %}
 
+        {% if not can_view_detail %}
+        <div class="flash-message warning">
+            閲覧ロック中です。詳細レビューを3件投稿すると24時間、レビュー閲覧ができるようになります。
+        </div>
+        {% endif %}
+
+        {% if current_user.email.endswith('@demo.com') %}
+        <div class="flash-message info">
+            ゲストユーザーはデモ動作のため、レビュー投稿は保存されません。
+        </div>
+        {% endif %}
+
         <section class="course-info">
             <div class="course-info-details">
                 <p><strong>講義名：</strong> {{ course.name }}</p>
@@ -102,6 +114,14 @@
                 <p style="margin-bottom: 20px; font-size: 0.9em; color: var(--text-sub); text-align: center;">
                     ※ すでにこの講義のレビューを投稿済みの場合は、上書きではなくエラーになります。<br>
                     編集したい場合は<a href="{{ url_for('course_view_detail', id=course.id) }}">レビュー閲覧ページ</a>から編集してください。
+                </p>
+
+                <p style="margin-bottom: 20px; font-size: 0.9em; color: var(--text-sub); text-align: center;">
+                    ※ 高速レビューを既に行っていても、詳細レビューは投稿できます。
+                </p>
+
+                <p style="margin-bottom: 20px; font-size: 0.9em; color: var(--text-sub); text-align: center;">
+                    ※ 高速レビューは閲覧解放に影響しません。
                 </p>
 
                 <h4>総合評価 <span style="color:var(--accent-color)">*</span></h4>

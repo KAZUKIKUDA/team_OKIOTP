@@ -45,18 +45,20 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ▼▼▼ 修正: DB接続設定 (Supabase Transaction Mode + Oracle Cloud 最適化版) ▼▼▼
-    # NullPoolを使うことで、アプリ側で接続を保持せず、メモリを節約します。
-    # 接続管理はSupabase側(ポート6543)に任せます。
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'poolclass': NullPool,       # プーリングを無効化（都度接続・切断）
-        'connect_args': {
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
-            'prepare_threshold': None # ポート6543用: 必須設定
+    # PostgreSQL接続のときだけ有効化する (SQLiteでは無効化しないとconnect_argsでTypeErrorになる)
+    if database_url:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'poolclass': NullPool,       # プーリングを無効化（都度接続・切断）
+            'connect_args': {
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 5,
+                'prepare_threshold': None # ポート6543用: 必須設定
+            }
         }
-    }
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {}
     # ▲▲▲ 修正ここまで ▲▲▲
 
     # --- メール設定 ---
