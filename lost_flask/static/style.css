@@ -1822,3 +1822,70 @@ a.sort-link:hover {
         margin-right: 0;
     }
 }
+
+/* ▼▼▼ 追加: 閲覧権限ステータス表示用スタイル ▼▼▼ */
+
+/* ヘッダー用ミニバッジ */
+.status-badge-header {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-size: 0.85em;
+    font-weight: 700;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+/* スマホなどで画面が狭いとき用 */
+@media (max-width: 600px) {
+    .status-badge-header {
+        margin-right: 0;
+        margin-bottom: 5px;
+        font-size: 0.8em;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* マイページ用詳細カード */
+.access-status-card {
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+    text-align: center;
+    border-width: 1px;
+    border-style: solid;
+    position: relative;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.access-status-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.1em;
+    font-weight: 800;
+}
+
+.access-status-desc {
+    font-size: 0.95em;
+    line-height: 1.6;
+    margin-bottom: 0;
+}
+
+/* ステータス別カラー */
+.access-permanent {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+.access-active {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #bbf7d0;
+    color: #166534;
+}
+.access-locked {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #fecaca;
+    color: #991b1b;
+}

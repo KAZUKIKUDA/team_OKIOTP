@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -48,6 +49,55 @@ def add_header(response):
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
     return response
+
+# ▼▼▼ 追加: 全テンプレートで閲覧権限ステータスを使えるようにする ▼▼▼
+@app.context_processor
+def inject_access_status():
+    if not current_user.is_authenticated:
+        return dict(access_status=None)
+    
+    status = {}
+    
+    # 1. 永続アクセス権を持っている場合
+    if current_user.permanent_access:
+        status['type'] = 'permanent'
+        status['label'] = '👑 無制限アクセス'
+        status['short_label'] = '👑 無制限'
+        status['description'] = 'あなたは詳細レビューを無制限に閲覧できる「永続ライセンス」を持っています。'
+        status['class'] = 'access-permanent'
+        status['to_permanent'] = 0
+    
+    # 2. 期限付きパスが有効な場合
+    elif current_user.pass_expires_at and current_user.pass_expires_at > datetime.datetime.utcnow():
+        remaining = current_user.pass_expires_at - datetime.datetime.utcnow()
+        hours = int(remaining.total_seconds() // 3600)
+        minutes = int((remaining.total_seconds() % 3600) // 60)
+        
+        status['type'] = 'active'
+        status['label'] = f'🟢 閲覧可能（残り {hours}時間{minutes}分）'
+        status['short_label'] = f'🟢 残り {hours}時間{minutes}分'
+        status['description'] = f'現在、24時間パスが有効です。残り時間は {hours}時間{minutes}分 です。'
+        status['class'] = 'access-active'
+        status['to_permanent'] = max(0, 15 - current_user.detailed_review_count)
+        
+    # 3. 閲覧制限中（ロック中）の場合
+    else:
+        count = current_user.detailed_review_count
+        # 3件ごとに解放されるので、あと何件必要か計算
+        # 例: 1件投稿済み -> 1 % 3 = 1 -> 3 - 1 = あと2件
+        next_unlock = 3 - (count % 3)
+        to_permanent = max(0, 15 - count)
+        
+        status['type'] = 'locked'
+        status['label'] = '🔒 閲覧制限中'
+        status['short_label'] = '🔒 制限中'
+        status['description'] = f'詳細レビューをあと <strong>{next_unlock}件</strong> 投稿すると、24時間見放題になります。'
+        status['next_goal'] = next_unlock
+        status['to_permanent'] = to_permanent
+        status['class'] = 'access-locked'
+        
+    return dict(access_status=status)
+# ▲▲▲ 追加ここまで ▲▲▲
 
 db = SQLAlchemy(app)
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -445,7 +495,7 @@ def register():
             confirm_url = url_for('confirm_email', token=token, _external=True)
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp'
             SENDER_NAME = '講義レビューサイト'
-            html_content = render_template('email/activate.html', confirm_url=confirm_url)
+            html_content = render_template('activate.html', confirm_url=confirm_url)
             message = SendGridMail(
                 from_email=(SENDER_EMAIL, SENDER_NAME),
                 to_emails=email,
@@ -526,7 +576,7 @@ def resend_activation():
             confirm_url = url_for('confirm_email', token=token, _external=True)
             SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp' 
             SENDER_NAME = '講義レビューサイト'
-            html_content = render_template('email/activate.html', confirm_url=confirm_url)
+            html_content = render_template('activate.html', confirm_url=confirm_url)
             message = SendGridMail(from_email=(SENDER_EMAIL, SENDER_NAME), to_emails=email, subject='講義レビュー | メールアドレスの確認 (再送)', html_content=html_content)
             if not sg: raise Exception("SendGrid API Client not initialized.")
             response = sg.send(message)

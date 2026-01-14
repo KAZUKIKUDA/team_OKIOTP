@@ -6,7 +6,89 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=10">
+    <style>
+        /* マイページ専用スタイル */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        @media (min-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+                align-items: start;
+            }
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            background: #fff;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            display: block;
+            font-size: 1.8em;
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1.2;
+        }
+        
+        .stat-label {
+            font-size: 0.85em;
+            color: var(--text-sub);
+            font-weight: 600;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            font-weight: 800;
+            font-size: 1.2em;
+        }
+        .section-header::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 24px;
+            background: var(--primary-color);
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        .profile-form-box {
+            background: #fff;
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (min-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <a href="{{ url_for('index') }}">
@@ -46,106 +128,153 @@
             {% endif %}
         {% endwith %}
 
-        <!-- ▼▼▼ 追加: レベル・ランクカード ▼▼▼ -->
-        {% set level_info = user.get_level_info() %}
-        <div class="level-card {{ level_info.style_class }}">
-            <div class="level-header">
-                <div class="level-icon-large">{{ level_info.icon }}</div>
-                <div class="level-info">
-                    <h3>Reviewer Rank</h3>
-                    <div class="level-rank-title">{{ level_info.title }} <span style="font-size:0.6em; font-weight:normal; color:#666;">(Lv.{{ level_info.level }})</span></div>
-                </div>
-            </div>
-            
-            <div class="level-desc">{{ level_info.desc }}</div>
-            
-            {% if level_info.next_goal %}
-            <div class="level-progress-area">
-                <div class="level-progress-text">
-                    <span>次のランクまで</span>
-                    <span>あと <strong>{{ level_info.next_goal }}</strong> 件のレビュー</span>
-                </div>
-            </div>
-            {% else %}
-            <div class="level-progress-area">
-                <div class="level-progress-text" style="justify-content:center; color:var(--warning-color);">
-                    <span>🎉 最高ランクに到達しました！</span>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
-
-        <!-- バッジセクション -->
-        <section class="badge-section" style="max-width: 600px; margin: 0 auto 30px; background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
-            <h2 style="text-align: center; margin-bottom: 20px; font-size: 1.4em; color: var(--primary-color);">🏆 実績バッジコレクション</h2>
-            <div class="badge-container">
-                {% for badge in all_badges %}
-                    {% if badge in user.badges %}
-                        <!-- 獲得済みバッジ -->
-                        <div class="badge-item awarded">
-                            <div class="badge-icon">{{ badge.icon }}</div>
-                            <div class="badge-name">{{ badge.name }}</div>
-                            <div class="badge-desc">{{ badge.description }}</div>
+        <!-- ▼▼▼ 1. ステータス・ランクエリア (2カラム) ▼▼▼ -->
+        <div class="dashboard-grid">
+            <!-- 左: ランクカード -->
+            <div>
+                <div class="section-header">現在のランク</div>
+                {% set level_info = user.get_level_info() %}
+                <div class="level-card {{ level_info.style_class }}" style="margin-bottom: 0; height: 100%; box-sizing: border-box;">
+                    <div class="level-header">
+                        <div class="level-icon-large">{{ level_info.icon }}</div>
+                        <div class="level-info">
+                            <h3>Reviewer Rank</h3>
+                            <div class="level-rank-title">{{ level_info.title }} <span style="font-size:0.6em; font-weight:normal; color:#666;">(Lv.{{ level_info.level }})</span></div>
                         </div>
+                    </div>
+                    <div class="level-desc">{{ level_info.desc }}</div>
+                    {% if level_info.next_goal %}
+                    <div class="level-progress-area">
+                        <div class="level-progress-text">
+                            <span>次のランクまで</span>
+                            <span>あと <strong>{{ level_info.next_goal }}</strong> 件</span>
+                        </div>
+                    </div>
                     {% else %}
-                        <!-- 未獲得バッジ (グレーアウト) -->
-                        <div class="badge-item locked">
-                            <div class="badge-icon">🔒</div>
-                            <div class="badge-name">???</div>
-                            <div class="badge-desc">{{ badge.description }}</div>
+                    <div class="level-progress-area">
+                        <div class="level-progress-text" style="justify-content:center; color:var(--warning-color);">
+                            <span>🎉 最高ランクに到達！</span>
                         </div>
+                    </div>
                     {% endif %}
-                {% endfor %}
+                </div>
+            </div>
+
+            <!-- 右: 閲覧権限 & スタッツ -->
+            <div style="display: flex; flex-direction: column; height: 100%;">
+                <div class="section-header">閲覧権限ステータス</div>
+                
+                {% if access_status %}
+                <div class="access-status-card {{ access_status.class }}" style="flex: 1; margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center;">
+                    <h3>{{ access_status.label }}</h3>
+                    <p class="access-status-desc">{{ access_status.description | safe }}</p>
+                    {% if access_status.type == 'locked' and access_status.to_permanent > 0 %}
+                    <div style="margin-top: 10px; font-size: 0.85em; opacity: 0.8; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 8px;">
+                        永続ライセンスまであと <strong>{{ access_status.to_permanent }}</strong> 件
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- 活動スタッツ -->
+                <div class="stats-row" style="margin-bottom: 0;">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ user.detailed_review_count }}</span>
+                        <span class="stat-label">詳細レビュー</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ user.quick_review_count }}</span>
+                        <span class="stat-label">高速レビュー</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ user.badges|length }}</span>
+                        <span class="stat-label">バッジ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ▼▼▼ 2. バッジコレクション ▼▼▼ -->
+        <section style="margin-bottom: 40px;">
+            <div class="section-header">実績バッジ</div>
+            <div class="badge-section" style="max-width: 100%; margin: 0; background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                <div class="badge-container">
+                    {% for badge in all_badges %}
+                        {% if badge in user.badges %}
+                            <div class="badge-item awarded">
+                                <div class="badge-icon">{{ badge.icon }}</div>
+                                <div class="badge-name">{{ badge.name }}</div>
+                                <div class="badge-desc">{{ badge.description }}</div>
+                            </div>
+                        {% else %}
+                            <div class="badge-item locked">
+                                <div class="badge-icon">🔒</div>
+                                <div class="badge-name">???</div>
+                                <div class="badge-desc">{{ badge.description }}</div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
             </div>
         </section>
 
-        <section style="max-width: 600px; margin: 0 auto;">
-            <div class="auth-container" style="margin-top: 0; padding: 40px; box-shadow: none; border: none; background: transparent;">
-                <h2 style="text-align: center; margin-bottom: 30px;">プロフィール編集</h2>
-                
+        <!-- ▼▼▼ 3. プロフィール設定 ▼▼▼ -->
+        <section style="max-width: 800px; margin: 0 auto;">
+            <div class="section-header">プロフィール設定</div>
+            
+            <div class="profile-form-box">
                 <form method="post">
-                    <label class="form-label-block">ユーザー名</label>
-                    <input type="text" name="username" placeholder="ユーザー名" value="{{ user.username }}" required>
-
-                    <label class="form-label-block">メールアドレス <small>(変更不可)</small></label>
-                    <input type="email" value="{{ user.email }}" disabled style="background-color: #f1f5f9; color: #64748b;">
-
-                    <label class="form-label-block">学部</label>
-                    <div class="form-group">
-                        <select name="faculty" required>
-                            <option value="">--------</option>
-                            <option value="工学部" {% if user.faculty == '工学部' %}selected{% endif %}>工学部</option>
-                            <option value="理学部" {% if user.faculty == '理学部' %}selected{% endif %}>理学部</option>
-                            <option value="国際地域創造学部" {% if user.faculty == '国際地域創造学部' %}selected{% endif %}>国際地域創造学部</option>
-                            <option value="教育学部" {% if user.faculty == '教育学部' %}selected{% endif %}>教育学部</option>
-                            <option value="人文社会学部" {% if user.faculty == '人文社会学部' %}selected{% endif %}>人文社会学部</option>
-                            <option value="農学部" {% if user.faculty == '農学部' %}selected{% endif %}>農学部</option>
-                            <option value="医学部" {% if user.faculty == '医学部' %}selected{% endif %}>医学部</option>
-                        </select>
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label-block">ユーザー名</label>
+                            <input type="text" name="username" placeholder="ユーザー名" value="{{ user.username }}" required class="mb-0">
+                        </div>
+                        <div>
+                            <label class="form-label-block">メールアドレス <small>(変更不可)</small></label>
+                            <input type="email" value="{{ user.email }}" disabled style="background-color: #f1f5f9; color: #64748b; margin-bottom: 0;">
+                        </div>
                     </div>
 
-                    <label class="form-label-block">学科・コース</label>
-                    <input type="text" name="department" placeholder="例: 知能情報コース" value="{{ user.department or '' }}" required class="mb-20">
-
-                    <label class="form-label-block">学年</label>
-                    <div class="form-group">
-                        <select name="grade" required>
-                            <option value="">--------</option>
-                            <option value="1年" {% if user.grade == '1年' %}selected{% endif %}>1年</option>
-                            <option value="2年" {% if user.grade == '2年' %}selected{% endif %}>2年</option>
-                            <option value="3年" {% if user.grade == '3年' %}selected{% endif %}>3年</option>
-                            <option value="4年" {% if user.grade == '4年' %}selected{% endif %}>4年</option>
-                            <option value="修士1年" {% if user.grade == '修士1年' %}selected{% endif %}>修士1年</option>
-                            <option value="修士2年" {% if user.grade == '修士2年' %}selected{% endif %}>修士2年</option>
-                            <option value="博士後期" {% if user.grade == '博士後期' %}selected{% endif %}>博士後期</option>
-                            <option value="その他" {% if user.grade == 'その他' %}selected{% endif %}>その他</option>
-                        </select>
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label-block">学部</label>
+                            <select name="faculty" required class="mb-0">
+                                <option value="">--------</option>
+                                <option value="工学部" {% if user.faculty == '工学部' %}selected{% endif %}>工学部</option>
+                                <option value="理学部" {% if user.faculty == '理学部' %}selected{% endif %}>理学部</option>
+                                <option value="国際地域創造学部" {% if user.faculty == '国際地域創造学部' %}selected{% endif %}>国際地域創造学部</option>
+                                <option value="教育学部" {% if user.faculty == '教育学部' %}selected{% endif %}>教育学部</option>
+                                <option value="人文社会学部" {% if user.faculty == '人文社会学部' %}selected{% endif %}>人文社会学部</option>
+                                <option value="農学部" {% if user.faculty == '農学部' %}selected{% endif %}>農学部</option>
+                                <option value="医学部" {% if user.faculty == '医学部' %}selected{% endif %}>医学部</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label-block">学科・コース</label>
+                            <input type="text" name="department" placeholder="例: 知能情報コース" value="{{ user.department or '' }}" required class="mb-0">
+                        </div>
                     </div>
 
-                    <div style="margin-top: 40px; display: flex; gap: 20px; align-items: center;">
-                        <a href="{{ url_for('index') }}" class="btn-cancel" style="flex: 1; text-align: center;">戻る</a>
-                        <button type="submit" class="btn" style="flex: 2;">保存する</button>
+                    <div class="form-row" style="grid-template-columns: 1fr;">
+                        <div>
+                            <label class="form-label-block">学年</label>
+                            <select name="grade" required class="mb-0">
+                                <option value="">--------</option>
+                                <option value="1年" {% if user.grade == '1年' %}selected{% endif %}>1年</option>
+                                <option value="2年" {% if user.grade == '2年' %}selected{% endif %}>2年</option>
+                                <option value="3年" {% if user.grade == '3年' %}selected{% endif %}>3年</option>
+                                <option value="4年" {% if user.grade == '4年' %}selected{% endif %}>4年</option>
+                                <option value="修士1年" {% if user.grade == '修士1年' %}selected{% endif %}>修士1年</option>
+                                <option value="修士2年" {% if user.grade == '修士2年' %}selected{% endif %}>修士2年</option>
+                                <option value="博士後期" {% if user.grade == '博士後期' %}selected{% endif %}>博士後期</option>
+                                <option value="その他" {% if user.grade == 'その他' %}selected{% endif %}>その他</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 30px; display: flex; gap: 20px; align-items: center; justify-content: center;">
+                        <a href="{{ url_for('index') }}" class="btn-cancel" style="width: auto; min-width: 120px; text-align: center;">戻る</a>
+                        <button type="submit" class="btn" style="width: auto; min-width: 200px;">変更を保存する</button>
                     </div>
                 </form>
             </div>

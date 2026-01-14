@@ -6,12 +6,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- CSSバージョンを更新 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
+    <!-- CSSバージョンを更新してキャッシュ対策 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
     <style>
         .tutorial-container {
             max-width: 800px;
-            margin: 60px auto 50px; /* ヘッダーとの距離を調整 */
+            margin: 60px auto 50px;
             padding: 0 20px;
         }
         .step-card {
@@ -37,6 +37,7 @@
             font-weight: 800;
             font-size: 1.2em;
             flex-shrink: 0;
+            margin-top: 5px; /* アイコンとのバランス調整 */
         }
         .step-content {
             flex-grow: 1;
@@ -46,17 +47,35 @@
             color: var(--primary-color);
             margin-bottom: 10px;
             font-size: 1.3em;
+            font-weight: 800;
         }
         .step-content p {
             line-height: 1.8;
             color: #334155;
+            margin-bottom: 10px;
         }
-        .step-icon {
-            font-size: 3em;
-            text-align: center;
-            margin: 15px 0;
-            color: #cbd5e1;
+        
+        /* 重要なルールを強調するボックス */
+        .rule-box {
+            background-color: #fffbeb;
+            border: 2px solid #fcd34d;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #92400e;
+            font-weight: bold;
+            font-size: 0.95em;
+            line-height: 1.6;
         }
+        .rule-highlight {
+            font-size: 1.2em;
+            color: #d97706;
+            font-weight: 900;
+            background: rgba(255,255,255,0.5);
+            padding: 0 4px;
+            border-radius: 4px;
+        }
+
         .btn-start-app {
             background-color: var(--success-color);
             border: 2px solid var(--success-color);
@@ -97,7 +116,7 @@
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
 
-    <!-- ▼▼▼ ヘッダー（ドロップダウン統一版） ▼▼▼ -->
+    <!-- ▼▼▼ ヘッダー ▼▼▼ -->
     <div class="user-header">
         <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
             ⚡ 高速レビュー
@@ -110,7 +129,6 @@
             </div>
             <div class="dropdown-content">
                 <a href="{{ url_for('mypage') }}">👤 マイページ</a>
-                <!-- 【追加】お気に入りへのリンク -->
                 <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
                 <a href="{{ url_for('help_page') }}">❓ 使い方</a>
                 <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
@@ -122,22 +140,30 @@
     <div class="tutorial-container">
         <div class="welcome-header">
             <h1>ようこそ！</h1>
-            <p>このアプリを活用して、充実したキャンパスライフを送りましょう。</p>
+            <p>みんなで創る、琉大生のための講義情報プラットフォーム。</p>
         </div>
 
         <div class="step-card">
             <div class="step-number">1</div>
             <div class="step-content">
                 <h3>🔍 講義を探す</h3>
-                <p>トップページから講義名や教員名で検索できます。「オンライン」や「レポートの有無」など、細かい条件で絞り込むことも可能です。気になった講義を見つけたら詳細をチェックしましょう。</p>
+                <p>トップページから講義名や教員名で検索できます。「オンライン」や「レポートの有無」など、細かい条件で絞り込むことも可能です。もし講義が見つからない場合は、シラバスのURLを入力して新しく追加することもできます。</p>
             </div>
         </div>
 
         <div class="step-card">
             <div class="step-number">2</div>
             <div class="step-content">
-                <h3>👀 レビューを見る・投稿する</h3>
-                <p>講義ごとの詳細ページで、先輩たちのリアルな評価（出席確認の方法やテストの難易度など）を確認できます。自分が受けた講義のレビューを投稿して、後輩たちの役に立つこともできます。</p>
+                <h3>🤝 ギブ・アンド・テイク</h3>
+                <p>このアプリは学生同士の助け合いで成り立っています。他の人のレビューを見るには、まずあなた自身の経験を共有してください。</p>
+                <div class="rule-box">
+                    🔑 詳細レビューを <span class="rule-highlight">3件</span> 投稿すると、<br>
+                    <span style="text-decoration:underline; text-decoration-thickness: 2px;">24時間</span> 全てのレビューが見放題になります！
+                </div>
+                <p style="font-size:0.9em; margin-top:10px; color:#64748b;">
+                    ※ さらに合計15件投稿すると、ずっと見放題の<strong>「永続ライセンス」</strong>を獲得できます。<br>
+                    ※ 「詳細レビュー」のみがカウント対象です（高速レビューは対象外）。
+                </p>
             </div>
         </div>
 
@@ -145,15 +171,24 @@
             <div class="step-number">3</div>
             <div class="step-content">
                 <h3>⚡ 高速レビューでサクサク投稿</h3>
-                <p>ヘッダーの<strong>「⚡ 高速レビュー」</strong>ボタンを押すと、まだ評価していない講義がカード形式で次々と表示されます。受講した講義があれば、直感的な操作で素早く評価を投稿できます。隙間時間の活用におすすめです。</p>
+                <p>ヘッダーの<strong>「⚡ 高速レビュー」</strong>ボタンを押すと、Tinder風のカード形式で次々と講義が表示されます。「受講した！」とスワイプすれば、直感的な操作で素早く評価を投稿できます。隙間時間の活用におすすめです。</p>
             </div>
         </div>
 
         <div class="step-card">
             <div class="step-number">4</div>
             <div class="step-content">
+                <h3>🏆 ランク・バッジ機能</h3>
+                <p>レビュー投稿数に応じてあなたのランクが「🐣 迷える新入生」から「👑 レジェンド」へと進化します。</p>
+                <p>また、「高速レビューを10回行う」「初めて投稿する」などの条件を満たすと、プロフィールに<strong>「実績バッジ」</strong>が付与されます。マイページでコレクションを確認して、コンプリートを目指しましょう！</p>
+            </div>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">5</div>
+            <div class="step-content">
                 <h3>✍️ リアクションする</h3>
-                <p>参考になったレビューには「共感した」「なるほど」ボタンで感謝を伝えましょう。良い情報共有のサイクルを作る手助けになります。</p>
+                <p>参考になったレビューには「共感した」「なるほど」「うーん」ボタンで反応を返せます。良い情報共有のサイクルを作る手助けになります。</p>
             </div>
         </div>
 
