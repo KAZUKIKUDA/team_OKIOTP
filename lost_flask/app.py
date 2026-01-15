@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -1127,6 +1126,37 @@ def delete_review(review_id):
 @app.route('/mypage', methods=['GET', 'POST'])
 @login_required
 def mypage():
+    # ▼▼▼ 追加: カウントのズレを修正する同期処理 ▼▼▼
+    # これまで投稿したレビューがカウントされていない場合、ここで再計算して反映させます
+    try:
+        real_detailed_count = Review.query.filter_by(user_id=current_user.id, is_quick=False).count()
+        real_quick_count = Review.query.filter_by(user_id=current_user.id, is_quick=True).count()
+        
+        need_commit = False
+        
+        if current_user.detailed_review_count != real_detailed_count:
+            current_user.detailed_review_count = real_detailed_count
+            need_commit = True
+            
+        if current_user.quick_review_count != real_quick_count:
+            current_user.quick_review_count = real_quick_count
+            need_commit = True
+            
+        # 救済措置: 15件以上なら永続ライセンスチェック
+        if current_user.detailed_review_count >= 15 and not current_user.permanent_access:
+            current_user.permanent_access = True
+            current_user.pass_expires_at = None
+            need_commit = True
+            
+        if need_commit:
+            # カウント更新に伴い、バッジ獲得条件を満たしたか再チェック
+            check_and_award_badges(current_user)
+            db.session.commit()
+            
+    except Exception as e:
+        app.logger.error(f"Count sync error in mypage: {e}")
+    # ▲▲▲ 追加ここまで ▲▲▲
+
     if request.method == 'POST':
         try:
             if current_user.email.endswith('@demo.com'):
