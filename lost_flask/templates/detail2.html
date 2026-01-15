@@ -54,6 +54,21 @@
             justify-content: center;
             flex-wrap: wrap;
         }
+        /* 自分のレビューセクション用のスタイル */
+        .my-review-section {
+            background-color: #f0f9ff; /* 薄い青背景で強調 */
+            border: 2px solid #bae6fd;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+        .my-review-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px dashed #bae6fd;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -62,6 +77,13 @@
     </a>
     
     <div class="user-header">
+        <!-- 閲覧ステータスバッジ -->
+        {% if access_status %}
+        <div class="status-badge-header {{ access_status.class }}">
+            {{ access_status.short_label }}
+        </div>
+        {% endif %}
+
         <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
             ⚡ 高速レビュー
         </a>
@@ -153,99 +175,130 @@
             </div>
         </section>
 
+        <!-- ▼▼▼ レビュー表示用マクロ ▼▼▼ -->
+        {% macro render_review_card(review) %}
+            {% set author_level = review.author.get_level_info() %}
+            <tr>
+                <td class="{% if author_level.level >= 4 %}review-card-highlight{% endif %}">
+                    <div class="review-meta">
+                        <span>
+                            <strong>投稿者:</strong> {{ review.author.username }}
+                            <span class="review-author-badge {{ author_level.style_class }}">
+                                {{ author_level.icon }} {{ author_level.title }}
+                            </span>
+                        </span>
+                        <span><strong>評価:</strong> ★{{ "%.1f"|format(review.rating) }}</span>
+                        <span><strong>出席:</strong> {{ review.attendance }}</span>
+                        <span><strong>テスト:</strong> {{ review.test }}</span>
+                        <span><strong>レポート:</strong> {{ review.report }}</span>
+                        <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
+                        <span><strong>開講年度:</strong> {{ review.year or '未登録' }}</span>
+                        <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
+                    </div>
+
+                    {% if current_user.is_authenticated and review.user_id == current_user.id %}
+                    <div style="margin-bottom: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 12px;">
+                        <a href="{{ url_for('edit_review', review_id=review.id) }}" class="review-action-btn edit">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            編集
+                        </a>
+                        
+                        <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" class="review-action-btn delete">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                削除
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if review.review %}
+                    <p class="review-text">{{ review.review }}</p>
+                    {% endif %}
+                    
+                    <div class="reaction-container">
+                        {% set counts = review.get_reaction_counts() %}
+                        {% set my_reactions = review.get_user_reactions(current_user.id) %}
+
+                        <button class="btn-reaction btn-empathy {% if 'empathy' in my_reactions %}active{% endif %}" 
+                                onclick="toggleReaction({{ review.id }}, 'empathy', this)">
+                            <div class="reaction-icon-wrapper">
+                                <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="reaction-label">共感した</div>
+                                <div class="reaction-count">{{ counts['empathy'] }}</div>
+                            </div>
+                        </button>
+
+                        <button class="btn-reaction btn-insightful {% if 'insightful' in my_reactions %}active{% endif %}" 
+                                onclick="toggleReaction({{ review.id }}, 'insightful', this)">
+                            <div class="reaction-icon-wrapper">
+                                <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="reaction-label">なるほど</div>
+                                <div class="reaction-count">{{ counts['insightful'] }}</div>
+                            </div>
+                        </button>
+
+                        <button class="btn-reaction btn-hmm {% if 'hmm' in my_reactions %}active{% endif %}" 
+                                onclick="toggleReaction({{ review.id }}, 'hmm', this)">
+                            <div class="reaction-icon-wrapper">
+                                <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="reaction-label">うーん</div>
+                                <div class="reaction-count">{{ counts['hmm'] }}</div>
+                            </div>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        {% endmacro %}
+        <!-- ▲▲▲ マクロ定義ここまで ▲▲▲ -->
+
         <section>
-            <h2>レビュー一覧 ({{ course.reviews|length }}件)</h2>
-            {% if course.reviews %}
+            <!-- ▼▼▼ レビューの振り分け処理 ▼▼▼ -->
+            {% set my_reviews = [] %}
+            {% set other_reviews = [] %}
+            
+            {% for review in course.reviews | reverse %}
+                {% if current_user.is_authenticated and review.user_id == current_user.id %}
+                    {% set _ = my_reviews.append(review) %}
+                {% else %}
+                    {% set _ = other_reviews.append(review) %}
+                {% endif %}
+            {% endfor %}
+
+            <!-- 1. 自分のレビュー (ロック対象外) -->
+            {% if my_reviews %}
+            <div class="my-review-section">
+                <h3>📝 あなたの投稿</h3>
+                <table class="review-table">
+                    {% for review in my_reviews %}
+                        {{ render_review_card(review) }}
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- 2. みんなのレビュー (ロック対象) -->
+            <h2>みんなのレビュー ({{ other_reviews|length }}件)</h2>
+            {% if other_reviews %}
             <div class="review-lock-wrapper">
                 <div class="review-lock-content {% if not can_view_detail %}is-locked{% endif %}">
                     <table class="review-table">
-                        {% for review in course.reviews | reverse %}
-                        <tr>
-                            {% set author_level = review.author.get_level_info() %}
-                            <td class="{% if author_level.level >= 4 %}review-card-highlight{% endif %}">
-                                <div class="review-meta">
-                                    <span>
-                                        <strong>投稿者:</strong> {{ review.author.username }}
-                                        <span class="review-author-badge {{ author_level.style_class }}">
-                                            {{ author_level.icon }} {{ author_level.title }}
-                                        </span>
-                                    </span>
-                                    <span><strong>評価:</strong> ★{{ "%.1f"|format(review.rating) }}</span>
-                                    <span><strong>出席:</strong> {{ review.attendance }}</span>
-                                    <span><strong>テスト:</strong> {{ review.test }}</span>
-                                    <span><strong>レポート:</strong> {{ review.report }}</span>
-                                    <span><strong>授業形式:</strong> {{ review.course_format or '未登録' }}</span>
-                                    <span><strong>開講年度:</strong> {{ review.year or '未登録' }}</span>
-                                    <span><strong>開講教室:</strong> {{ review.classroom or '未登録' }}</span>
-                                </div>
-
-                                {% if current_user.is_authenticated and review.user_id == current_user.id %}
-                                <div style="margin-bottom: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 12px;">
-                                    <a href="{{ url_for('edit_review', review_id=review.id) }}" class="review-action-btn edit">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                        編集
-                                    </a>
-                                    
-                                    <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
-                                        <button type="submit" onclick="return confirm('本当にこのレビューを削除しますか？\n※この操作は取り消せません。');" class="review-action-btn delete">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                            削除
-                                        </button>
-                                    </form>
-                                </div>
-                                {% endif %}
-
-                                {% if review.review %}
-                                <p class="review-text">{{ review.review }}</p>
-                                {% endif %}
-                                
-                                <div class="reaction-container">
-                                    {% set counts = review.get_reaction_counts() %}
-                                    {% set my_reactions = review.get_user_reactions(current_user.id) %}
-
-                                    <button class="btn-reaction btn-empathy {% if 'empathy' in my_reactions %}active{% endif %}" 
-                                            onclick="toggleReaction({{ review.id }}, 'empathy', this)">
-                                        <div class="reaction-icon-wrapper">
-                                            <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="reaction-label">共感した</div>
-                                            <div class="reaction-count">{{ counts['empathy'] }}</div>
-                                        </div>
-                                    </button>
-
-                                    <button class="btn-reaction btn-insightful {% if 'insightful' in my_reactions %}active{% endif %}" 
-                                            onclick="toggleReaction({{ review.id }}, 'insightful', this)">
-                                        <div class="reaction-icon-wrapper">
-                                            <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <line x1="12" y1="8" x2="12" y2="12"></line>
-                                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="reaction-label">なるほど</div>
-                                            <div class="reaction-count">{{ counts['insightful'] }}</div>
-                                        </div>
-                                    </button>
-
-                                    <button class="btn-reaction btn-hmm {% if 'hmm' in my_reactions %}active{% endif %}" 
-                                            onclick="toggleReaction({{ review.id }}, 'hmm', this)">
-                                        <div class="reaction-icon-wrapper">
-                                            <svg class="reaction-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="reaction-label">うーん</div>
-                                            <div class="reaction-count">{{ counts['hmm'] }}</div>
-                                        </div>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
+                        {% for review in other_reviews %}
+                            {{ render_review_card(review) }}
                         {% endfor %}
                     </table>
                 </div>
@@ -267,7 +320,11 @@
                 {% endif %}
             </div>
             {% else %}
-            <p>この講義にはまだレビューがありません。</p>
+                {% if not my_reviews %}
+                    <p>この講義にはまだレビューがありません。</p>
+                {% else %}
+                    <p>他のユーザーからのレビューはまだありません。</p>
+                {% endif %}
             {% endif %}
         </section>
         
