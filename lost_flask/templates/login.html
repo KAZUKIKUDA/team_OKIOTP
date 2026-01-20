@@ -17,7 +17,7 @@
         
         <h1 class="app-title">講義レビュー</h1>
         
-        <!-- ▼▼▼ 修正: アプリ説明と制限事項 (全学生向けに変更) ▼▼▼ -->
+        <!-- ▼▼▼ アプリ説明と制限事項 (全学生向けに変更) ▼▼▼ -->
         <div class="login-description">
             <p>琉球大学の学生限定で利用可能な<br>講義レビュー共有プラットフォームです。</p>
             <p class="restriction-note">
@@ -27,7 +27,7 @@
                 が必要です。
             </p>
         </div>
-        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+        <!-- ▲▲▲ ここまで ▲▲▲ -->
 
         <h2>ログイン</h2>
         
@@ -41,13 +41,25 @@
         
         <form method="post">
             <input type="email" name="email" placeholder="学内メール (eXXXXXX@cs.u-ryukyu.ac.jp)" required>
-            <input type="password" name="password" placeholder="パスワード" required>
+            
+            <!-- ▼▼▼ 修正: パスワード表示切替機能を追加 ▼▼▼ -->
+            <div class="password-wrapper">
+                <input type="password" name="password" id="login-password" placeholder="パスワード" required>
+                <button type="button" class="toggle-password-btn" onclick="togglePassword('login-password', this)" title="パスワードを表示">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </button>
+            </div>
+            <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+
             <button type="submit" class="btn">ログイン</button>
         </form>
         
-        <!-- ▼▼▼ 修正: margin-topを追加してボタンの間隔を広げる ▼▼▼ -->
+        <!-- ▼▼▼ margin-topを追加してボタンの間隔を広げる ▼▼▼ -->
         <a href="{{ url_for('guest_login') }}" class="btn btn-guest" style="margin-top: 24px;">ゲストとしてログイン</a>
-        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+        <!-- ▲▲▲ ここまで ▲▲▲ -->
 
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
         
@@ -55,5 +67,26 @@
             認証メールが届かない場合
         </a>
     </div>
+
+    <!-- ▼▼▼ 追加: パスワード表示切替スクリプト ▼▼▼ -->
+    <script>
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('svg');
+        
+        if (input.type === "password") {
+            input.type = "text";
+            // アイコンを「非表示（斜線付き目）」に変更
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            btn.title = "パスワードを隠す";
+        } else {
+            input.type = "password";
+            // アイコンを「表示（目）」に戻す
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            btn.title = "パスワードを表示";
+        }
+    }
+    </script>
+    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
 </body>
 </html>

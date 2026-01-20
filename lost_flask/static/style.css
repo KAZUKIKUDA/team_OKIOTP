@@ -1889,3 +1889,47 @@ a.sort-link:hover {
     border-color: #fecaca;
     color: #991b1b;
 }
+
+/* =========================================
+   ▼▼▼ Password Toggle Button (New) ▼▼▼
+========================================= */
+
+/* ラッパー: inputとボタンを囲む */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+/* ラッパー内のinputは、ラッパー側でマージン調整するためリセット */
+.password-wrapper input[type="password"],
+.password-wrapper input[type="text"] {
+    margin-bottom: 0 !important;
+    padding-right: 50px; /* アイコンと重ならないように右パディング確保 */
+}
+
+/* 目のアイコンボタン */
+.toggle-password-btn {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    box-shadow: none !important; /* ボタンの影を消す */
+    transition: color 0.2s;
+}
+
+.toggle-password-btn:hover {
+    color: var(--primary-color);
+    background: none;
+    transform: translateY(-50%); /* ホバー時の動きを抑制 */
+}
