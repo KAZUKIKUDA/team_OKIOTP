@@ -49,54 +49,38 @@ def add_header(response):
         response.headers['Expires'] = '0'
     return response
 
-# ▼▼▼ 追加: 全テンプレートで閲覧権限ステータスを使えるようにする ▼▼▼
 @app.context_processor
 def inject_access_status():
     if not current_user.is_authenticated:
         return dict(access_status=None)
     
     status = {}
+    # datetimeの取得（最新の書き方）
+    import datetime
+    now = datetime.datetime.now(datetime.timezone.utc) if datetime.datetime.now().tzinfo else datetime.datetime.now()
     
-    # 1. 永続アクセス権を持っている場合
-    if current_user.permanent_access:
-        status['type'] = 'permanent'
-        status['label'] = '👑 無制限アクセス'
-        status['short_label'] = '👑 無制限'
-        status['description'] = 'あなたは詳細レビューを無制限に閲覧できる「永続ライセンス」を持っています。'
-        status['class'] = 'access-permanent'
-        status['to_permanent'] = 0
-    
-    # 2. 期限付きパスが有効な場合
-    elif current_user.pass_expires_at and current_user.pass_expires_at > datetime.datetime.utcnow():
-        remaining = current_user.pass_expires_at - datetime.datetime.utcnow()
-        hours = int(remaining.total_seconds() // 3600)
-        minutes = int((remaining.total_seconds() % 3600) // 60)
-        
+    # 1. 1年生は無料
+    if current_user.grade == 1:
         status['type'] = 'active'
-        status['label'] = f'🟢 閲覧可能（残り {hours}時間{minutes}分）'
-        status['short_label'] = f'🟢 残り {hours}時間{minutes}分'
-        status['description'] = f'現在、24時間パスが有効です。残り時間は {hours}時間{minutes}分 です。'
+        status['label'] = '🟢 1年生無料開放中'
+        status['class'] = 'access-permanent'
+    
+    # 2. 期限付きパスが有効
+    elif hasattr(current_user, 'pass_expires_at') and current_user.pass_expires_at and current_user.pass_expires_at > now:
+        remaining = current_user.pass_expires_at - now
+        hours = int(remaining.total_seconds() // 3600)
+        status['type'] = 'active'
+        status['label'] = f'🟢 閲覧可能（残り {hours}時間）'
         status['class'] = 'access-active'
-        status['to_permanent'] = max(0, 15 - current_user.detailed_review_count)
         
-    # 3. 閲覧制限中（ロック中）の場合
+    # 3. 制限中
     else:
-        count = current_user.detailed_review_count
-        # 3件ごとに解放されるので、あと何件必要か計算
-        # 例: 1件投稿済み -> 1 % 3 = 1 -> 3 - 1 = あと2件
-        next_unlock = 3 - (count % 3)
-        to_permanent = max(0, 15 - count)
-        
         status['type'] = 'locked'
         status['label'] = '🔒 閲覧制限中'
-        status['short_label'] = '🔒 制限中'
-        status['description'] = f'詳細レビューをあと <strong>{next_unlock}件</strong> 投稿すると、24時間見放題になります。'
-        status['next_goal'] = next_unlock
-        status['to_permanent'] = to_permanent
         status['class'] = 'access-locked'
         
+    # ここに status['to_permanent'] を含めないことで、完全に永続ライセンス機能を廃止します
     return dict(access_status=status)
-# ▲▲▲ 追加ここまで ▲▲▲
 
 db = SQLAlchemy(app)
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -169,12 +153,40 @@ class User(UserMixin, db.Model):
     permanent_access = db.Column(db.Boolean, nullable=False, default=False)
     quick_review_count = db.Column(db.Integer, nullable=False, default=0)
     detailed_review_count = db.Column(db.Integer, nullable=False, default=0)
+    #ポイント制・クレジットの追加
+    credits = db.Column(db.Integer, default=0) # 現在のポイント
+    access_expiration = db.Column(db.DateTime, nullable=True) # パス有効期限
+    total_review_count = db.Column(db.Integer, default=0) # 累計投稿数
     
     # お気に入りした講義へのリレーション
     favorite_courses = db.relationship('Course', secondary=favorites, backref=db.backref('favorited_by', lazy='dynamic'))
     
     # 獲得したバッジへのリレーション
     badges = db.relationship('Badge', secondary=user_badges, backref=db.backref('holders', lazy='dynamic'))
+    
+    # 2. レート判定ロジック
+    def get_current_rates():
+        month = datetime.now().month
+        # 獲得レート
+        earn_rate = 2 if month in [2, 8] else 1
+        # 消費レート（学期パス）
+        if month in [3, 9]:
+            exchange_cost = 2
+        elif month in [4, 10]:
+            exchange_cost = 5
+        else:
+            exchange_cost = 3
+        return earn_rate, exchange_cost
+    
+    def has_view_permission(user):
+        if user.grade == 1: return True # 1年生はOK
+    
+    # 永続判定を削除し、期限チェックのみにする
+        now = datetime.datetime.now()
+        if user.pass_expires_at and user.pass_expires_at > now:
+            return True
+            
+        return False
 
     # ▼▼▼ 追加: レベル・称号計算ロジック ▼▼▼
     def get_level_info(self):
@@ -404,6 +416,35 @@ def check_and_award_badges(user):
 
 # --- Routes ---
 
+@app.route('/exchange_credits', methods=['POST'])
+@login_required
+def exchange_credits():
+    plan = request.form.get('plan')
+    earn_rate, exchange_cost = get_current_rates() # 時期に応じたレートを取得
+    
+    # 24時間パスは一律1CP、それ以外は時期に応じたコスト
+    cost = 1 if plan == '24h' else exchange_cost
+    
+    if current_user.credits >= cost:
+        current_user.credits -= cost
+        now = datetime.datetime.now() # app.pyのインポートに合わせて調整
+        
+        # 既存の期限があれば延長、なければ今から
+        base_time = current_user.pass_expires_at if (current_user.pass_expires_at and current_user.pass_expires_at > now) else now
+        
+        if plan == '24h':
+            current_user.pass_expires_at = base_time + datetime.timedelta(hours=24)
+        else:
+            current_user.pass_expires_at = base_time + datetime.timedelta(days=180)
+            
+        db.session.commit()
+        flash(f'パスを交換しました！（消費: {cost} CP）', 'success')
+    else:
+        flash('クレジットが足りません。', 'danger')
+        
+    return redirect(url_for('mypage'))
+
+
 @app.route('/')
 @login_required 
 def index():
@@ -449,6 +490,24 @@ def index():
         return render_template('top.html', top_courses=top_courses, form_data=form_data)
     else:
         return render_template('top_compact.html', top_courses=top_courses, form_data=form_data)
+    
+def get_current_rates():
+    """現在の月を基準に、獲得CPと交換CPを返す"""
+    from datetime import datetime
+    month = datetime.now().month
+    
+    # 獲得レート (2, 8月は黄金期で2CP)
+    earn_rate = 2 if month in [2, 8] else 1
+    
+    # 消費レート (学期パス)
+    if month in [3, 9]:
+        exchange_cost = 2  # 早割期
+    elif month in [4, 10]:
+        exchange_cost = 5  # 繁忙期
+    else:
+        exchange_cost = 3  # 通常期
+        
+    return earn_rate, exchange_cost
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -872,9 +931,16 @@ def add_review(id):
             course_id=course.id, 
             user_id=current_user.id,
             is_quick=is_quick_review
-        )
+        ) # 正しく閉じる
+        
+        # クレジット加算処理 (正しいインデント)
+        earn_rate, _ = get_current_rates()
+        current_user.credits += (current_user.credits or 0) + earn_rate
+        current_user.total_review_count = (current_user.total_review_count or 0) + 1
+        
         db.session.add(new_review)
-
+        db.session.commit()
+        
         if is_quick_review:
             current_user.quick_review_count = (current_user.quick_review_count or 0) + 1
         else:
@@ -1084,6 +1150,10 @@ def delete_review(review_id):
 def mypage():
     # ▼▼▼ 追加: カウントのズレを修正する同期処理 ▼▼▼
     # これまで投稿したレビューがカウントされていない場合、ここで再計算して反映させます
+    
+    from datetime import datetime  # 関数内でインポートするか、ファイル先頭で
+    now = datetime.now()
+    
     try:
         real_detailed_count = Review.query.filter_by(user_id=current_user.id, is_quick=False).count()
         real_quick_count = Review.query.filter_by(user_id=current_user.id, is_quick=True).count()
@@ -1096,12 +1166,6 @@ def mypage():
             
         if current_user.quick_review_count != real_quick_count:
             current_user.quick_review_count = real_quick_count
-            need_commit = True
-            
-        # 救済措置: 15件以上なら永続ライセンスチェック
-        if current_user.detailed_review_count >= 15 and not current_user.permanent_access:
-            current_user.permanent_access = True
-            current_user.pass_expires_at = None
             need_commit = True
             
         if need_commit:
@@ -1137,7 +1201,13 @@ def mypage():
     
     # バッジ一覧を取得して渡す
     all_badges = Badge.query.all()
-    return render_template('mypage.html', user=current_user, all_badges=all_badges)
+    
+    # ▼▼▼ render_template を修正 ▼▼▼
+    return render_template('mypage.html', 
+                           user=current_user, 
+                           all_badges=all_badges,
+                           now=now,  # 現在時刻を渡す
+                           get_current_rates=get_current_rates) # 関数自体を渡す
 
 # flask run コマンドでもテーブルが作成されるようにする
 with app.app_context():

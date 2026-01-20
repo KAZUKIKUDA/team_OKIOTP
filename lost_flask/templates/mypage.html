@@ -164,17 +164,24 @@
             <div style="display: flex; flex-direction: column; height: 100%;">
                 <div class="section-header">閲覧権限ステータス</div>
                 
-                {% if access_status %}
+            {% if access_status %}
                 <div class="access-status-card {{ access_status.class }}" style="flex: 1; margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center;">
                     <h3>{{ access_status.label }}</h3>
-                    <p class="access-status-desc">{{ access_status.description | safe }}</p>
-                    {% if access_status.type == 'locked' and access_status.to_permanent > 0 %}
-                    <div style="margin-top: 10px; font-size: 0.85em; opacity: 0.8; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 8px;">
-                        永続ライセンスまであと <strong>{{ access_status.to_permanent }}</strong> 件
-                    </div>
+                    
+                    {# descriptionがある場合のみ表示 #}
+                    {% if access_status.description %}
+                        <p class="access-status-desc">{{ access_status.description | safe }}</p>
                     {% endif %}
-                </div>
-                {% endif %}
+
+                    {# 制限中の場合のアラートをカードの中に含めると綺麗です #}
+                    {% if access_status.type == 'locked' %}
+                        <p class="text-danger mt-2" style="font-weight: bold;">
+                            <i class="fas fa-lock"></i> 現在、閲覧制限がかかっています。詳細レビューを投稿してクレジットを貯め、パスと交換してください。
+                        </p>
+                    {% endif %}
+                </div> {# </div> は必ず {% endif %} の前に書く #}
+            {% endif %}
+
 
                 <!-- 活動スタッツ -->
                 <div class="stats-row" style="margin-bottom: 0;">
@@ -269,6 +276,56 @@
                                 <option value="博士後期" {% if user.grade == '博士後期' %}selected{% endif %}>博士後期</option>
                                 <option value="その他" {% if user.grade == 'その他' %}selected{% endif %}>その他</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="card border-primary mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-coins"></i> 閲覧権限・クレジット管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted">現在の所持クレジット</p>
+                                    <h2 class="display-4 text-primary mb-0">{{ current_user.credits }} <small>CP</small></h2>
+                                </div>
+                                <div class="col-md-6 border-start">
+                                    <p class="mb-1 text-muted">現在のステータス</p>
+                                    <h5 class="mb-0">
+                                        {% if current_user.grade == 1 %}
+                                            <span class="badge bg-success">1年生（無料開放中）</span>
+                                        {% elif current_user.access_expiration and current_user.access_expiration > now %}
+                                            <span class="badge bg-info text-dark">期限: {{ current_user.access_expiration.strftime('%Y/%m/%d %H:%M') }}まで</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">閲覧制限あり</span>
+                                        {% endif %}
+                                    </h5>
+                                    <p class="small text-muted mt-2 mb-0">※詳細レビューを投稿してCPを貯められます</p>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <h6 class="card-title">クレジットをパスに交換</h6>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                                <form action="{{ url_for('exchange_credits') }}" method="POST" class="me-2">
+                                    <input type="hidden" name="plan" value="24h">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm" {% if current_user.credits < 1 %}disabled{% endif %}>
+                                        24時間パス (1CP)
+                                    </button>
+                                </form>
+
+                                <form action="{{ url_for('exchange_credits') }}" method="POST">
+                                    <input type="hidden" name="plan" value="semester">
+                                    {% set earn_rate, exchange_cost = get_current_rates() %}
+                                    <button type="submit" class="btn btn-primary btn-sm" {% if current_user.credits < exchange_cost %}disabled{% endif %}>
+                                        学期パス ({{ exchange_cost }}CP)
+                                        {% if exchange_cost <= 2 %}
+                                            <span class="badge bg-danger ms-1">早割セール中！</span>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
 
