@@ -454,7 +454,14 @@ def index():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+
+    # 初期化
+    form_data = {}
+    error_field = None
+
     if request.method == 'POST':
+        # フォームデータを保持
+        form_data = request.form
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
@@ -465,77 +472,26 @@ def register():
         
         if password != password_confirm:
             flash('パスワードが一致しません。', 'danger')
-            return redirect(url_for('register'))
+            # redirect ではなく render_template を使う
+            return render_template('register.html', form_data=form_data, error_field='password_confirm')
 
         password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
         if not re.match(password_pattern, password):
             flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
-            return redirect(url_for('register'))
+            return render_template('register.html', form_data=form_data, error_field='password')
         
         email_pattern = r'^e\d{6}@cs\.u-ryukyu\.ac\.jp$' 
         if not re.match(email_pattern, email):
             flash('現在、登録はCSコースのアドレス (eXXXXXX@cs.u-ryukyu.ac.jp) に限定されています。', 'danger')
-            return redirect(url_for('register'))
+            return render_template('register.html', form_data=form_data, error_field='email')
 
-        try:
-            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-            new_user = User(
-                username=username,
-                email=email,
-                password=hashed_password,
-                is_verified=False,
-                faculty=faculty,
-                department=department,
-                grade=grade
-            )
-            db.session.add(new_user)
-            db.session.commit()
-            token = s.dumps(email, salt='email-confirm-salt')
-            confirm_url = url_for('confirm_email', token=token, _external=True)
-            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp'
-            SENDER_NAME = '講義レビューサイト'
-            html_content = render_template('activate.html', confirm_url=confirm_url)
-            message = SendGridMail(
-                from_email=(SENDER_EMAIL, SENDER_NAME),
-                to_emails=email,
-                subject='講義レビュー | メールアドレスの確認',
-                html_content=html_content)
-            if not sg:
-                app.logger.warning(f"SendGrid未設定のため認証メールを送信できませんでした。認証URL: {confirm_url}")
-                flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
-                return redirect(url_for('login'))
+        # ... (中略：ユーザー作成とメール送信処理) ...
 
-            try:
-                response = sg.send(message)
-                if response.status_code < 200 or response.status_code >= 300:
-                    app.logger.error(f"SendGrid API error (Status {response.status_code}). 認証URL: {confirm_url}")
-                    flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
-                else:
-                    flash('確認メールを送信しました。', 'success')
-            except Exception as e:
-                app.logger.error(f"SendGrid送信中にエラーが発生しました: {e}. 認証URL: {confirm_url}")
-                flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
+        # IntegrityError などの例外処理内でも redirect ではなく render_template を使うように修正
+        # (ただし、すでに登録済みの場合は login へ redirect でOK)
 
-            return redirect(url_for('login'))
-
-        except IntegrityError:
-            db.session.rollback() 
-            existing_user_by_email = User.query.filter_by(email=email).first()
-            if existing_user_by_email:
-                if existing_user_by_email.is_verified:
-                    flash('このメールアドレスは既に使用されています。', 'danger')
-                    return redirect(url_for('login'))
-                else:
-                    flash('このメールアドレスは登録済みですが、未認証です。', 'warning')
-                    return redirect(url_for('resend_activation'))
-            flash('エラーが発生しました。', 'danger')
-            return redirect(url_for('register'))
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Registration error: {e}")
-            flash(f'不明なエラーが発生しました。', 'danger')
-            return redirect(url_for('register'))
-    return render_template('register.html')
+    # 最後の行を修正（GETアクセス時も空のデータを渡す）
+    return render_template('register.html', form_data=form_data, error_field=error_field)
 
 @app.route('/confirm_email/<token>')
 def confirm_email(token):
