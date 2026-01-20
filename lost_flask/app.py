@@ -24,10 +24,10 @@ from collections import Counter
 from sqlalchemy.orm import joinedload
 from urllib.parse import urlparse, parse_qs
 from sqlalchemy import text 
+from sqlalchemy import inspect 
 
 # --- Application Setup ---
 app = Flask(__name__)
-# Configクラスから設定を読み込む (DB URIや接続オプションもここに含まれる)
 app.config.from_object(Config)
 
 logging.basicConfig(level=logging.INFO)
@@ -49,37 +49,69 @@ def add_header(response):
         response.headers['Expires'] = '0'
     return response
 
+# --- Helper Functions ---
+
+def get_current_rates():
+    """現在の月を基準に、獲得CPと交換CPを返す"""
+    # サーバー時間はUTC基準にする
+    month = datetime.datetime.utcnow().month
+    
+    # 獲得レート (2, 8月はボーナス月で2CP)
+    earn_rate = 2 if month in [2, 8] else 1
+    
+    # 消費レート (学期パス)
+    if month in [3, 9]:
+        exchange_cost = 2  # 早割期 (3月, 9月)
+    elif month in [4, 10]:
+        exchange_cost = 5  # 繁忙期 (4月, 10月)
+    else:
+        exchange_cost = 3  # 通常期
+        
+    return earn_rate, exchange_cost
+
 @app.context_processor
 def inject_access_status():
     if not current_user.is_authenticated:
         return dict(access_status=None)
     
     status = {}
-    # datetimeの取得（最新の書き方）
-    import datetime
-    now = datetime.datetime.now(datetime.timezone.utc) if datetime.datetime.now().tzinfo else datetime.datetime.now()
+    # UTCで比較
+    now = datetime.datetime.utcnow()
     
     # 1. 1年生は無料
-    if current_user.grade == 1:
-        status['type'] = 'active'
+    if current_user.grade and '1年' in current_user.grade and '修士' not in current_user.grade and '博士' not in current_user.grade:
+        status['type'] = 'permanent'
         status['label'] = '🟢 1年生無料開放中'
+        status['short_label'] = '🟢 1年生無料'
+        status['description'] = '1年生は応援期間として、全機能を無料で利用できます！'
         status['class'] = 'access-permanent'
     
     # 2. 期限付きパスが有効
-    elif hasattr(current_user, 'pass_expires_at') and current_user.pass_expires_at and current_user.pass_expires_at > now:
+    elif current_user.pass_expires_at and current_user.pass_expires_at > now:
         remaining = current_user.pass_expires_at - now
-        hours = int(remaining.total_seconds() // 3600)
+        days = remaining.days
+        hours = int(remaining.seconds // 3600)
+        
         status['type'] = 'active'
-        status['label'] = f'🟢 閲覧可能（残り {hours}時間）'
+        if days > 0:
+            status['label'] = f'🟢 閲覧可能（残り {days}日 {hours}時間）'
+            status['short_label'] = f'🟢 残り{days}日'
+        else:
+            status['label'] = f'🟢 閲覧可能（残り {hours}時間）'
+            status['short_label'] = f'🟢 残り{hours}時間'
+            
+        # 表示は見やすくJST変換（簡易的に+9時間）してもよいが、ここではUTCのまま表示、または相対時間で表示
+        status['description'] = f'閲覧パスが有効です。（残り {days}日 {hours}時間）'
         status['class'] = 'access-active'
         
     # 3. 制限中
     else:
         status['type'] = 'locked'
         status['label'] = '🔒 閲覧制限中'
+        status['short_label'] = '🔒 制限中'
+        status['description'] = '現在、閲覧制限がかかっています。クレジット(CP)を使ってパスと交換してください。'
         status['class'] = 'access-locked'
         
-    # ここに status['to_permanent'] を含めないことで、完全に永続ライセンス機能を廃止します
     return dict(access_status=status)
 
 db = SQLAlchemy(app)
@@ -106,31 +138,27 @@ login_manager.login_message_category = "danger"
 
 # --- Database Models ---
 
-# お気に入り機能用の中間テーブル
 favorites = db.Table('favorites',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('course_id', db.Integer, db.ForeignKey('course.id'), primary_key=True)
 )
 
-# バッジ機能用の中間テーブル
 user_badges = db.Table('user_badges',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('badge_id', db.Integer, db.ForeignKey('badge.id'), primary_key=True),
     db.Column('earned_at', db.DateTime, default=datetime.datetime.utcnow)
 )
 
-# バッジモデル
 class Badge(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)       # バッジ名
-    description = db.Column(db.String(200), nullable=False) # 説明
-    icon = db.Column(db.String(10), nullable=False)       # 絵文字アイコン
-    condition_type = db.Column(db.String(50), nullable=False) # 判定条件 (review_count, swipe_count)
-    condition_value = db.Column(db.Integer, nullable=False)   # 達成閾値
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    icon = db.Column(db.String(10), nullable=False)
+    condition_type = db.Column(db.String(50), nullable=False)
+    condition_value = db.Column(db.Integer, nullable=False)
 
 class ReviewReaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # ユーザー削除時にリアクションも削除 (ON DELETE CASCADE)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     review_id = db.Column(db.Integer, db.ForeignKey('review.id'), nullable=False)
     reaction_type = db.Column(db.String(20), nullable=False) 
@@ -146,54 +174,24 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     reviews = db.relationship('Review', backref='author', lazy=True)
     is_tutorial_seen = db.Column(db.Boolean, default=False)
-    faculty = db.Column(db.String(50))      # 学部 (例: 工学部)
-    department = db.Column(db.String(50))   # 学科 (例: 知能情報コース)
-    grade = db.Column(db.String(10))        # 学年 (例: 2024年度入学)
+    faculty = db.Column(db.String(50))
+    department = db.Column(db.String(50))
+    grade = db.Column(db.String(10))
+    
+    # 閲覧権限・クレジット関連
     pass_expires_at = db.Column(db.DateTime, nullable=True)
     permanent_access = db.Column(db.Boolean, nullable=False, default=False)
+    
     quick_review_count = db.Column(db.Integer, nullable=False, default=0)
     detailed_review_count = db.Column(db.Integer, nullable=False, default=0)
-    #ポイント制・クレジットの追加
-    credits = db.Column(db.Integer, default=0) # 現在のポイント
-    access_expiration = db.Column(db.DateTime, nullable=True) # パス有効期限
-    total_review_count = db.Column(db.Integer, default=0) # 累計投稿数
     
-    # お気に入りした講義へのリレーション
+    credits = db.Column(db.Integer, default=0) 
+    
     favorite_courses = db.relationship('Course', secondary=favorites, backref=db.backref('favorited_by', lazy='dynamic'))
-    
-    # 獲得したバッジへのリレーション
     badges = db.relationship('Badge', secondary=user_badges, backref=db.backref('holders', lazy='dynamic'))
-    
-    # 2. レート判定ロジック
-    def get_current_rates():
-        month = datetime.now().month
-        # 獲得レート
-        earn_rate = 2 if month in [2, 8] else 1
-        # 消費レート（学期パス）
-        if month in [3, 9]:
-            exchange_cost = 2
-        elif month in [4, 10]:
-            exchange_cost = 5
-        else:
-            exchange_cost = 3
-        return earn_rate, exchange_cost
-    
-    def has_view_permission(user):
-        if user.grade == 1: return True # 1年生はOK
-    
-    # 永続判定を削除し、期限チェックのみにする
-        now = datetime.datetime.now()
-        if user.pass_expires_at and user.pass_expires_at > now:
-            return True
-            
-        return False
 
-    # ▼▼▼ 追加: レベル・称号計算ロジック ▼▼▼
     def get_level_info(self):
-        """レビュー数に基づいてレベル情報を返す"""
-        # レビュー数を取得
         count = Review.query.filter_by(user_id=self.id).count()
-
         if count >= 50:
             return {'level': 5, 'rank': 'S', 'title': 'レジェンド', 'icon': '👑', 'next_goal': None, 'style_class': 'rank-legend', 'desc': 'あなたは神です。'}
         elif count >= 30:
@@ -204,7 +202,6 @@ class User(UserMixin, db.Model):
             return {'level': 2, 'rank': 'C', 'title': '駆け出し学生', 'icon': '🐥', 'next_goal': 10 - count, 'style_class': 'rank-rookie', 'desc': 'レビューに慣れてきましたね。'}
         else:
             return {'level': 1, 'rank': 'D', 'title': '迷える新入生', 'icon': '🐣', 'next_goal': 3 - count, 'style_class': 'rank-beginner', 'desc': 'まずは3件投稿して殻を破ろう！'}
-    # ▲▲▲ 追加ここまで ▲▲▲
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -256,50 +253,23 @@ class Review(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            return User.query.get(int(user_id))
-        except Exception as e:
-            if attempt == max_retries - 1:
-                app.logger.error(f"Error loading user {user_id} after {max_retries} attempts: {e}")
-                return None
-            time.sleep(0.1 * (2 ** attempt))
-    return None
-
+    try:
+        return User.query.get(int(user_id))
+    except:
+        return None
 
 def can_view_detail(user):
     if not user.is_authenticated:
         return False
-    if getattr(user, 'permanent_access', False):
+    # 1年生は無条件でOK
+    if user.grade and '1年' in user.grade and '修士' not in user.grade and '博士' not in user.grade:
         return True
+    
     expires_at = getattr(user, 'pass_expires_at', None)
     if not expires_at:
         return False
+    # UTCで比較
     return expires_at > datetime.datetime.utcnow()
-
-
-def grant_day_pass(user, days):
-    base = user.pass_expires_at
-    now = datetime.datetime.utcnow()
-    if not base or base < now:
-        base = now
-    user.pass_expires_at = base + datetime.timedelta(days=days)
-
-
-def apply_review_rewards(user, is_quick_review):
-    if user.permanent_access:
-        return
-    if is_quick_review:
-        return
-
-    if user.detailed_review_count >= 15:
-        user.permanent_access = True
-        user.pass_expires_at = None
-        return
-
-    if user.detailed_review_count % 3 == 0:
-        grant_day_pass(user, 1)
 
 def scrape_syllabus(url):
     headers = {
@@ -327,7 +297,6 @@ def scrape_syllabus(url):
 
         main_content = soup.find('table', id='ctl00_phContents_Detail_Table2')
         if not main_content:
-            app.logger.error(f"Scrape Error: メインコンテナが見つかりません (URL: {url})")
             return None 
         all_tds = main_content.find_all('td')
         for i, td in enumerate(all_tds):
@@ -350,17 +319,12 @@ def scrape_syllabus(url):
         if not syllabus_data.get('講義名') or not syllabus_data.get('教員名'):
             return None
         return syllabus_data
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"HTTPリクエストエラー (URL: {url}): {e}")
-        return None
-    except Exception as e:
-        app.logger.error(f"スクレイピング中の予期せぬエラー (URL: {url}): {e}")
+    except:
         return None
 
 # --- Badge Logic ---
 
 def initialize_badges():
-    """バッジのマスターデータが存在しない場合、作成する"""
     try:
         if Badge.query.count() == 0:
             badges = [
@@ -373,23 +337,18 @@ def initialize_badges():
             ]
             db.session.bulk_save_objects(badges)
             db.session.commit()
-            app.logger.info("Badges initialized.")
     except Exception as e:
         app.logger.error(f"Badge initialization error: {e}")
 
 def check_and_award_badges(user):
-    """ユーザーのバッジ獲得状況をチェックし、付与する"""
     try:
         all_badges = Badge.query.all()
-        # 通常レビュー数
         review_count = Review.query.filter_by(user_id=user.id).count()
-        # 高速レビュー数 (テキストが【高速レビュー】のもの)
         swipe_count = Review.query.filter_by(user_id=user.id, review='【高速レビュー】').count()
 
         newly_awarded = []
 
         for badge in all_badges:
-            # すでに持っているバッジはスキップ
             if badge in user.badges:
                 continue
             
@@ -407,40 +366,87 @@ def check_and_award_badges(user):
         
         if newly_awarded:
             db.session.commit()
-            # 獲得したバッジ名を通知
             names = "、".join([b.name for b in newly_awarded])
             flash(f'🎉 おめでとうございます！新しいバッジ「{names}」を獲得しました！', 'success')
             
     except Exception as e:
         app.logger.error(f"Badge check error: {e}")
 
+# --- DB Migration Helper ---
+def check_and_migrate_db():
+    try:
+        inspector = inspect(db.engine)
+        if not inspector.has_table('user'):
+            return
+
+        columns = [col['name'] for col in inspector.get_columns('user')]
+        
+        with db.engine.connect() as conn:
+            # PostgreSQL対応: TIMESTAMP型を使用
+            if 'pass_expires_at' not in columns:
+                app.logger.info("Adding pass_expires_at column...")
+                conn.execute(text('ALTER TABLE user ADD COLUMN pass_expires_at TIMESTAMP'))
+            
+            if 'credits' not in columns:
+                app.logger.info("Adding credits column...")
+                conn.execute(text('ALTER TABLE user ADD COLUMN credits INTEGER DEFAULT 0'))
+                
+            if 'permanent_access' not in columns:
+                app.logger.info("Adding permanent_access column...")
+                conn.execute(text('ALTER TABLE user ADD COLUMN permanent_access BOOLEAN DEFAULT FALSE'))
+                
+            conn.commit()
+            app.logger.info("Migration checked/completed.")
+            
+    except Exception as e:
+        app.logger.error(f"Migration check failed: {e}")
+
 # --- Routes ---
 
 @app.route('/exchange_credits', methods=['POST'])
 @login_required
 def exchange_credits():
-    plan = request.form.get('plan')
-    earn_rate, exchange_cost = get_current_rates() # 時期に応じたレートを取得
+    app.logger.info(f"Exchange credit requested by user: {current_user.id}")
     
-    # 24時間パスは一律1CP、それ以外は時期に応じたコスト
+    # DBセッションから確実にユーザーを取得して操作する
+    user = User.query.get(current_user.id)
+    
+    plan = request.form.get('plan')
+    earn_rate, exchange_cost = get_current_rates() 
+    
     cost = 1 if plan == '24h' else exchange_cost
     
-    if current_user.credits >= cost:
-        current_user.credits -= cost
-        now = datetime.datetime.now() # app.pyのインポートに合わせて調整
+    current_credits = user.credits or 0
+    
+    app.logger.info(f"User credits: {current_credits}, Cost: {cost}")
+    
+    if current_credits >= cost:
+        # クレジット消費
+        user.credits = current_credits - cost
         
-        # 既存の期限があれば延長、なければ今から
-        base_time = current_user.pass_expires_at if (current_user.pass_expires_at and current_user.pass_expires_at > now) else now
+        now = datetime.datetime.utcnow()
+        
+        # 期限延長ロジック (UTC基準)
+        if user.pass_expires_at and user.pass_expires_at > now:
+            base_time = user.pass_expires_at
+        else:
+            base_time = now
         
         if plan == '24h':
-            current_user.pass_expires_at = base_time + datetime.timedelta(hours=24)
+            user.pass_expires_at = base_time + datetime.timedelta(hours=24)
         else:
-            current_user.pass_expires_at = base_time + datetime.timedelta(days=180)
+            user.pass_expires_at = base_time + datetime.timedelta(days=180)
             
-        db.session.commit()
-        flash(f'パスを交換しました！（消費: {cost} CP）', 'success')
+        try:
+            db.session.commit()
+            app.logger.info(f"Exchange successful. New credits: {user.credits}, Expires: {user.pass_expires_at}")
+            flash(f'パスを交換しました！（消費: {cost} CP）', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"DB Commit failed: {e}")
+            flash('エラーが発生しました。もう一度お試しください。', 'danger')
     else:
-        flash('クレジットが足りません。', 'danger')
+        flash(f'クレジットが足りません。(所持: {current_credits} CP / 必要: {cost} CP)', 'danger')
         
     return redirect(url_for('mypage'))
 
@@ -448,12 +454,8 @@ def exchange_credits():
 @app.route('/')
 @login_required 
 def index():
-    try:
-        if not current_user.is_tutorial_seen:
-            return redirect(url_for('help_page'))
-    except Exception as e:
-        app.logger.error(f"Database error during tutorial check: {e}")
-        pass
+    if not current_user.is_tutorial_seen:
+        return redirect(url_for('help_page'))
 
     try:
         form_data = {
@@ -461,13 +463,11 @@ def index():
             'attendance': '', 'test': '', 'report': ''
         }
         
-        # SQLレベルで評価平均を計算してトップ10を取得
         stmt = db.session.query(
             Review.course_id,
             func.avg(Review.rating).label('avg_rating')
         ).group_by(Review.course_id).subquery()
 
-        # joinedload を復活させて N+1問題を回避 (トップページ)
         top_courses_query = db.session.query(Course)\
             .join(stmt, Course.id == stmt.c.course_id)\
             .options(joinedload(Course.reviews))\
@@ -490,36 +490,16 @@ def index():
         return render_template('top.html', top_courses=top_courses, form_data=form_data)
     else:
         return render_template('top_compact.html', top_courses=top_courses, form_data=form_data)
-    
-def get_current_rates():
-    """現在の月を基準に、獲得CPと交換CPを返す"""
-    from datetime import datetime
-    month = datetime.now().month
-    
-    # 獲得レート (2, 8月は黄金期で2CP)
-    earn_rate = 2 if month in [2, 8] else 1
-    
-    # 消費レート (学期パス)
-    if month in [3, 9]:
-        exchange_cost = 2  # 早割期
-    elif month in [4, 10]:
-        exchange_cost = 5  # 繁忙期
-    else:
-        exchange_cost = 3  # 通常期
-        
-    return earn_rate, exchange_cost
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
-    # 初期化
     form_data = {}
     error_field = None
 
     if request.method == 'POST':
-        # フォームデータを保持
         form_data = request.form
         username = request.form.get('username')
         email = request.form.get('email')
@@ -531,7 +511,6 @@ def register():
         
         if password != password_confirm:
             flash('パスワードが一致しません。', 'danger')
-            # redirect ではなく render_template を使う
             return render_template('register.html', form_data=form_data, error_field='password_confirm')
 
         password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
@@ -544,12 +523,65 @@ def register():
             flash('現在、登録はCSコースのアドレス (eXXXXXX@cs.u-ryukyu.ac.jp) に限定されています。', 'danger')
             return render_template('register.html', form_data=form_data, error_field='email')
 
-        # ... (中略：ユーザー作成とメール送信処理) ...
+        try:
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+            new_user = User(
+                username=username,
+                email=email,
+                password=hashed_password,
+                is_verified=False,
+                faculty=faculty,
+                department=department,
+                grade=grade
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            token = s.dumps(email, salt='email-confirm-salt')
+            confirm_url = url_for('confirm_email', token=token, _external=True)
+            SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp'
+            SENDER_NAME = '講義レビューサイト'
+            html_content = render_template('activate.html', confirm_url=confirm_url)
+            message = SendGridMail(
+                from_email=(SENDER_EMAIL, SENDER_NAME),
+                to_emails=email,
+                subject='講義レビュー | メールアドレスの確認',
+                html_content=html_content)
+            if not sg:
+                app.logger.warning(f"SendGrid未設定のため認証メールを送信できませんでした。認証URL: {confirm_url}")
+                flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
+                return redirect(url_for('login'))
 
-        # IntegrityError などの例外処理内でも redirect ではなく render_template を使うように修正
-        # (ただし、すでに登録済みの場合は login へ redirect でOK)
+            try:
+                response = sg.send(message)
+                if response.status_code < 200 or response.status_code >= 300:
+                    app.logger.error(f"SendGrid API error (Status {response.status_code}). 認証URL: {confirm_url}")
+                    flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
+                else:
+                    flash('確認メールを送信しました。', 'success')
+            except Exception as e:
+                app.logger.error(f"SendGrid送信中にエラーが発生しました: {e}. 認証URL: {confirm_url}")
+                flash('確認メールの送信に失敗しました。（開発環境）コンソールログに認証URLを出力しました。', 'warning')
 
-    # 最後の行を修正（GETアクセス時も空のデータを渡す）
+            return redirect(url_for('login'))
+
+        except IntegrityError:
+            db.session.rollback() 
+            existing_user_by_email = User.query.filter_by(email=email).first()
+            if existing_user_by_email:
+                if existing_user_by_email.is_verified:
+                    flash('このメールアドレスは既に使用されています。', 'danger')
+                    return redirect(url_for('login'))
+                else:
+                    flash('このメールアドレスは登録済みですが、未認証です。', 'warning')
+                    return redirect(url_for('resend_activation'))
+            flash('エラーが発生しました。', 'danger')
+            return render_template('register.html', form_data=form_data, error_field='email')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Registration error: {e}")
+            flash(f'不明なエラーが発生しました。', 'danger')
+            return render_template('register.html', form_data=form_data)
+            
     return render_template('register.html', form_data=form_data, error_field=error_field)
 
 @app.route('/confirm_email/<token>')
@@ -628,21 +660,14 @@ def guest_login():
     
     if request.method == 'POST':
         try:
-            # 毎回新規作成せず、固定のゲストユーザーを使い回す
             GUEST_EMAIL = "guest@demo.com"
             user = User.query.filter_by(email=GUEST_EMAIL).first()
 
             if user:
-                if not user.permanent_access:
-                    user.permanent_access = True
-                    user.pass_expires_at = None
-                    db.session.commit()
-                # 既に存在するゲストユーザーでログイン
                 login_user(user)
                 flash('ゲストとしてログインしました。', 'success')
                 return redirect(url_for('index'))
             else:
-                # 初回のみゲストユーザーを作成 (次回からは上記ifに入る)
                 guest_username = "ゲスト"
                 hashed_password = generate_password_hash("GuestPassword123!", method='pbkdf2:sha256')
                 
@@ -654,8 +679,9 @@ def guest_login():
                     faculty='工学部',
                     department='知能情報コース',
                     grade='3年',
-                    permanent_access=True,
-                    pass_expires_at=None
+                    permanent_access=False, 
+                    pass_expires_at=None,
+                    credits=10 
                 )
                 
                 db.session.add(new_guest_user)
@@ -736,7 +762,6 @@ def add_course_step2_create():
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search_course():
-    # ページネーションとフィルタパラメータの取得
     page = request.args.get('page', 1, type=int)
     per_page_str = request.args.get('per_page') or request.form.get('per_page') or '10'
     try:
@@ -765,10 +790,8 @@ def search_course():
     }
     
     try:
-        # 基本クエリの構築
         query = Course.query
 
-        # --- 基本情報のSQLフィルタリング ---
         if form_data['lecture_name']:
             for term in form_data['lecture_name'].split():
                 query = query.filter(Course.name.like(f'%{term}%'))
@@ -783,7 +806,6 @@ def search_course():
         if form_data['department'] and form_data['department'] != "--------":
             query = query.filter(Course.department.like(f'%{form_data["department"]}%'))
 
-        # --- レビュー内容に基づくSQLフィルタリング ---
         review_criteria = []
         if form_data['attendance'] and form_data['attendance'] != "--------":
             review_criteria.append(Review.attendance == form_data['attendance'])
@@ -793,13 +815,10 @@ def search_course():
             review_criteria.append(Review.report == form_data['report'])
         
         if review_criteria:
-            # 条件に一致するレビューを持つCourse.idをサブクエリで取得
             sub_query = db.session.query(Review.course_id).filter(*review_criteria).distinct()
             query = query.filter(Course.id.in_(sub_query))
 
-        # --- SQLソート ---
         if sort_key == 'rating':
-            # 評価平均でソート
             stmt = db.session.query(
                 Review.course_id, func.avg(Review.rating).label('avg_rating')
             ).group_by(Review.course_id).subquery()
@@ -811,7 +830,6 @@ def search_course():
                 query = query.order_by(stmt.c.avg_rating.asc().nullslast())
             
         elif sort_key == 'reviews':
-            # レビュー数でソート
             stmt = db.session.query(
                 Review.course_id, func.count(Review.id).label('review_count')
             ).group_by(Review.course_id).subquery()
@@ -823,21 +841,17 @@ def search_course():
                 query = query.order_by(stmt.c.review_count.asc().nullslast())
                 
         else:
-            # ID順
             if sort_order == 'desc':
                 query = query.order_by(Course.id.desc())
             else:
                 query = query.order_by(Course.id.asc())
 
-        # --- ページネーション実行 ---
-        # 検索一覧でも各カードで★の数やレビュー件数を表示しているため、ここで取得しておく必要がある
         pagination = query.options(joinedload(Course.reviews)).paginate(
             page=page, per_page=per_page, error_out=False
         )
     
     except Exception as e:
         app.logger.error(f"Search Error: {e}")
-        # エラー発生時は空の結果を返すか、エラーメッセージを表示
         flash('検索中にエラーが発生しました。条件を変更して再度お試しください。', 'danger')
         return render_template('search.html', 
                                pagination=None, 
@@ -900,23 +914,23 @@ def course_view_detail(id):
 def add_review(id):
     course = Course.query.get_or_404(id)
     
-    # ゲストユーザーのダミー投稿処理
     if current_user.email.endswith('@demo.com'):
-        # 本来ならここでDB保存処理だが、ゲストなのでスキップ
-        # ユーザーには成功メッセージを表示（体感速度向上）
         flash('レビューを投稿しました。（デモ動作：ゲストのため実際には保存されません）', 'success')
         return redirect(url_for('course_view_detail', id=id))
 
     try:
+        # DBセッションから確実にユーザーを取得して操作する
+        user = User.query.get(current_user.id)
+        
         is_quick_review = (request.form.get('review') == '【高速レビュー】')
 
         if is_quick_review:
-            if Review.query.filter_by(course_id=id, user_id=current_user.id).first():
-                flash('既にレビューを投稿しています。', 'warning')
+            if Review.query.filter_by(course_id=id, user_id=user.id, is_quick=True).first():
+                flash('既に高速レビューを投稿しています。', 'warning')
                 return redirect(url_for('course_detail', id=id))
         else:
-            if Review.query.filter_by(course_id=id, user_id=current_user.id, is_quick=False).first():
-                flash('既にレビューを投稿しています。', 'warning')
+            if Review.query.filter_by(course_id=id, user_id=user.id, is_quick=False).first():
+                flash('既に詳細レビューを投稿しています。', 'warning')
                 return redirect(url_for('course_detail', id=id))
 
         new_review = Review(
@@ -929,28 +943,23 @@ def add_review(id):
             classroom=request.form.get('classroom'),
             review=request.form.get('review'),
             course_id=course.id, 
-            user_id=current_user.id,
+            user_id=user.id,
             is_quick=is_quick_review
-        ) # 正しく閉じる
-        
-        # クレジット加算処理 (正しいインデント)
-        earn_rate, _ = get_current_rates()
-        current_user.credits += (current_user.credits or 0) + earn_rate
-        current_user.total_review_count = (current_user.total_review_count or 0) + 1
-        
+        )
         db.session.add(new_review)
-        db.session.commit()
         
-        if is_quick_review:
-            current_user.quick_review_count = (current_user.quick_review_count or 0) + 1
+        # クレジット加算処理 (UTC基準)
+        if not is_quick_review:
+            earn_rate, _ = get_current_rates()
+            current_credits = user.credits or 0
+            user.credits = current_credits + earn_rate
+            user.detailed_review_count = (user.detailed_review_count or 0) + 1
         else:
-            current_user.detailed_review_count = (current_user.detailed_review_count or 0) + 1
+            user.quick_review_count = (user.quick_review_count or 0) + 1
 
-        apply_review_rewards(current_user, is_quick_review)
         db.session.commit()
         
-        # バッジ判定
-        check_and_award_badges(current_user)
+        check_and_award_badges(user)
         
         flash('レビューを投稿しました。', 'success')
     except Exception as e:
@@ -1013,7 +1022,6 @@ def toggle_favorite():
 @app.route('/my_favorites')
 @login_required
 def my_favorites():
-    # ユーザーのお気に入り講義を取得
     courses = current_user.favorite_courses
     return render_template('my_favorites.html', courses=courses)
     
@@ -1025,8 +1033,10 @@ def help_page():
 @app.route('/complete_tutorial')
 @login_required
 def complete_tutorial():
-    if not current_user.is_tutorial_seen:
-        current_user.is_tutorial_seen = True
+    # DBセッションから確実に取得して更新
+    user = User.query.get(current_user.id)
+    if not user.is_tutorial_seen:
+        user.is_tutorial_seen = True
         db.session.commit()
     return redirect(url_for('index'))
 
@@ -1041,15 +1051,12 @@ def fetch_cards():
     keyword = request.args.get('keyword', '').strip()
     department_filter = request.args.get('department', '').strip()
 
-    # 1. 自分が既にレビューした講義IDを取得（サブクエリで高速化）
     reviewed_subquery = db.session.query(Review.course_id)\
         .filter(Review.user_id == current_user.id)
 
-    # クエリのベースを作成（まだレビューしていない講義を除外）
     query = Course.query.filter(~Course.id.in_(reviewed_subquery))
 
     if keyword:
-        # キーワードがある場合（講義名 or 教員名）
         search_terms = keyword.split()
         for term in search_terms:
             query = query.filter(
@@ -1060,10 +1067,8 @@ def fetch_cards():
             )
     
     if department_filter:
-        # 明示的に学部が指定された場合
         query = query.filter(Course.department.like(f'%{department_filter}%'))
     elif current_user.faculty and not keyword:
-        # キーワードも学部指定もない場合のみ、デフォルトでユーザーの学部＋共通科目を優先する。
         query = query.filter(
             or_(
                 Course.department.like(f'%{current_user.faculty}%'),
@@ -1071,17 +1076,14 @@ def fetch_cards():
             )
         )
     
-    # 2. 高速化のため、まずIDリストを取得してPython側でランダムサンプリング
     candidate_ids = [r[0] for r in query.with_entities(Course.id).all()]
     
     if not candidate_ids:
         return jsonify([])
 
-    # IDリストからランダムに10個選ぶ
     sample_size = min(len(candidate_ids), 10)
     selected_ids = random.sample(candidate_ids, sample_size)
     
-    # 選ばれたIDの講義データを取得
     cards = Course.query.filter(Course.id.in_(selected_ids)).all()
 
     data = [{
@@ -1148,45 +1150,18 @@ def delete_review(review_id):
 @app.route('/mypage', methods=['GET', 'POST'])
 @login_required
 def mypage():
-    # ▼▼▼ 追加: カウントのズレを修正する同期処理 ▼▼▼
-    # これまで投稿したレビューがカウントされていない場合、ここで再計算して反映させます
+    user = User.query.get(current_user.id)
     
-    from datetime import datetime  # 関数内でインポートするか、ファイル先頭で
-    now = datetime.now()
-    
-    try:
-        real_detailed_count = Review.query.filter_by(user_id=current_user.id, is_quick=False).count()
-        real_quick_count = Review.query.filter_by(user_id=current_user.id, is_quick=True).count()
-        
-        need_commit = False
-        
-        if current_user.detailed_review_count != real_detailed_count:
-            current_user.detailed_review_count = real_detailed_count
-            need_commit = True
-            
-        if current_user.quick_review_count != real_quick_count:
-            current_user.quick_review_count = real_quick_count
-            need_commit = True
-            
-        if need_commit:
-            # カウント更新に伴い、バッジ獲得条件を満たしたか再チェック
-            check_and_award_badges(current_user)
-            db.session.commit()
-            
-    except Exception as e:
-        app.logger.error(f"Count sync error in mypage: {e}")
-    # ▲▲▲ 追加ここまで ▲▲▲
-
     if request.method == 'POST':
         try:
-            if current_user.email.endswith('@demo.com'):
+            if user.email.endswith('@demo.com'):
                 flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
                 return redirect(url_for('mypage'))
 
-            current_user.username = request.form.get('username')
-            current_user.faculty = request.form.get('faculty')
-            current_user.department = request.form.get('department')
-            current_user.grade = request.form.get('grade')
+            user.username = request.form.get('username')
+            user.faculty = request.form.get('faculty')
+            user.department = request.form.get('department')
+            user.grade = request.form.get('grade')
             
             db.session.commit()
             flash('プロフィールを更新しました。', 'success')
@@ -1199,24 +1174,23 @@ def mypage():
             flash('更新中にエラーが発生しました。', 'danger')
         return redirect(url_for('mypage'))
     
-    # バッジ一覧を取得して渡す
     all_badges = Badge.query.all()
+    # 現在時刻も渡す (UTC)
+    now = datetime.datetime.utcnow()
     
-    # ▼▼▼ render_template を修正 ▼▼▼
     return render_template('mypage.html', 
-                           user=current_user, 
-                           all_badges=all_badges,
-                           now=now,  # 現在時刻を渡す
-                           get_current_rates=get_current_rates) # 関数自体を渡す
+                           user=user, 
+                           all_badges=all_badges, 
+                           now=now,
+                           get_current_rates=get_current_rates)
 
-# flask run コマンドでもテーブルが作成されるようにする
 with app.app_context():
     try:
         db.create_all()
+        check_and_migrate_db() 
         initialize_badges()
     except Exception as e:
         app.logger.error(f"Failed to initialize database: {e}")
-
 
 def seed_demo_courses_if_needed():
     uri = app.config.get('SQLALCHEMY_DATABASE_URI') or ''
@@ -1242,21 +1216,15 @@ def seed_demo_courses_if_needed():
         app.logger.error(f"Seed demo courses error: {e}")
 
 if __name__ == '__main__':
-    # 開発環境用の設定
     if not os.path.exists(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')):
         os.makedirs(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'))
     
-    # 手動起動(python app.py)の場合のDB作成
-    # ※ 本番環境(Gunicorn)ではここは実行されない
     with app.app_context():
         db.create_all()
+        check_and_migrate_db() 
         seed_demo_courses_if_needed()
     
-    # 環境変数PORTに対応（Render等）
     port = int(os.environ.get('PORT', 5005))
-    
-    # 環境変数 FLASK_ENV が 'development' の場合のみデバッグモードを有効にする
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
     
-    # 0.0.0.0 でバインドして外部アクセスを許可
     app.run(debug=debug_mode, host='0.0.0.0', port=port)

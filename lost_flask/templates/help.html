@@ -6,8 +6,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- CSSバージョンを更新してキャッシュ対策 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
     <style>
         .tutorial-container {
             max-width: 800px;
@@ -37,7 +37,7 @@
             font-weight: 800;
             font-size: 1.2em;
             flex-shrink: 0;
-            margin-top: 5px; /* アイコンとのバランス調整 */
+            margin-top: 5px;
         }
         .step-content {
             flex-grow: 1;
@@ -54,26 +54,33 @@
             color: #334155;
             margin-bottom: 10px;
         }
-        
-        /* 重要なルールを強調するボックス */
-        .rule-box {
-            background-color: #fffbeb;
-            border: 2px solid #fcd34d;
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 15px;
-            color: #92400e;
-            font-weight: bold;
-            font-size: 0.95em;
-            line-height: 1.6;
+
+        /* 新：シーズン表のスタイル */
+        .credit-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.9em;
+            text-align: center;
         }
-        .rule-highlight {
-            font-size: 1.2em;
-            color: #d97706;
-            font-weight: 900;
-            background: rgba(255,255,255,0.5);
-            padding: 0 4px;
-            border-radius: 4px;
+        .credit-table th, .credit-table td {
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+        }
+        .credit-table th {
+            background-color: #f8fafc;
+        }
+        .season-bonus { background-color: #fff3cd; font-weight: bold; }
+        .season-sale { background-color: #e3f2fd; font-weight: bold; }
+        .season-peak { background-color: #f8d7da; font-weight: bold; }
+
+        /* 重要なヒントボックス */
+        .move-box {
+            background-color: #f0fdf4;
+            border-left: 5px solid #16a34a;
+            padding: 15px;
+            margin: 15px 0;
+            color: #166534;
         }
 
         .btn-start-app {
@@ -111,17 +118,14 @@
     </style>
 </head>
 <body>
-    <!-- ▼▼▼ ロゴ（リンク付き） ▼▼▼ -->
     <a href="{{ url_for('index') }}">
         <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
     </a>
 
-    <!-- ▼▼▼ ヘッダー ▼▼▼ -->
     <div class="user-header">
         <a href="{{ url_for('swipe_page') }}" class="header-action-btn">
             ⚡ 高速レビュー
         </a>
-
         <div class="dropdown" tabindex="0">
             <div class="dropbtn">
                 <span>{{ current_user.username }} さん</span>
@@ -135,7 +139,6 @@
             </div>
         </div>
     </div>
-    <!-- ▲▲▲ ヘッダーここまで ▲▲▲ -->
 
     <div class="tutorial-container">
         <div class="welcome-header">
@@ -154,15 +157,53 @@
         <div class="step-card">
             <div class="step-number">2</div>
             <div class="step-content">
-                <h3>🤝 ギブ・アンド・テイク</h3>
-                <p>このアプリは学生同士の助け合いで成り立っています。他の人のレビューを見るには、まずあなた自身の経験を共有してください。</p>
-                <div class="rule-box">
-                    🔑 詳細レビューを <span class="rule-highlight">3件</span> 投稿すると、<br>
-                    <span style="text-decoration:underline; text-decoration-thickness: 2px;">24時間</span> 全てのレビューが見放題になります！
+                <h3>💰 クレジットを貯めて交換</h3>
+                <p>このアプリは学生同士の助け合いで成り立っています。詳細レビューを1件投稿するごとに<strong>「クレジット(CP)」</strong>が貯まり、閲覧パスと交換できます。</p>
+                
+                <table class="credit-table">
+                    <thead>
+                        <tr>
+                            <th>時期</th>
+                            <th>シーズン</th>
+                            <th>投稿報酬</th>
+                            <th>学期パス</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="season-bonus">
+                            <td>2, 8月</td>
+                            <td>黄金ボーナス期</td>
+                            <td>2 CP</td>
+                            <td>3 CP</td>
+                        </tr>
+                        <tr class="season-sale">
+                            <td>3, 9月</td>
+                            <td>早割セール期</td>
+                            <td>1 CP</td>
+                            <td>2 CP</td>
+                        </tr>
+                        <tr class="season-peak">
+                            <td>4, 10月</td>
+                            <td>履修登録本番</td>
+                            <td>1 CP</td>
+                            <td>5 CP</td>
+                        </tr>
+                        <tr>
+                            <td>その他</td>
+                            <td>通常期</td>
+                            <td>1 CP</td>
+                            <td>3 CP</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="move-box">
+                    <strong>💡 おトクな必勝ムーブ：</strong><br>
+                    テスト直後の記憶が鮮明なうちに1件投稿(2CP獲得)し、休み中に交換(2CP消費)すれば、実質<strong>たった1件の投稿で次の1学期が見放題</strong>になります！
                 </div>
-                <p style="font-size:0.9em; margin-top:10px; color:#64748b;">
-                    ※ さらに合計15件投稿すると、ずっと見放題の<strong>「永続ライセンス」</strong>を獲得できます。<br>
-                    ※ 「詳細レビュー」のみがカウント対象です（高速レビューは対象外）。
+                <p style="font-size:0.9em; color:#64748b;">
+                    ※ どの時期でも 1CP で「24時間パス」と交換可能です。<br>
+                    ※ 学部1年生の間は、CPに関係なく無制限に閲覧可能です！
                 </p>
             </div>
         </div>
@@ -171,7 +212,7 @@
             <div class="step-number">3</div>
             <div class="step-content">
                 <h3>⚡ 高速レビューでサクサク投稿</h3>
-                <p>ヘッダーの<strong>「⚡ 高速レビュー」</strong>ボタンを押すと、Tinder風のカード形式で次々と講義が表示されます。「受講した！」とスワイプすれば、直感的な操作で素早く評価を投稿できます。隙間時間の活用におすすめです。</p>
+                <p>ヘッダーの<strong>「⚡ 高速レビュー」</strong>ボタンを押すと、カード形式で次々と講義が表示されます。「受講した！」とスワイプすれば、直感的な操作で素早く評価を投稿し、クレジットを貯めることができます。</p>
             </div>
         </div>
 
@@ -179,8 +220,7 @@
             <div class="step-number">4</div>
             <div class="step-content">
                 <h3>🏆 ランク・バッジ機能</h3>
-                <p>レビュー投稿数に応じてあなたのランクが「🐣 迷える新入生」から「👑 レジェンド」へと進化します。</p>
-                <p>また、「高速レビューを10回行う」「初めて投稿する」などの条件を満たすと、プロフィールに<strong>「実績バッジ」</strong>が付与されます。マイページでコレクションを確認して、コンプリートを目指しましょう！</p>
+                <p>レビュー投稿数に応じてあなたのランクが進化します。また、特定の条件を満たすと<strong>「実績バッジ」</strong>が付与されます。マイページでコレクションを確認して、コンプリートを目指しましょう！</p>
             </div>
         </div>
 

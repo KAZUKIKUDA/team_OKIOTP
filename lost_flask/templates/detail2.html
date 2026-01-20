@@ -114,11 +114,9 @@
             {% endif %}
         {% endwith %}
 
-        {% if not can_view_detail %}
-        <div class="flash-message warning">
-            閲覧ロック中です。詳細レビューを3件投稿すると24時間、レビュー本文が閲覧できます。（高速レビューは閲覧解放に影響しません）
-        </div>
-        {% endif %}
+        <!-- ▼▼▼ 修正: 黄色い警告メッセージを削除 ▼▼▼ -->
+        <!-- ここにあった閲覧ロック中のflash-messageを削除しました -->
+        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
         {% if current_user.email.endswith('@demo.com') %}
         <div class="flash-message info">
@@ -308,12 +306,12 @@
                     <div class="review-lock-overlay-inner">
                         <h3>レビュー本文はロック中です</h3>
                         <p>
-                            詳細レビューを3件投稿すると24時間、レビュー本文が閲覧できます。<br>
-                            詳細レビュー合計15件で永続見放題になります。
+                            ポイントを消費してパスを購入すると閲覧できます。<br>
+                            詳細レビューを投稿してCPを貯めましょう。
                         </p>
                         <div class="review-lock-overlay-actions">
-                            <a href="{{ url_for('course_detail', id=course.id) }}" class="btn">この講義のレビューを投稿</a>
-                            <a href="{{ url_for('search_course') }}" class="btn btn-accent">別の講義を探す</a>
+                            <a href="{{ url_for('course_detail', id=course.id) }}" class="btn">レビューを投稿してCPを稼ぐ</a>
+                            <a href="{{ url_for('mypage') }}" class="btn btn-accent">パスを購入する</a>
                         </div>
                     </div>
                 </div>
