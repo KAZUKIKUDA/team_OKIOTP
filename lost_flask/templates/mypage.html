@@ -160,28 +160,69 @@
                 </div>
             </div>
 
-            <!-- 右: 閲覧権限 & スタッツ -->
+            <!-- 右: 閲覧権限 & クレジット管理（統合） -->
             <div style="display: flex; flex-direction: column; height: 100%;">
-                <div class="section-header">閲覧権限ステータス</div>
+                <div class="section-header">閲覧権限 & クレジット</div>
                 
-            {% if access_status %}
-                <div class="access-status-card {{ access_status.class }}" style="flex: 1; margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center;">
-                    <h3>{{ access_status.label }}</h3>
+                <!-- ▼▼▼ 統合されたステータス・クレジット管理カード ▼▼▼ -->
+                <div class="access-status-card {{ access_status.class if access_status else '' }}" style="flex: 1; margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center; text-align: center;">
                     
-                    {# descriptionがある場合のみ表示 #}
-                    {% if access_status.description %}
-                        <p class="access-status-desc">{{ access_status.description | safe }}</p>
+                    {% if access_status %}
+                        <h3>{{ access_status.label }}</h3>
+                        
+                        {# descriptionがある場合のみ表示 #}
+                        {% if access_status.description %}
+                            <p class="access-status-desc">{{ access_status.description | safe }}</p>
+                        {% endif %}
+
+                        {# 制限中の場合のアラート #}
+                        {% if access_status.type == 'locked' %}
+                            <p class="text-danger mt-2" style="font-weight: bold; color: #ef4444; margin-bottom: 10px;">
+                                <span style="margin-right: 5px;">🔒</span> 閲覧制限中
+                            </p>
+                        {% endif %}
                     {% endif %}
 
-                    {# 制限中の場合のアラート (元に戻しました) #}
-                    {% if access_status.type == 'locked' %}
-                        <p class="text-danger mt-2" style="font-weight: bold; color: #ef4444;">
-                            <span style="margin-right: 5px;">🔒</span> 閲覧制限中
-                        </p>
-                    {% endif %}
+                    <!-- 区切り線 -->
+                    <hr style="border: 0; border-top: 1px dashed rgba(0,0,0,0.15); margin: 15px 0; width: 100%;">
+
+                    <!-- 所持クレジット表示 -->
+                    <div style="margin-bottom: 15px;">
+                        <span style="font-size: 0.9em; color: var(--text-sub); font-weight: 600;">所持クレジット</span><br>
+                        <span style="font-size: 2.4em; font-weight: 800; color: var(--primary-color); line-height: 1;">{{ user.credits or 0 }}</span>
+                        <span style="font-size: 1.1em; color: var(--primary-color); font-weight: 700;">CP</span>
+                    </div>
+
+                    <!-- パス交換ボタンエリア -->
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <!-- 24時間パス -->
+                        <form action="{{ url_for('exchange_credits') }}" method="POST" style="margin: 0;">
+                            <input type="hidden" name="plan" value="24h">
+                            <button type="submit" class="btn" 
+                                style="padding: 8px 14px; font-size: 0.9em; width: auto; background-color: #fff; color: var(--primary-color); border: 1px solid var(--primary-color); {% if (user.credits or 0) < 1 %}background-color: #f1f5f9; border-color: #cbd5e1; color: #94a3b8; cursor: not-allowed;{% endif %}" 
+                                {% if (user.credits or 0) < 1 %}disabled{% endif %}>
+                                24時間パス (1CP)
+                            </button>
+                        </form>
+
+                        <!-- 学期パス -->
+                        <form action="{{ url_for('exchange_credits') }}" method="POST" style="margin: 0;">
+                            <input type="hidden" name="plan" value="semester">
+                            {% set earn_rate, exchange_cost = get_current_rates() %}
+                            <button type="submit" class="btn" 
+                                style="padding: 8px 14px; font-size: 0.9em; width: auto; {% if (user.credits or 0) < exchange_cost %}background-color: #f1f5f9; border-color: #cbd5e1; color: #94a3b8; cursor: not-allowed;{% else %}background-color: var(--primary-color); color: #fff; border: 1px solid var(--primary-color);{% endif %}" 
+                                {% if (user.credits or 0) < exchange_cost %}disabled{% endif %}>
+                                学期パス ({{ exchange_cost }}CP)
+                                {% if exchange_cost <= 2 %}
+                                    <span style="background: #fff; color: #f43f5e; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; margin-left: 4px; font-weight:800;">早割</span>
+                                {% endif %}
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <p style="font-size: 0.8em; color: #94a3b8; margin: 12px 0 0 0;">※詳細レビュー投稿でCPを獲得できます</p>
                 </div>
-            {% endif %}
-
+                <!-- ▲▲▲ 統合ここまで ▲▲▲ -->
 
                 <!-- 活動スタッツ -->
                 <div class="stats-row" style="margin-bottom: 0;">
@@ -225,67 +266,11 @@
             </div>
         </section>
 
-        <!-- ▼▼▼ 3. プロフィール設定 & クレジット ▼▼▼ -->
+        <!-- ▼▼▼ 3. プロフィール設定（重複していたクレジット管理を削除） ▼▼▼ -->
         <section style="max-width: 800px; margin: 0 auto;">
             <div class="section-header">プロフィール設定</div>
             
             <div class="profile-form-box">
-                <!-- ▼▼▼ 修正: フォームの入れ子を解消するため、先にクレジット管理を表示 ▼▼▼ -->
-                <div class="card border-primary mb-4" style="border: 1px solid #0ea5e9; border-radius: 16px; margin-bottom: 30px; overflow: hidden;">
-                    <div class="card-header bg-primary text-white" style="background: #0ea5e9; color: white; padding: 15px 20px;">
-                        <h5 style="margin: 0; font-size: 1.1em; font-weight: bold;"><i class="fas fa-coins"></i> 閲覧権限・クレジット管理</h5>
-                    </div>
-                    <div class="card-body" style="padding: 20px;">
-                        <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
-                            <div style="flex: 1; text-align: center;">
-                                <p style="margin: 0 0 5px 0; color: #64748b; font-size: 0.9em;">現在の所持クレジット</p>
-                                <h2 style="font-size: 2.5em; color: #0ea5e9; margin: 0; font-weight: 800;">{{ current_user.credits or 0 }} <small style="font-size: 0.5em; color: #64748b;">CP</small></h2>
-                            </div>
-                            <div style="width: 1px; background: #e2e8f0; height: 60px;"></div>
-                            <div style="flex: 1; text-align: center;">
-                                <p style="margin: 0 0 5px 0; color: #64748b; font-size: 0.9em;">現在のステータス</p>
-                                <h5 style="margin: 0;">
-                                    {% if current_user.grade and '1年' in current_user.grade %}
-                                        <span style="background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: bold;">1年生（無料開放中）</span>
-                                    {% elif current_user.pass_expires_at and current_user.pass_expires_at > now %}
-                                        <span style="background: #dbeafe; color: #1e40af; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: bold;">期限: {{ current_user.pass_expires_at.strftime('%m/%d %H:%M') }}まで</span>
-                                    {% else %}
-                                        <span style="background: #f1f5f9; color: #64748b; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: bold;">閲覧制限あり</span>
-                                    {% endif %}
-                                </h5>
-                                <p style="font-size: 0.8em; color: #94a3b8; margin: 5px 0 0 0;">※詳細レビュー投稿でCPを獲得</p>
-                            </div>
-                        </div>
-
-                        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-
-                        <h6 style="margin: 0 0 15px 0; font-weight: bold; color: #334155;">クレジットをパスに交換</h6>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <!-- 独立したフォーム1 -->
-                            <form action="{{ url_for('exchange_credits') }}" method="POST" style="margin: 0;">
-                                <input type="hidden" name="plan" value="24h">
-                                <button type="submit" class="btn" style="padding: 8px 16px; font-size: 0.9em; width: auto; background: #fff; color: #0ea5e9; border: 1px solid #0ea5e9;" {% if (current_user.credits or 0) < 1 %}disabled style="opacity: 0.5; cursor: not-allowed; background: #f1f5f9; border-color: #cbd5e1; color: #94a3b8;"{% endif %}>
-                                    24時間パス (1CP)
-                                </button>
-                            </form>
-
-                            <!-- 独立したフォーム2 -->
-                            <form action="{{ url_for('exchange_credits') }}" method="POST" style="margin: 0;">
-                                <input type="hidden" name="plan" value="semester">
-                                {% set earn_rate, exchange_cost = get_current_rates() %}
-                                <button type="submit" class="btn" style="padding: 8px 16px; font-size: 0.9em; width: auto;" {% if (current_user.credits or 0) < exchange_cost %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
-                                    学期パス ({{ exchange_cost }}CP)
-                                    {% if exchange_cost <= 2 %}
-                                        <span style="background: #f43f5e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px;">早割！</span>
-                                    {% endif %}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
-
-                <!-- プロフィール更新フォーム（独立させました） -->
                 <form method="post">
                     <div class="form-row">
                         <div>

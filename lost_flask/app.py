@@ -33,6 +33,15 @@ app.config.from_object(Config)
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
+# ▼▼▼ 追加: JST変換用フィルタ ▼▼▼
+@app.template_filter('to_jst')
+def to_jst_filter(dt):
+    if dt is None:
+        return None
+    # UTC時間に9時間を足してJSTにする
+    return dt + datetime.timedelta(hours=9)
+# ▲▲▲ 追加ここまで ▲▲▲
+
 @app.after_request
 def add_header(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -100,8 +109,10 @@ def inject_access_status():
             status['label'] = f'🟢 閲覧可能（残り {hours}時間）'
             status['short_label'] = f'🟢 残り{hours}時間'
             
-        # 表示は見やすくJST変換（簡易的に+9時間）してもよいが、ここではUTCのまま表示、または相対時間で表示
-        status['description'] = f'閲覧パスが有効です。（残り {days}日 {hours}時間）'
+        # ▼▼▼ 修正: JSTに変換して表示 ▼▼▼
+        expires_jst = current_user.pass_expires_at + datetime.timedelta(hours=9)
+        status['description'] = f'閲覧パスが有効です。有効期限: {expires_jst.strftime("%Y/%m/%d %H:%M")}'
+        # ▲▲▲ 修正ここまで ▲▲▲
         status['class'] = 'access-active'
         
     # 3. 制限中
