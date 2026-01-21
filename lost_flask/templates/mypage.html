@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=10">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=12">
     <style>
         /* マイページ専用スタイル */
         .dashboard-grid {
@@ -164,18 +164,15 @@
             <div style="display: flex; flex-direction: column; height: 100%;">
                 <div class="section-header">閲覧権限 & クレジット</div>
                 
-                <!-- ▼▼▼ 統合されたステータス・クレジット管理カード ▼▼▼ -->
                 <div class="access-status-card {{ access_status.class if access_status else '' }}" style="flex: 1; margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center; text-align: center;">
                     
                     {% if access_status %}
                         <h3>{{ access_status.label }}</h3>
                         
-                        {# descriptionがある場合のみ表示 #}
                         {% if access_status.description %}
                             <p class="access-status-desc">{{ access_status.description | safe }}</p>
                         {% endif %}
 
-                        {# 制限中の場合のアラート #}
                         {% if access_status.type == 'locked' %}
                             <p class="text-danger mt-2" style="font-weight: bold; color: #ef4444; margin-bottom: 10px;">
                                 <span style="margin-right: 5px;">🔒</span> 閲覧制限中
@@ -222,7 +219,6 @@
                     
                     <p style="font-size: 0.8em; color: #94a3b8; margin: 12px 0 0 0;">※詳細レビュー投稿でCPを獲得できます</p>
                 </div>
-                <!-- ▲▲▲ 統合ここまで ▲▲▲ -->
 
                 <!-- 活動スタッツ -->
                 <div class="stats-row" style="margin-bottom: 0;">
@@ -266,8 +262,56 @@
             </div>
         </section>
 
-        <!-- ▼▼▼ 3. プロフィール設定（重複していたクレジット管理を削除） ▼▼▼ -->
-        <section style="max-width: 800px; margin: 0 auto;">
+        <!-- ▼▼▼ 3. 投稿履歴 ▼▼▼ -->
+        <section style="margin-bottom: 40px;">
+            <div class="section-header">投稿履歴</div>
+            <div style="background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                {% if my_reviews %}
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #f1f5f9;">
+                                    <th style="text-align: left; padding: 10px; color: var(--text-sub);">講義名</th>
+                                    <th style="text-align: left; padding: 10px; color: var(--text-sub);">種類</th>
+                                    <th style="text-align: left; padding: 10px; color: var(--text-sub);">評価</th>
+                                    <th style="text-align: right; padding: 10px; color: var(--text-sub);">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for review in my_reviews %}
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 12px 10px; font-weight: bold;">
+                                        <a href="{{ url_for('course_view_detail', id=review.course.id) }}" style="color: var(--text-main); text-decoration: none;">
+                                            {{ review.course.name }}
+                                        </a>
+                                    </td>
+                                    <td style="padding: 12px 10px;">
+                                        {% if review.is_quick %}
+                                            <span style="font-size: 0.8em; background: #fff7ed; color: #c2410c; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffedd5;">高速</span>
+                                        {% else %}
+                                            <span style="font-size: 0.8em; background: #f0fdf4; color: #15803d; padding: 2px 8px; border-radius: 4px; border: 1px solid #dcfce7;">詳細</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 12px 10px; color: var(--warning-color);">★{{ "%.1f"|format(review.rating) }}</td>
+                                    <td style="padding: 12px 10px; text-align: right;">
+                                        <a href="{{ url_for('edit_review', review_id=review.id) }}" style="font-size: 0.9em; color: var(--primary-color); margin-right: 10px;">編集</a>
+                                        <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
+                                            <button type="submit" onclick="return confirm('本当に削除しますか？\n詳細レビューの場合、獲得したCPも回収されます。');" style="background:none; border:none; color:var(--accent-color); font-size:0.9em; cursor:pointer; padding:0;">削除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p style="text-align: center; color: var(--text-sub); padding: 20px;">まだ投稿履歴がありません。</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- ▼▼▼ 4. プロフィール設定 (独立セクションとして配置) ▼▼▼ -->
+        <section style="max-width: 800px; margin: 0 auto 50px;">
             <div class="section-header">プロフィール設定</div>
             
             <div class="profile-form-box">

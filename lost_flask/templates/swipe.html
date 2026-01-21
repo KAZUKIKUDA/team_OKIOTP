@@ -3,442 +3,509 @@
 <head>
     <meta charset="UTF-8">
     <title>高速レビュー</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- モバイル表示に最適化 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <!-- CSSのバージョンを上げてキャッシュクリア -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=swipe_fix_v9">
+    <!-- CSS読み込み -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=11">
+    
     <style>
-        /* スワイプカードのアニメーションなどはここに残します */
+        /* swipe.html 専用のスタイル */
+        body {
+            overflow: hidden; /* スワイプ中のスクロール防止 */
+            background-color: #f8fafc;
+        }
+
+        .swipe-mode-container {
+            max-width: 500px;
+            margin: 20px auto;
+            text-align: center;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
         .swipe-card-container {
             position: relative;
             width: 100%;
-            height: 350px;
-            margin: 0 auto;
+            flex-grow: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            margin-bottom: 20px;
         }
 
         .swipe-card {
+            position: absolute;
             width: 100%;
-            max-width: 400px;
-            min-height: 280px;
+            height: 100%;
+            max-height: 450px;
             background: #fff;
             border-radius: 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             border: 1px solid #e2e8f0;
-            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
             box-sizing: border-box;
-            position: absolute;
-            top: 10px;
-            cursor: grab;
             user-select: none;
             touch-action: none;
-            will-change: transform;
-            transform-origin: center bottom;
+            transition: transform 0.1s linear; /* スワイプ中の追従 */
+            cursor: grab;
         }
-
+        
         .swipe-card:active {
             cursor: grabbing;
         }
 
-        .card-reset { transition: transform 0.3s ease-out; transform: translateX(0) rotate(0) !important; }
-        .card-leave-left { transition: transform 0.4s ease-in, opacity 0.4s ease-in; transform: translateX(-150%) rotate(-30deg) !important; opacity: 0; }
-        .card-leave-right { transition: transform 0.4s ease-in, opacity 0.4s ease-in; transform: translateX(150%) rotate(30deg) !important; opacity: 0; }
-
-        .quick-rating-area {
-            display: flex;
-            justify-content: center;
-            gap: 5px;
-            margin-top: 20px;
+        .card-course-name {
+            font-size: 1.6em;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            line-height: 1.4;
         }
-        .quick-star-btn {
-            background: #fff;
-            border: 2px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 10px 0;
-            width: 50px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: #cbd5e1;
-            font-size: 1.4em;
+
+        .card-teacher {
+            font-size: 1.1em;
+            color: var(--text-sub);
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .card-tags {
             display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tag {
+            background: #f1f5f9;
+            color: #64748b;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        /* スワイプ時のバッジ（LIKE / NOPE） */
+        .badge-overlay {
+            position: absolute;
+            top: 40px;
+            padding: 5px 10px;
+            border: 4px solid;
+            border-radius: 8px;
+            font-size: 2em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0;
+            transform: rotate(-15deg);
+            z-index: 10;
+            pointer-events: none;
+        }
+        .badge-like {
+            left: 40px;
+            color: var(--success-color);
+            border-color: var(--success-color);
+            transform: rotate(-15deg);
+        }
+        .badge-nope {
+            right: 40px;
+            color: var(--text-sub);
+            border-color: var(--text-sub);
+            transform: rotate(15deg);
+        }
+
+        /* アクションボタンエリア */
+        .action-area {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+            margin-top: auto;
+            padding-bottom: 20px;
+        }
+
+        .btn-round {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        .btn-round:active { transform: scale(0.9); }
+        .btn-skip { background: #fff; color: #94a3b8; border: 2px solid #e2e8f0; }
+        .btn-like { background: var(--primary-color); color: #fff; border: 2px solid var(--primary-color); width: 70px; height: 70px; font-size: 1.8em; }
+
+        /* 評価モーダル（カード内に表示） */
+        .rating-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.98);
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+        }
+        .rating-stars {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .star-btn {
+            background: none;
+            border: none;
+            font-size: 2.5em;
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .star-btn:hover, .star-btn.active {
+            color: var(--warning-color);
+        }
+
+        /* 完了画面 */
+        .completion-screen {
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-        }
-        .quick-star-btn span {
-            font-size: 0.4em;
-            font-weight: bold;
-            color: var(--text-sub);
-            margin-top: 2px;
-        }
-        .quick-star-btn:hover {
-            border-color: var(--warning-color);
-            background-color: #fffbeb;
-            color: var(--warning-color);
-            transform: translateY(-3px);
-        }
-
-        .status-badge {
-            position: absolute;
-            top: 20px;
-            padding: 5px 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 1.2em;
-            opacity: 0;
-            z-index: 10;
-        }
-        .badge-like {
-            right: 40px;
-            border: 3px solid var(--success-color);
-            color: var(--success-color);
-            transform: rotate(15deg);
-        }
-        .badge-nope {
-            left: 40px;
-            border: 3px solid var(--accent-color);
-            color: var(--accent-color);
-            transform: rotate(-15deg);
+            height: 100%;
         }
     </style>
 </head>
 <body>
-    <a href="{{ url_for('index') }}">
-        <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="大学ロゴ" id="logo-banner">
-    </a>
-
-    <div class="user-header">
-        <a href="{{ url_for('index') }}" class="header-action-btn">
-            🏠 ホームに戻る
+    <!-- ヘッダー (ロゴと戻るボタン) -->
+    <div style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+        <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='Blueonly.png') }}" alt="ロゴ" style="height: 30px;">
         </a>
-
-        <div class="dropdown" tabindex="0">
-            <div class="dropbtn">
-                <span>{{ current_user.username }} さん</span>
-                <span style="font-size: 0.8em; margin-left: 5px;">▼</span>
-            </div>
-            <div class="dropdown-content">
-                <a href="{{ url_for('mypage') }}">👤 マイページ</a>
-                <a href="{{ url_for('my_favorites') }}">💖 お気に入り講義</a>
-                <a href="{{ url_for('help_page') }}">❓ 使い方</a>
-                <a href="{{ url_for('logout') }}" class="logout-item">🚪 ログアウト</a>
-            </div>
-        </div>
+        <a href="{{ url_for('index') }}" class="btn-cancel" style="padding: 6px 15px; font-size: 0.9em;">終了</a>
     </div>
 
-    <div class="container swipe-mode-container">
-        <h2 class="app-title-small">⚡ 高速レビュー</h2>
-        <p style="text-align:center; color:var(--text-sub); font-size:0.9em; margin-bottom:10px;">
-            スワイプして仕分け！<br>
-            <small>（👈 知らない / 受講した 👉）</small>
-        </p>
-
-        <!-- ▼▼▼ 修正: クラスベースのスタイルに変更 ▼▼▼ -->
-        <div class="swipe-filter-area">
-            <div class="swipe-filter-row">
-                <input type="text" id="filter-keyword" placeholder="講義名・教員名で検索" class="swipe-input">
-            </div>
-            <div class="swipe-filter-row">
-                <select id="filter-department" class="swipe-select">
-                    <option value="">全ての学部から</option>
-                    <option value="工学部">工学部</option>
-                    <option value="理学部">理学部</option>
-                    <option value="国際地域創造学部">国際地域創造学部</option>
-                    <option value="教育学部">教育学部</option>
-                    <option value="人文社会学部">人文社会学部</option>
-                    <option value="農学部">農学部</option>
-                    <option value="医学部">医学部</option>
-                    <option value="共通教育">共通教育等</option>
-                </select>
-                <button onclick="applyFilter()" class="swipe-filter-btn">絞り込み</button>
-            </div>
+    <div class="swipe-mode-container">
+        <!-- 説明テキスト -->
+        <div style="margin-bottom: 20px;">
+            <h1 class="app-title-small" style="margin-bottom: 5px; font-size: 1.5em;">⚡ 高速レビュー</h1>
+            <p style="color: var(--text-sub); font-size: 0.9em; margin: 0;">
+                受講した講義を直感的に評価しよう。<br>
+                <!-- ▼▼▼ 修正: 注釈を追加 ▼▼▼ -->
+                <span style="color: #94a3b8; font-size: 0.85em;">※ 高速レビューではCPは獲得できません（ランク用件数には加算されます）</span>
+                <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
+            </p>
         </div>
-        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
+        <!-- カード表示エリア -->
         <div class="swipe-card-container" id="card-container">
-            <div id="loading-msg">読み込み中...</div>
-            
-            <div id="current-card" class="swipe-card" style="display:none;">
-                <div class="status-badge badge-nope">NOPE</div>
-                <div class="status-badge badge-like">TAKEN</div>
-
-                <div id="card-content-view">
-                    <div style="font-size:0.85em; color:var(--text-sub); margin-bottom:5px;">
-                        <span id="card-dept"></span> / <span id="card-format"></span>
-                    </div>
-                    <h3 id="card-name" style="font-size:1.6em; margin:10px 0; color:var(--primary-color);"></h3>
-                    <p style="font-size:1.1em; color:var(--text-sub); margin-bottom:20px;">
-                        👨‍🏫 <span id="card-teacher"></span>
-                    </p>
-                </div>
-
-                <div id="rating-view" style="display:none; text-align:center;">
-                    <p style="font-weight:bold; color:var(--primary-color);">受講済みですね！評価をお願いします</p>
-                    <div class="quick-rating-area">
-                        <button class="quick-star-btn" onclick="submitQuickRating(1)">★<span>1</span></button>
-                        <button class="quick-star-btn" onclick="submitQuickRating(2)">★<span>2</span></button>
-                        <button class="quick-star-btn" onclick="submitQuickRating(3)">★<span>3</span></button>
-                        <button class="quick-star-btn" onclick="submitQuickRating(4)">★<span>4</span></button>
-                        <button class="quick-star-btn" onclick="submitQuickRating(5)">★<span>5</span></button>
-                    </div>
-                    <a id="btn-detail-review" href="#" class="btn btn-accent" style="width:100%; display:block; padding: 10px 0; margin-top: 15px; text-decoration:none;">詳細にレビューする 📝</a>
-                    <button onclick="resetCardState()" style="background:none; border:none; color:#999; text-decoration:underline; margin-top:10px; cursor:pointer;">戻る</button>
-                </div>
-            </div>
-
-            <div id="no-more-cards" style="display:none; text-align:center; padding:40px;">
-                <h3>🤔 ヒットする講義がありません</h3>
-                <p>条件を変更して再検索してみてください。</p>
+            <!-- カードはJSでここに生成されます -->
+            <div class="completion-screen" id="completion-view">
+                <div style="font-size: 4em; margin-bottom: 20px;">🎉</div>
+                <h2 style="color: var(--primary-color);">すべて評価しました！</h2>
+                <p>現在表示できる未評価の講義はありません。<br>また後でチェックしてみてください。</p>
+                <a href="{{ url_for('index') }}" class="btn" style="width: auto; margin-top: 20px;">トップに戻る</a>
             </div>
         </div>
 
-        <div id="action-area" class="swipe-actions" style="margin-top:20px; display:none;">
-            <button class="btn-swipe btn-skip" onclick="programmaticSwipe('left')">
-                <span>✖</span> 知らない
-            </button>
-            <button class="btn-swipe btn-taken" onclick="programmaticSwipe('right')">
-                <span>⭕</span> 受講した！
-            </button>
+        <!-- アクションボタン -->
+        <div class="action-area" id="action-buttons">
+            <button class="btn-round btn-skip" onclick="triggerSwipe('left')" title="知らない / 受講していない">✖</button>
+            <button class="btn-round btn-like" onclick="triggerSwipe('right')" title="受講した！">✔</button>
         </div>
     </div>
 
     <script>
-        let cards = [];
+        let cardsData = [];
         let currentIndex = 0;
-        let isRatingMode = false;
-        const card = document.getElementById('current-card');
         const container = document.getElementById('card-container');
-        let startX = 0, currentX = 0, isDragging = false;
-        const SWIPE_THRESHOLD = 100;
+        const completionView = document.getElementById('completion-view');
+        const actionButtons = document.getElementById('action-buttons');
 
+        // 初期化処理
         document.addEventListener('DOMContentLoaded', () => {
             fetchCards();
-            initSwipeEvents();
         });
 
+        // 講義データの取得
         function fetchCards() {
-            const keyword = document.getElementById('filter-keyword').value;
-            const department = document.getElementById('filter-department').value;
-            
-            const params = new URLSearchParams();
-            if (keyword) params.append('keyword', keyword);
-            if (department) params.append('department', department);
+            // ▼▼▼ 修正: プレビュー環境でのエラー回避用のダミーデータ ▼▼▼
+            if (window.location.protocol === 'blob:' || window.location.protocol === 'file:') {
+                console.log('Running in preview mode: Using mock data.');
+                cardsData = [
+                    { id: 999, name: '【デモ】プログラミング演習', teacher: 'テスト教員A', department: '工学部', format: '対面' },
+                    { id: 998, name: '【デモ】線形代数', teacher: 'テスト教員B', department: '理学部', format: 'オンライン' },
+                    { id: 997, name: '【デモ】英語コミュニケーション', teacher: 'テスト教員C', department: '共通教育', format: '対面' }
+                ];
+                renderCard();
+                return;
+            }
+            // ▲▲▲ 修正ここまで ▲▲▲
 
-            const url = `/api/fetch_cards?${params.toString()}`;
+            fetch('/api/fetch_cards')
+                .then(res => res.json())
+                .then(data => {
+                    cardsData = data;
+                    if (cardsData.length > 0) {
+                        renderCard();
+                    } else {
+                        showCompletion();
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching cards:', err);
+                    showCompletion();
+                });
+        }
 
-            if (window.location.protocol === 'blob:' || window.location.href.includes('scf.usercontent.goog')) {
-                console.warn('Running in preview mode. Using mock data.');
-                useMockData();
+        // カードの生成と表示
+        function renderCard() {
+            if (currentIndex >= cardsData.length) {
+                showCompletion();
                 return;
             }
 
-            try {
-                fetch(url)
-                    .then(res => {
-                        if (!res.ok) throw new Error('API Error');
-                        return res.json();
-                    })
-                    .then(data => {
-                        cards = data;
-                        if (cards.length > 0) {
-                            showCard(0);
-                        } else {
-                            document.getElementById('loading-msg').style.display = 'none';
-                            document.getElementById('current-card').style.display = 'none';
-                            document.getElementById('no-more-cards').style.display = 'block';
-                            document.getElementById('action-area').style.display = 'none';
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        useMockData();
-                    });
-            } catch (e) {
-                console.warn('Fetch initialization error:', e);
-                useMockData();
-            }
-        }
-        
-        function applyFilter() {
-            currentIndex = 0;
-            document.getElementById('loading-msg').style.display = 'block';
-            document.getElementById('current-card').style.display = 'none';
-            document.getElementById('no-more-cards').style.display = 'none';
-            document.getElementById('action-area').style.display = 'none';
+            const course = cardsData[currentIndex];
             
-            fetchCards();
-        }
-
-        function useMockData() {
-            cards = [
-                { id: 1, name: "サンプル講義A (プレビュー)", teacher: "山田太郎", department: "工学部", format: "対面" },
-                { id: 2, name: "サンプル講義B (プレビュー)", teacher: "鈴木花子", department: "理学部", format: "オンライン" },
-                { id: 3, name: "サンプル講義C (プレビュー)", teacher: "佐藤次郎", department: "共通教育", format: "オンデマンド" }
-            ];
-            showCard(0);
-        }
-
-        function showCard(index) {
-            if (index >= cards.length) {
-                document.getElementById('current-card').style.display = 'none';
-                document.getElementById('action-area').style.display = 'none';
-                document.getElementById('no-more-cards').style.display = 'block';
-                return;
-            }
-
-            const c = cards[index];
-            document.getElementById('loading-msg').style.display = 'none';
-            document.getElementById('current-card').style.display = 'block';
-            document.getElementById('action-area').style.display = 'flex';
-            document.getElementById('no-more-cards').style.display = 'none';
-
-            document.getElementById('card-dept').textContent = c.department || '学部不明';
-            document.getElementById('card-format').textContent = c.format || '形式不明';
-            document.getElementById('card-name').textContent = c.name;
-            document.getElementById('card-teacher').textContent = c.teacher;
-            
-            document.getElementById('btn-detail-review').href = `/course/${c.id}`;
-
-            resetCardState();
-        }
-
-        function resetCardState() {
-            isRatingMode = false;
+            // カード要素作成
+            const card = document.createElement('div');
             card.className = 'swipe-card';
-            card.style.transform = '';
-            card.style.opacity = '1';
+            card.id = 'active-card';
             
-            document.getElementById('card-content-view').style.display = 'block';
-            document.getElementById('rating-view').style.display = 'none';
-            document.getElementById('action-area').style.display = 'flex';
+            // 内容生成
+            card.innerHTML = `
+                <div class="badge-overlay badge-like">LIKE</div>
+                <div class="badge-overlay badge-nope">NOPE</div>
+                
+                <h3 class="card-course-name">${course.name}</h3>
+                <p class="card-teacher">${course.teacher}</p>
+                
+                <div class="card-tags">
+                    <span class="tag">${course.department || '学部不明'}</span>
+                    <span class="tag">${course.format || '形式不明'}</span>
+                </div>
+
+                <!-- 評価入力画面 (初期は非表示) -->
+                <div class="rating-overlay" id="rating-view">
+                    <h3 style="color: var(--text-main); margin-bottom: 20px;">評価を選択</h3>
+                    <div class="rating-stars">
+                        <button class="star-btn" onclick="submitRating(1)">★</button>
+                        <button class="star-btn" onclick="submitRating(2)">★</button>
+                        <button class="star-btn" onclick="submitRating(3)">★</button>
+                        <button class="star-btn" onclick="submitRating(4)">★</button>
+                        <button class="star-btn" onclick="submitRating(5)">★</button>
+                    </div>
+                    <p style="font-size: 0.9em; color: var(--text-sub);">星を選んで投稿</p>
+                    <button onclick="cancelRating()" class="btn-cancel" style="margin-top: 20px; padding: 5px 15px; font-size: 0.8em;">キャンセル</button>
+                </div>
+            `;
+
+            container.appendChild(card);
             
-            document.querySelector('.badge-nope').style.opacity = 0;
-            document.querySelector('.badge-like').style.opacity = 0;
+            // ドラッグイベントの登録
+            initSwipeEvent(card);
+            
+            // 星のホバー効果設定
+            setupStarHover(card);
         }
 
-        function initSwipeEvents() {
-            const startDrag = (e) => {
-                if (isRatingMode) return;
+        // スワイプイベント設定
+        function initSwipeEvent(card) {
+            let startX = 0, startY = 0;
+            let moveX = 0, moveY = 0;
+            let isDragging = false;
+
+            const likeBadge = card.querySelector('.badge-like');
+            const nopeBadge = card.querySelector('.badge-nope');
+
+            const onStart = (e) => {
+                // 評価画面が表示されているときはスワイプ無効
+                if(card.querySelector('#rating-view').style.display === 'flex') return;
+
                 isDragging = true;
-                startX = e.clientX || e.touches[0].clientX;
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
                 card.style.transition = 'none';
             };
 
-            const moveDrag = (e) => {
+            const onMove = (e) => {
                 if (!isDragging) return;
-                const clientX = e.clientX || e.touches[0].clientX;
-                currentX = clientX - startX;
+                
+                e.preventDefault(); // スクロール防止
+                
+                const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                
+                moveX = currentX - startX;
+                moveY = currentY - startY;
+                
+                // カード移動と回転
+                const rotate = moveX * 0.1;
+                card.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotate}deg)`;
 
-                const rotate = currentX * 0.1;
-                card.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
-
-                const opacity = Math.min(Math.abs(currentX) / 100, 1);
-                if (currentX > 0) {
-                    document.querySelector('.badge-like').style.opacity = opacity;
-                    document.querySelector('.badge-nope').style.opacity = 0;
+                // バッジの不透明度調整
+                if (moveX > 0) {
+                    likeBadge.style.opacity = Math.min(moveX / 100, 1);
+                    nopeBadge.style.opacity = 0;
                 } else {
-                    document.querySelector('.badge-nope').style.opacity = opacity;
-                    document.querySelector('.badge-like').style.opacity = 0;
+                    nopeBadge.style.opacity = Math.min(Math.abs(moveX) / 100, 1);
+                    likeBadge.style.opacity = 0;
                 }
             };
 
-            const endDrag = () => {
+            const onEnd = () => {
                 if (!isDragging) return;
                 isDragging = false;
+                
+                const threshold = 100; // スワイプ判定の閾値
 
-                if (currentX > SWIPE_THRESHOLD) {
+                if (moveX > threshold) {
+                    // 右スワイプ（LIKE -> 評価へ）
+                    showRatingView(card);
+                    // カードの位置をリセット
                     card.style.transition = 'transform 0.3s ease';
-                    card.style.transform = 'translateX(0) rotate(0)';
-                    setTimeout(() => {
-                        switchToRatingMode();
-                    }, 300);
-                } else if (currentX < -SWIPE_THRESHOLD) {
-                    card.style.transition = 'transform 0.4s ease';
-                    card.style.transform = `translateX(-${window.innerWidth}px) rotate(-30deg)`;
-                    setTimeout(() => {
-                        currentIndex++;
-                        showCard(currentIndex);
-                    }, 400);
+                    card.style.transform = 'translate(0, 0) rotate(0deg)';
+                    likeBadge.style.opacity = 0;
+                } else if (moveX < -threshold) {
+                    // 左スワイプ（SKIP）
+                    animateCardOut(card, 'left');
                 } else {
+                    // 元に戻る
                     card.style.transition = 'transform 0.3s ease';
-                    card.style.transform = 'translateX(0) rotate(0)';
-                    document.querySelector('.badge-like').style.opacity = 0;
-                    document.querySelector('.badge-nope').style.opacity = 0;
+                    card.style.transform = 'translate(0, 0) rotate(0deg)';
+                    likeBadge.style.opacity = 0;
+                    nopeBadge.style.opacity = 0;
                 }
-                currentX = 0;
+                
+                moveX = 0;
+                moveY = 0;
             };
 
-            card.addEventListener('touchstart', startDrag);
-            card.addEventListener('touchmove', moveDrag);
-            card.addEventListener('touchend', endDrag);
-
-            card.addEventListener('mousedown', startDrag);
-            document.addEventListener('mousemove', moveDrag);
-            document.addEventListener('mouseup', endDrag);
-            document.addEventListener('mouseleave', () => { if(isDragging) endDrag(); });
+            // イベントリスナー
+            card.addEventListener('mousedown', onStart);
+            card.addEventListener('touchstart', onStart);
+            
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchend', onEnd);
         }
 
-        function programmaticSwipe(direction) {
-            if (isRatingMode) return;
-            
-            card.style.transition = 'transform 0.4s ease';
-            
-            if (direction === 'left') {
-                card.style.transform = `translateX(-${window.innerWidth}px) rotate(-30deg)`;
-                setTimeout(() => {
-                    currentIndex++;
-                    showCard(currentIndex);
-                }, 400);
+        // ボタンクリックでのスワイプ
+        function triggerSwipe(direction) {
+            const card = document.getElementById('active-card');
+            if (!card) return;
+
+            if (direction === 'right') {
+                showRatingView(card);
             } else {
-                switchToRatingMode();
+                animateCardOut(card, 'left');
             }
         }
 
-        function switchToRatingMode() {
-            isRatingMode = true;
-            document.querySelector('.badge-like').style.opacity = 0;
-            document.querySelector('.badge-nope').style.opacity = 0;
-            
-            document.getElementById('card-content-view').style.display = 'none';
-            document.getElementById('rating-view').style.display = 'block';
-            document.getElementById('action-area').style.display = 'none';
+        // 評価画面を表示
+        function showRatingView(card) {
+            const ratingView = card.querySelector('#rating-view');
+            ratingView.style.display = 'flex';
+            actionButtons.style.visibility = 'hidden'; // 下部ボタンを隠す
         }
 
-        function submitQuickRating(rating) {
-            const c = cards[currentIndex];
+        // 評価キャンセル
+        function cancelRating() {
+            const card = document.getElementById('active-card');
+            const ratingView = card.querySelector('#rating-view');
+            ratingView.style.display = 'none';
+            actionButtons.style.visibility = 'visible';
+        }
+
+        // 評価送信
+        function submitRating(stars) {
+            const course = cardsData[currentIndex];
             const formData = new FormData();
-            formData.append('rating', rating + '.0');
-            formData.append('attendance', 'その他');
+            
+            formData.append('rating', stars + '.0');
+            formData.append('attendance', 'その他'); // 高速レビュー用のデフォルト値
             formData.append('test', 'その他');
             formData.append('report', 'その他');
-            formData.append('course_format', c.format || 'その他');
             formData.append('review', '【高速レビュー】');
+            formData.append('course_format', course.format || 'その他');
 
-            card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
-            card.style.transform = 'translateY(-100px)';
-            card.style.opacity = '0';
-
-            if (window.location.protocol === 'blob:') {
-                next();
+            // ▼▼▼ 修正: プレビュー環境でのエラー回避用のダミー送信 ▼▼▼
+            if (window.location.protocol === 'blob:' || window.location.protocol === 'file:') {
+                console.log('Preview mode: Rating simulated');
+                const card = document.getElementById('active-card');
+                animateCardOut(card, 'right');
                 return;
             }
+            // ▲▲▲ 修正ここまで ▲▲▲
 
-            fetch(`/add_review/${c.id}`, { method: 'POST', body: formData })
-                .then(() => next())
-                .catch(() => next());
+            // API送信
+            fetch(`/add_review/${course.id}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => {
+                if (res.ok) {
+                    const card = document.getElementById('active-card');
+                    animateCardOut(card, 'right'); // 右に消す
+                } else {
+                    alert('送信に失敗しました');
+                }
+            })
+            .catch(err => console.error(err));
+        }
 
-            function next() {
-                setTimeout(() => {
-                    currentIndex++;
-                    showCard(currentIndex);
-                }, 400);
-            }
+        // カードを画面外へアニメーションさせて消す
+        function animateCardOut(card, direction) {
+            const moveX = direction === 'right' ? window.innerWidth : -window.innerWidth;
+            const rotate = direction === 'right' ? 30 : -30;
+            
+            card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+            card.style.transform = `translate(${moveX}px, 50px) rotate(${rotate}deg)`;
+            card.style.opacity = 0;
+
+            setTimeout(() => {
+                card.remove();
+                currentIndex++;
+                actionButtons.style.visibility = 'visible'; // ボタン再表示
+                renderCard();
+            }, 400);
+        }
+
+        // 完了画面の表示
+        function showCompletion() {
+            actionButtons.style.display = 'none';
+            completionView.style.display = 'flex';
+        }
+
+        // 星のホバー処理（簡易実装）
+        function setupStarHover(card) {
+            const buttons = card.querySelectorAll('.star-btn');
+            buttons.forEach((btn, idx) => {
+                btn.onmouseover = () => {
+                    buttons.forEach((b, i) => {
+                        b.style.color = i <= idx ? '#f59e0b' : '#cbd5e1';
+                    });
+                };
+                btn.onmouseout = () => {
+                    buttons.forEach(b => b.style.color = '#cbd5e1');
+                };
+            });
         }
     </script>
 </body>

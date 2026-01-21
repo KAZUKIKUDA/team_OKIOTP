@@ -7,7 +7,7 @@ import uuid
 import datetime
 import random
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
-from config import Config
+# from config import Config  <-- config.pyの読み込みをtry-exceptで囲むか、安全策をとる
 from flask_migrate import Migrate
 from sqlalchemy.exc import IntegrityError, OperationalError
 import os
@@ -28,7 +28,31 @@ from sqlalchemy import inspect
 
 # --- Application Setup ---
 app = Flask(__name__)
-app.config.from_object(Config)
+
+# Configの読み込みを試みる
+try:
+    from config import Config
+    app.config.from_object(Config)
+except ImportError:
+    app.logger.warning("config.pyが見つかりません。デフォルト設定を使用します。")
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
+
+# データベース設定のフォールバック (Configで設定されなかった場合の安全策)
+if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
+    # SSLモードの追加 (Supabase用)
+    if database_url and 'sslmode' not in database_url:
+        if '?' in database_url:
+            database_url += '&sslmode=require'
+        else:
+            database_url += '?sslmode=require'
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or \
+        'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'lectures.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
@@ -109,10 +133,9 @@ def inject_access_status():
             status['label'] = f'🟢 閲覧可能（残り {hours}時間）'
             status['short_label'] = f'🟢 残り{hours}時間'
             
-        # ▼▼▼ 修正: JSTに変換して表示 ▼▼▼
+        # JSTに変換して表示
         expires_jst = current_user.pass_expires_at + datetime.timedelta(hours=9)
         status['description'] = f'閲覧パスが有効です。有効期限: {expires_jst.strftime("%Y/%m/%d %H:%M")}'
-        # ▲▲▲ 修正ここまで ▲▲▲
         status['class'] = 'access-active'
         
     # 3. 制限中
@@ -414,6 +437,46 @@ def check_and_migrate_db():
 
 # --- Routes ---
 
+# ▼▼▼ 修正: delete_review 関数をこの1箇所のみにする ▼▼▼
+@app.route('/delete_review/<int:review_id>', methods=['POST'])
+@login_required
+def delete_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    if review.user_id != current_user.id:
+        flash('他のユーザーのレビューは削除できません。', 'danger')
+        return redirect(url_for('course_detail', id=review.course_id))
+    
+    try:
+        # DBセッションからユーザーを再取得（一貫性のため）
+        user = User.query.get(current_user.id)
+        course_id = review.course_id
+        
+        # CPの回収処理（詳細レビューの場合のみ）
+        if not review.is_quick:
+            # 現在のレートに関わらず、投稿時に付与されたであろう分(最低1)を引く
+            earn_rate, _ = get_current_rates()
+            
+            # 所持CPがマイナスにならないようにするか、マイナスを許容するか。
+            if user.credits and user.credits > 0:
+                user.credits = max(0, user.credits - earn_rate)
+            
+            # カウント減算
+            user.detailed_review_count = max(0, (user.detailed_review_count or 0) - 1)
+        else:
+            # 高速レビューの場合
+            user.quick_review_count = max(0, (user.quick_review_count or 0) - 1)
+
+        db.session.delete(review)
+        db.session.commit()
+        flash('レビューを削除しました。(獲得したCPは回収されました)', 'success')
+        return redirect(url_for('course_view_detail', id=course_id))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Delete review error: {e}")
+        flash('削除中にエラーが発生しました。', 'danger')
+        return redirect(url_for('course_view_detail', id=review.course_id))
+# ▲▲▲ 修正ここまで ▲▲▲
+
 @app.route('/exchange_credits', methods=['POST'])
 @login_required
 def exchange_credits():
@@ -446,7 +509,25 @@ def exchange_credits():
         if plan == '24h':
             user.pass_expires_at = base_time + datetime.timedelta(hours=24)
         else:
-            user.pass_expires_at = base_time + datetime.timedelta(days=180)
+            # 学期パス（固定日付期限）
+            current_month = now.month
+            current_year = now.year
+            
+            if 3 <= current_month <= 8:
+                # 春学期期間 (3月〜8月) に購入 -> 9月末(10/1 UTC)まで有効
+                target_date = datetime.datetime(current_year, 10, 1)
+            elif 9 <= current_month <= 12:
+                # 秋学期前半 (9月〜12月) に購入 -> 翌年3月末(4/1 UTC)まで有効
+                target_date = datetime.datetime(current_year + 1, 4, 1)
+            else:
+                # 秋学期後半 (1月〜2月) に購入 -> 同年3月末(4/1 UTC)まで有効
+                target_date = datetime.datetime(current_year, 4, 1)
+                
+            # 既存の期限の方が遠い場合は更新しない
+            if user.pass_expires_at and user.pass_expires_at > target_date:
+                pass 
+            else:
+                user.pass_expires_at = target_date
             
         try:
             db.session.commit()
@@ -1138,26 +1219,6 @@ def edit_review(review_id):
 
     return render_template('edit_review.html', review=review, course=review.course)
 
-@app.route('/delete_review/<int:review_id>', methods=['POST'])
-@login_required
-def delete_review(review_id):
-    review = Review.query.get_or_404(review_id)
-    if review.user_id != current_user.id:
-        flash('他のユーザーのレビューは削除できません。', 'danger')
-        return redirect(url_for('course_detail', id=review.course_id))
-    
-    try:
-        course_id = review.course_id
-        db.session.delete(review)
-        db.session.commit()
-        flash('レビューを削除しました。', 'success')
-        return redirect(url_for('course_view_detail', id=course_id))
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Delete review error: {e}")
-        flash('削除中にエラーが発生しました。', 'danger')
-        return redirect(url_for('course_view_detail', id=review.course_id))
-
 @app.route('/mypage', methods=['GET', 'POST'])
 @login_required
 def mypage():
@@ -1188,12 +1249,16 @@ def mypage():
     all_badges = Badge.query.all()
     # 現在時刻も渡す (UTC)
     now = datetime.datetime.utcnow()
+
+    # 自分の投稿履歴を取得 (新しい順)
+    my_reviews = Review.query.filter_by(user_id=user.id).order_by(Review.id.desc()).all()
     
     return render_template('mypage.html', 
                            user=user, 
                            all_badges=all_badges, 
                            now=now,
-                           get_current_rates=get_current_rates)
+                           get_current_rates=get_current_rates,
+                           my_reviews=my_reviews)
 
 with app.app_context():
     try:
