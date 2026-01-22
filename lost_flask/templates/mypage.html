@@ -293,12 +293,24 @@
                                         {% endif %}
                                     </td>
                                     <td style="padding: 12px 10px; color: var(--warning-color);">★{{ "%.1f"|format(review.rating) }}</td>
+                                    
+                                    <!-- ▼▼▼ 修正: ボタンデザインを閲覧ページと統一 ▼▼▼ -->
                                     <td style="padding: 12px 10px; text-align: right;">
-                                        <a href="{{ url_for('edit_review', review_id=review.id) }}" style="font-size: 0.9em; color: var(--primary-color); margin-right: 10px;">編集</a>
-                                        <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="display:inline;">
-                                            <button type="submit" onclick="return confirm('本当に削除しますか？\n詳細レビューの場合、獲得したCPも回収されます。');" style="background:none; border:none; color:var(--accent-color); font-size:0.9em; cursor:pointer; padding:0;">削除</button>
-                                        </form>
+                                        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                            <a href="{{ url_for('edit_review', review_id=review.id) }}" class="review-action-btn edit" style="padding: 6px 12px; font-size: 0.85em;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                編集
+                                            </a>
+                                            
+                                            <form action="{{ url_for('delete_review', review_id=review.id) }}" method="POST" style="margin:0;">
+                                                <button type="submit" onclick="return confirm('本当に削除しますか？\n詳細レビューの場合、獲得したCPも回収されます。');" class="review-action-btn delete" style="padding: 6px 12px; font-size: 0.85em;">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                                    削除
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
+                                    <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
                                 </tr>
                                 {% endfor %}
                             </tbody>

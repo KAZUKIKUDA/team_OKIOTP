@@ -564,7 +564,7 @@ def index():
             .join(stmt, Course.id == stmt.c.course_id)\
             .options(joinedload(Course.reviews))\
             .order_by(stmt.c.avg_rating.desc())\
-            .limit(10)
+            .limit(9)
             
         top_courses = top_courses_query.all()
         
