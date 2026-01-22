@@ -17,7 +17,7 @@
         
         <h1 class="app-title">講義レビュー</h1>
         
-        <!-- ▼▼▼ アプリ説明と制限事項 (全学生向けに変更) ▼▼▼ -->
+        <!-- ▼▼▼ 修正: アプリ説明と制限事項 (全学生向けに変更) ▼▼▼ -->
         <div class="login-description">
             <p>琉球大学の学生限定で利用可能な<br>講義レビュー共有プラットフォームです。</p>
             <p class="restriction-note">
@@ -27,7 +27,7 @@
                 が必要です。
             </p>
         </div>
-        <!-- ▲▲▲ ここまで ▲▲▲ -->
+        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
         <h2>ログイン</h2>
         
@@ -57,12 +57,14 @@
             <button type="submit" class="btn">ログイン</button>
         </form>
         
-        <!-- ▼▼▼ margin-topを追加してボタンの間隔を広げる ▼▼▼ -->
+        <!-- ▼▼▼ 修正: margin-topを追加してボタンの間隔を広げる ▼▼▼ -->
         <a href="{{ url_for('guest_login') }}" class="btn btn-guest" style="margin-top: 24px;">ゲストとしてログイン</a>
-        <!-- ▲▲▲ ここまで ▲▲▲ -->
+        <!-- ▲▲▲ 修正ここまで ▲▲▲ -->
 
         <a href="{{ url_for('register') }}" class="auth-link">新規登録はこちら</a>
         
+        <a href="{{ url_for('forgot_password') }}" class="auth-link" style="margin-top: 10px; font-size: 0.85em;">パスワードを忘れた場合</a>
+
         <a href="{{ url_for('resend_activation') }}" class="auth-link" style="margin-top: 10px; font-size: 0.85em;">
             認証メールが届かない場合
         </a>

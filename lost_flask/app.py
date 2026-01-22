@@ -1219,6 +1219,45 @@ def edit_review(review_id):
 
     return render_template('edit_review.html', review=review, course=review.course)
 
+# ▼▼▼ 追加: パスワード変更処理 ▼▼▼
+@app.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    if current_user.email.endswith('@demo.com'):
+        flash('ゲストユーザーのパスワードは変更できません。', 'warning')
+        return redirect(url_for('mypage'))
+
+    current_password = request.form.get('current_password')
+    new_password = request.form.get('new_password')
+    new_password_confirm = request.form.get('new_password_confirm')
+
+    if not check_password_hash(current_user.password, current_password):
+        flash('現在のパスワードが間違っています。', 'danger')
+        return redirect(url_for('mypage'))
+
+    if new_password != new_password_confirm:
+        flash('新しいパスワードが一致しません。', 'danger')
+        return redirect(url_for('mypage'))
+
+    password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
+    if not re.match(password_pattern, new_password):
+        flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
+        return redirect(url_for('mypage'))
+
+    try:
+        # DBセッションからユーザーを取得
+        user = User.query.get(current_user.id)
+        user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+        db.session.commit()
+        flash('パスワードを変更しました。', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Password change error: {e}")
+        flash('エラーが発生しました。', 'danger')
+
+    return redirect(url_for('mypage'))
+# ▲▲▲ 追加ここまで ▲▲▲
+
 @app.route('/mypage', methods=['GET', 'POST'])
 @login_required
 def mypage():
@@ -1250,15 +1289,18 @@ def mypage():
     # 現在時刻も渡す (UTC)
     now = datetime.datetime.utcnow()
 
-    # 自分の投稿履歴を取得 (新しい順)
-    my_reviews = Review.query.filter_by(user_id=user.id).order_by(Review.id.desc()).all()
+    # ▼▼▼ 追加: 自分の投稿履歴を取得 (ページネーション対応) ▼▼▼
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    my_reviews_pagination = Review.query.filter_by(user_id=user.id).order_by(Review.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    # ▲▲▲ 追加ここまで ▲▲▲
     
     return render_template('mypage.html', 
                            user=user, 
                            all_badges=all_badges, 
                            now=now,
                            get_current_rates=get_current_rates,
-                           my_reviews=my_reviews)
+                           my_reviews_pagination=my_reviews_pagination) # 変更
 
 with app.app_context():
     try:

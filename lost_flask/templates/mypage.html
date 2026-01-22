@@ -266,7 +266,7 @@
         <section style="margin-bottom: 40px;">
             <div class="section-header">投稿履歴</div>
             <div style="background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
-                {% if my_reviews %}
+                {% if my_reviews_pagination.items %}
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
                             <thead>
@@ -278,7 +278,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for review in my_reviews %}
+                                {% for review in my_reviews_pagination.items %}
                                 <tr style="border-bottom: 1px solid #f1f5f9;">
                                     <td style="padding: 12px 10px; font-weight: bold;">
                                         <a href="{{ url_for('course_view_detail', id=review.course.id) }}" style="color: var(--text-main); text-decoration: none;">
@@ -304,6 +304,30 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- ページネーションリンクの追加 -->
+                    <div class="pagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 5px;">
+                        {% if my_reviews_pagination.has_prev %}
+                            <a href="{{ url_for('mypage', page=my_reviews_pagination.prev_num) }}" class="btn-page" style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 5px; text-decoration: none; color: var(--text-main);">&laquo; 前へ</a>
+                        {% endif %}
+                        
+                        {% for p in my_reviews_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+                            {% if p %}
+                                {% if p == my_reviews_pagination.page %}
+                                    <span class="current-page" style="font-weight:bold; padding: 5px 10px; border: 1px solid var(--primary-color); background: var(--primary-color); color: #fff; border-radius: 5px;">{{ p }}</span>
+                                {% else %}
+                                    <a href="{{ url_for('mypage', page=p) }}" class="btn-page" style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 5px; text-decoration: none; color: var(--text-main);">{{ p }}</a>
+                                {% endif %}
+                            {% else %}
+                                <span class="ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if my_reviews_pagination.has_next %}
+                            <a href="{{ url_for('mypage', page=my_reviews_pagination.next_num) }}" class="btn-page" style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 5px; text-decoration: none; color: var(--text-main);">次へ &raquo;</a>
+                        {% endif %}
+                    </div>
+
                 {% else %}
                     <p style="text-align: center; color: var(--text-sub); padding: 20px;">まだ投稿履歴がありません。</p>
                 {% endif %}
@@ -371,6 +395,81 @@
                 </form>
             </div>
         </section>
+
+        <!-- ▼▼▼ 5. パスワード変更 (独立セクション) ▼▼▼ -->
+        <section style="max-width: 800px; margin: 0 auto 50px;">
+            <div class="section-header">パスワード変更</div>
+            
+            <div class="profile-form-box">
+                <form method="post" action="{{ url_for('change_password') }}">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label-block">現在のパスワード</label>
+                        <div class="password-wrapper">
+                            <input type="password" name="current_password" id="current_password" placeholder="現在のパスワード" required style="margin-bottom: 0;">
+                            <button type="button" class="toggle-password-btn" onclick="togglePassword('current_password', this)" title="パスワードを表示">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label-block">新しいパスワード</label>
+                            <div class="password-wrapper">
+                                <input type="password" name="new_password" id="new_password" placeholder="新しいパスワード" required 
+                                       pattern="^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$"
+                                       title="パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。" style="margin-bottom: 0;">
+                                <button type="button" class="toggle-password-btn" onclick="togglePassword('new_password', this)" title="パスワードを表示">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p style="font-size: 0.8em; color: var(--text-sub); margin-top: 5px;">※ 12文字以上、大文字・小文字・数字を含む</p>
+                        </div>
+                        <div>
+                            <label class="form-label-block">新しいパスワード（確認）</label>
+                            <div class="password-wrapper">
+                                <input type="password" name="new_password_confirm" id="new_password_confirm" placeholder="新しいパスワード（確認）" required style="margin-bottom: 0;">
+                                <button type="button" class="toggle-password-btn" onclick="togglePassword('new_password_confirm', this)" title="パスワードを表示">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 30px; display: flex; gap: 20px; align-items: center; justify-content: center;">
+                        <button type="submit" class="btn" style="width: auto; min-width: 200px;">パスワードを変更する</button>
+                    </div>
+                </form>
+            </div>
+        </section>
     </div>
+
+    <script>
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('svg');
+        
+        if (input.type === "password") {
+            input.type = "text";
+            // アイコンを「非表示（斜線付き目）」に変更
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            btn.title = "パスワードを隠す";
+        } else {
+            input.type = "password";
+            // アイコンを「表示（目）」に戻す
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            btn.title = "パスワードを表示";
+        }
+    }
+    </script>
 </body>
 </html>
