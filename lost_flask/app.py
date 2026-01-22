@@ -1302,6 +1302,106 @@ def mypage():
                            get_current_rates=get_current_rates,
                            my_reviews_pagination=my_reviews_pagination) # 変更
 
+# ▼▼▼ 追加: パスワードリセット処理 ▼▼▼
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            try:
+                # Token generation (1 hour validity)
+                token = s.dumps(email, salt='password-reset-salt')
+                reset_url = url_for('reset_password', token=token, _external=True)
+                
+                # Email sending
+                SENDER_EMAIL = 'e235735@ie.u-ryukyu.ac.jp'
+                SENDER_NAME = '講義レビューサイト'
+                
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="ja">
+                <body>
+                    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd; max-width: 600px; margin: auto;">
+                        <h2>パスワード再設定のリクエスト</h2>
+                        <p>アカウントのパスワード再設定がリクエストされました。</p>
+                        <p>以下のリンクをクリックして、新しいパスワードを設定してください。</p>
+                        <p>
+                            <a href="{reset_url}" style="display: inline-block; background-color: #0ea5e9; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">パスワードを再設定する</a>
+                        </p>
+                        <p>このリンクの有効期限は1時間です。</p>
+                        <p>もしこのリクエストに心当たりがない場合は、このメールを無視してください。</p>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                message = SendGridMail(
+                    from_email=(SENDER_EMAIL, SENDER_NAME),
+                    to_emails=email,
+                    subject='講義レビュー | パスワード再設定',
+                    html_content=html_content
+                )
+                
+                if sg:
+                    response = sg.send(message)
+                    if response.status_code >= 400:
+                        app.logger.error(f"SendGrid Error: {response.status_code}")
+                else:
+                    app.logger.warning(f"SendGrid not configured. Reset URL: {reset_url}")
+
+            except Exception as e:
+                app.logger.error(f"Password reset error: {e}")
+        
+        flash('入力されたメールアドレスにパスワード再設定用のリンクを送信しました。（未登録の場合は送信されません）', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html')
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    try:
+        email = s.loads(token, salt='password-reset-salt', max_age=3600)
+    except SignatureExpired:
+        flash('リンクの有効期限が切れています。もう一度リクエストしてください。', 'danger')
+        return redirect(url_for('forgot_password'))
+    except BadTimeSignature:
+        flash('無効なリンクです。', 'danger')
+        return redirect(url_for('forgot_password'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password')
+        password_confirm = request.form.get('password_confirm')
+        
+        if password != password_confirm:
+            flash('パスワードが一致しません。', 'danger')
+            return render_template('reset_password.html', token=token)
+            
+        password_pattern = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{12,}$'
+        if not re.match(password_pattern, password):
+            flash('パスワードは12文字以上で、大文字、小文字、数字をそれぞれ1文字以上含める必要があります。', 'danger')
+            return render_template('reset_password.html', token=token)
+            
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.password = generate_password_hash(password, method='pbkdf2:sha256')
+            db.session.commit()
+            flash('パスワードを更新しました。新しいパスワードでログインしてください。', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('ユーザーが見つかりません。', 'danger')
+            return redirect(url_for('register'))
+            
+    return render_template('reset_password.html', token=token)
+# ▲▲▲ 追加ここまで ▲▲▲
+
 with app.app_context():
     try:
         db.create_all()
