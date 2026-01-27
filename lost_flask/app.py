@@ -437,6 +437,7 @@ def check_and_migrate_db():
 
 # --- Routes ---
 
+# ▼▼▼ 修正: edit_review 関数をこの1箇所のみにする ▼▼▼
 @app.route('/edit_review/<int:review_id>', methods=['GET', 'POST'])
 @login_required
 def edit_review(review_id):
@@ -459,7 +460,7 @@ def edit_review(review_id):
             review.classroom = request.form.get('classroom')
             review.review = request.form.get('review')
             
-            # ▼▼▼ 修正: 高速レビューの場合は詳細レビューへ昇格させる ▼▼▼
+            # 高速レビューの場合は詳細レビューへ昇格させる
             if review.is_quick:
                 review.is_quick = False
                 
@@ -474,7 +475,6 @@ def edit_review(review_id):
                 flash_message = 'レビューを更新し、詳細レビューとして登録しました！(CP獲得)', 'success'
             else:
                 flash_message = 'レビューを更新しました。', 'success'
-            # ▲▲▲ 修正ここまで ▲▲▲
             
             db.session.commit()
             
@@ -489,8 +489,8 @@ def edit_review(review_id):
             flash('更新中にエラーが発生しました。', 'danger')
 
     return render_template('edit_review.html', review=review, course=review.course)
+# ▲▲▲ 修正ここまで ▲▲▲
 
-# ▼▼▼ 修正: 重複していた delete_review を削除し、最新版のみ配置 ▼▼▼
 @app.route('/delete_review/<int:review_id>', methods=['POST'])
 @login_required
 def delete_review(review_id):
@@ -522,7 +522,6 @@ def delete_review(review_id):
         app.logger.error(f"Delete review error: {e}")
         flash('削除中にエラーが発生しました。', 'danger')
         return redirect(url_for('course_view_detail', id=review.course_id))
-# ▲▲▲ 修正ここまで ▲▲▲
 
 @app.route('/exchange_credits', methods=['POST'])
 @login_required
@@ -1236,59 +1235,6 @@ def fetch_cards():
     random.shuffle(data)
     
     return jsonify(data)
-
-@app.route('/edit_review/<int:review_id>', methods=['GET', 'POST'])
-@login_required
-def edit_review(review_id):
-    review = Review.query.get_or_404(review_id)
-    if review.user_id != current_user.id:
-        flash('他のユーザーのレビューは編集できません。', 'danger')
-        return redirect(url_for('course_detail', id=review.course_id))
-    
-    if request.method == 'POST':
-        try:
-            # ユーザー情報の整合性のため再取得
-            user = User.query.get(current_user.id)
-
-            review.rating = float(request.form.get('rating'))
-            review.attendance = request.form.get('attendance')
-            review.test = request.form.get('test')
-            review.report = request.form.get('report')
-            review.course_format = request.form.get('course_format')
-            review.year = request.form.get('year')
-            review.classroom = request.form.get('classroom')
-            review.review = request.form.get('review')
-            
-            # ▼▼▼ 修正: 高速レビューの場合は詳細レビューへ昇格させる ▼▼▼
-            if review.is_quick:
-                review.is_quick = False
-                
-                # カウントの付け替え
-                user.quick_review_count = max(0, (user.quick_review_count or 0) - 1)
-                user.detailed_review_count = (user.detailed_review_count or 0) + 1
-                
-                # 詳細レビュー化によるCP付与
-                earn_rate, _ = get_current_rates()
-                user.credits = (user.credits or 0) + earn_rate
-                
-                flash_message = 'レビューを更新し、詳細レビューとして登録しました！(CP獲得)', 'success'
-            else:
-                flash_message = 'レビューを更新しました。', 'success'
-            # ▲▲▲ 修正ここまで ▲▲▲
-            
-            db.session.commit()
-            
-            # バッジの再判定
-            check_and_award_badges(user)
-
-            flash(*flash_message)
-            return redirect(url_for('course_view_detail', id=review.course_id))
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Update review error: {e}")
-            flash('更新中にエラーが発生しました。', 'danger')
-
-    return render_template('edit_review.html', review=review, course=review.course)
 
 # ▼▼▼ 追加: パスワード変更処理 ▼▼▼
 @app.route('/change_password', methods=['POST'])
