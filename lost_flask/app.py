@@ -437,7 +437,60 @@ def check_and_migrate_db():
 
 # --- Routes ---
 
-# ▼▼▼ 修正: delete_review 関数をこの1箇所のみにする ▼▼▼
+@app.route('/edit_review/<int:review_id>', methods=['GET', 'POST'])
+@login_required
+def edit_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    if review.user_id != current_user.id:
+        flash('他のユーザーのレビューは編集できません。', 'danger')
+        return redirect(url_for('course_detail', id=review.course_id))
+    
+    if request.method == 'POST':
+        try:
+            # ユーザー情報の整合性のため再取得
+            user = User.query.get(current_user.id)
+
+            review.rating = float(request.form.get('rating'))
+            review.attendance = request.form.get('attendance')
+            review.test = request.form.get('test')
+            review.report = request.form.get('report')
+            review.course_format = request.form.get('course_format')
+            review.year = request.form.get('year')
+            review.classroom = request.form.get('classroom')
+            review.review = request.form.get('review')
+            
+            # ▼▼▼ 修正: 高速レビューの場合は詳細レビューへ昇格させる ▼▼▼
+            if review.is_quick:
+                review.is_quick = False
+                
+                # カウントの付け替え
+                user.quick_review_count = max(0, (user.quick_review_count or 0) - 1)
+                user.detailed_review_count = (user.detailed_review_count or 0) + 1
+                
+                # 詳細レビュー化によるCP付与
+                earn_rate, _ = get_current_rates()
+                user.credits = (user.credits or 0) + earn_rate
+                
+                flash_message = 'レビューを更新し、詳細レビューとして登録しました！(CP獲得)', 'success'
+            else:
+                flash_message = 'レビューを更新しました。', 'success'
+            # ▲▲▲ 修正ここまで ▲▲▲
+            
+            db.session.commit()
+            
+            # バッジの再判定
+            check_and_award_badges(user)
+
+            flash(*flash_message)
+            return redirect(url_for('course_view_detail', id=review.course_id))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Update review error: {e}")
+            flash('更新中にエラーが発生しました。', 'danger')
+
+    return render_template('edit_review.html', review=review, course=review.course)
+
+# ▼▼▼ 修正: 重複していた delete_review を削除し、最新版のみ配置 ▼▼▼
 @app.route('/delete_review/<int:review_id>', methods=['POST'])
 @login_required
 def delete_review(review_id):
@@ -453,17 +506,11 @@ def delete_review(review_id):
         
         # CPの回収処理（詳細レビューの場合のみ）
         if not review.is_quick:
-            # 現在のレートに関わらず、投稿時に付与されたであろう分(最低1)を引く
             earn_rate, _ = get_current_rates()
-            
-            # 所持CPがマイナスにならないようにするか、マイナスを許容するか。
             if user.credits and user.credits > 0:
                 user.credits = max(0, user.credits - earn_rate)
-            
-            # カウント減算
             user.detailed_review_count = max(0, (user.detailed_review_count or 0) - 1)
         else:
-            # 高速レビューの場合
             user.quick_review_count = max(0, (user.quick_review_count or 0) - 1)
 
         db.session.delete(review)
@@ -564,7 +611,7 @@ def index():
             .join(stmt, Course.id == stmt.c.course_id)\
             .options(joinedload(Course.reviews))\
             .order_by(stmt.c.avg_rating.desc())\
-            .limit(9)
+            .limit(10)
             
         top_courses = top_courses_query.all()
         
@@ -1200,6 +1247,9 @@ def edit_review(review_id):
     
     if request.method == 'POST':
         try:
+            # ユーザー情報の整合性のため再取得
+            user = User.query.get(current_user.id)
+
             review.rating = float(request.form.get('rating'))
             review.attendance = request.form.get('attendance')
             review.test = request.form.get('test')
@@ -1209,8 +1259,29 @@ def edit_review(review_id):
             review.classroom = request.form.get('classroom')
             review.review = request.form.get('review')
             
+            # ▼▼▼ 修正: 高速レビューの場合は詳細レビューへ昇格させる ▼▼▼
+            if review.is_quick:
+                review.is_quick = False
+                
+                # カウントの付け替え
+                user.quick_review_count = max(0, (user.quick_review_count or 0) - 1)
+                user.detailed_review_count = (user.detailed_review_count or 0) + 1
+                
+                # 詳細レビュー化によるCP付与
+                earn_rate, _ = get_current_rates()
+                user.credits = (user.credits or 0) + earn_rate
+                
+                flash_message = 'レビューを更新し、詳細レビューとして登録しました！(CP獲得)', 'success'
+            else:
+                flash_message = 'レビューを更新しました。', 'success'
+            # ▲▲▲ 修正ここまで ▲▲▲
+            
             db.session.commit()
-            flash('レビューを更新しました。', 'success')
+            
+            # バッジの再判定
+            check_and_award_badges(user)
+
+            flash(*flash_message)
             return redirect(url_for('course_view_detail', id=review.course_id))
         except Exception as e:
             db.session.rollback()
@@ -1257,50 +1328,6 @@ def change_password():
 
     return redirect(url_for('mypage'))
 # ▲▲▲ 追加ここまで ▲▲▲
-
-@app.route('/mypage', methods=['GET', 'POST'])
-@login_required
-def mypage():
-    user = User.query.get(current_user.id)
-    
-    if request.method == 'POST':
-        try:
-            if user.email.endswith('@demo.com'):
-                flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
-                return redirect(url_for('mypage'))
-
-            user.username = request.form.get('username')
-            user.faculty = request.form.get('faculty')
-            user.department = request.form.get('department')
-            user.grade = request.form.get('grade')
-            
-            db.session.commit()
-            flash('プロフィールを更新しました。', 'success')
-        except IntegrityError:
-            db.session.rollback()
-            flash('そのユーザー名は既に使用されています。', 'danger')
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Profile update error: {e}")
-            flash('更新中にエラーが発生しました。', 'danger')
-        return redirect(url_for('mypage'))
-    
-    all_badges = Badge.query.all()
-    # 現在時刻も渡す (UTC)
-    now = datetime.datetime.utcnow()
-
-    # ▼▼▼ 追加: 自分の投稿履歴を取得 (ページネーション対応) ▼▼▼
-    page = request.args.get('page', 1, type=int)
-    per_page = 5
-    my_reviews_pagination = Review.query.filter_by(user_id=user.id).order_by(Review.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    # ▲▲▲ 追加ここまで ▲▲▲
-    
-    return render_template('mypage.html', 
-                           user=user, 
-                           all_badges=all_badges, 
-                           now=now,
-                           get_current_rates=get_current_rates,
-                           my_reviews_pagination=my_reviews_pagination) # 変更
 
 # ▼▼▼ 追加: パスワードリセット処理 ▼▼▼
 @app.route('/forgot_password', methods=['GET', 'POST'])
@@ -1401,6 +1428,50 @@ def reset_password(token):
             
     return render_template('reset_password.html', token=token)
 # ▲▲▲ 追加ここまで ▲▲▲
+
+@app.route('/mypage', methods=['GET', 'POST'])
+@login_required
+def mypage():
+    user = User.query.get(current_user.id)
+    
+    if request.method == 'POST':
+        try:
+            if user.email.endswith('@demo.com'):
+                flash('ゲストユーザーのプロフィールは変更できません。', 'warning')
+                return redirect(url_for('mypage'))
+
+            user.username = request.form.get('username')
+            user.faculty = request.form.get('faculty')
+            user.department = request.form.get('department')
+            user.grade = request.form.get('grade')
+            
+            db.session.commit()
+            flash('プロフィールを更新しました。', 'success')
+        except IntegrityError:
+            db.session.rollback()
+            flash('そのユーザー名は既に使用されています。', 'danger')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Profile update error: {e}")
+            flash('更新中にエラーが発生しました。', 'danger')
+        return redirect(url_for('mypage'))
+    
+    all_badges = Badge.query.all()
+    # 現在時刻も渡す (UTC)
+    now = datetime.datetime.utcnow()
+
+    # ▼▼▼ 追加: 自分の投稿履歴を取得 (ページネーション対応) ▼▼▼
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    my_reviews_pagination = Review.query.filter_by(user_id=user.id).order_by(Review.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    # ▲▲▲ 追加ここまで ▲▲▲
+    
+    return render_template('mypage.html', 
+                           user=user, 
+                           all_badges=all_badges, 
+                           now=now,
+                           get_current_rates=get_current_rates,
+                           my_reviews_pagination=my_reviews_pagination) # 変更
 
 with app.app_context():
     try:
